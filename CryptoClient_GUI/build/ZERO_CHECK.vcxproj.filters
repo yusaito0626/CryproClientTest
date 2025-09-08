@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\yusai\source\repos\CryproClientTest\CryptoClient_GUI\build\CMakeFiles\80e88e9a13bb5adaed46b09af5e37a10\generate.stamp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{D644880A-E115-3A5F-ABAF-F4BDB79BAE84}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

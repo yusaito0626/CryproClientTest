@@ -1,0 +1,64 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\Users\yusai\source\repos\CryproClientTest\CryptoClient_GUI\build\CryptoClient_GUI_autogen\mocs_compilation_Debug.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\yusai\source\repos\CryproClientTest\CryptoClient_GUI\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\yusai\source\repos\CryproClientTest\CryptoClient_GUI\mainwindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\yusai\source\repos\CryproClientTest\CryptoClient_GUI\build\CryptoClient_GUI_autogen\mocs_compilation_Release.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\yusai\source\repos\CryproClientTest\CryptoClient_GUI\build\CryptoClient_GUI_autogen\mocs_compilation_MinSizeRel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\yusai\source\repos\CryproClientTest\CryptoClient_GUI\build\CryptoClient_GUI_autogen\mocs_compilation_RelWithDebInfo.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="C:\Users\yusai\source\repos\CryproClientTest\CryptoClient_GUI\mainwindow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\yusai\source\repos\CryproClientTest\CryptoClient_GUI\build\CryptoClient_GUI_autogen\include_Debug\ui_mainwindow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\yusai\source\repos\CryproClientTest\CryptoClient_GUI\build\CryptoClient_GUI_autogen\include_Release\ui_mainwindow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\yusai\source\repos\CryproClientTest\CryptoClient_GUI\build\CryptoClient_GUI_autogen\include_MinSizeRel\ui_mainwindow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\yusai\source\repos\CryproClientTest\CryptoClient_GUI\build\CryptoClient_GUI_autogen\include_RelWithDebInfo\ui_mainwindow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\yusai\source\repos\CryproClientTest\CryptoClient_GUI\build\CMakeFiles\0b503ab884bb9ab5d3502889b42c18c2\autouic_(CONFIG).stamp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\yusai\source\repos\CryproClientTest\CryptoClient_GUI\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="C:\Users\yusai\source\repos\CryproClientTest\CryptoClient_GUI\mainwindow.ui" />
+    <None Include="C:\Users\yusai\source\repos\CryproClientTest\CryptoClient_GUI\build\CryptoClient_GUI_autogen\autouic_Debug.stamp" />
+    <None Include="C:\Users\yusai\source\repos\CryproClientTest\CryptoClient_GUI\build\CryptoClient_GUI_autogen\autouic_Release.stamp" />
+    <None Include="C:\Users\yusai\source\repos\CryproClientTest\CryptoClient_GUI\build\CryptoClient_GUI_autogen\autouic_MinSizeRel.stamp" />
+    <None Include="C:\Users\yusai\source\repos\CryproClientTest\CryptoClient_GUI\build\CryptoClient_GUI_autogen\autouic_RelWithDebInfo.stamp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{D644880A-E115-3A5F-ABAF-F4BDB79BAE84}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{1419CF7D-7461-3C2D-A2D7-126F7E3DB00F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{D91F801A-47A1-3882-8BDF-1663825BA943}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,15 @@
+# ninja log v6
+23	599	7786124659762086	CryptoClient_GUI_autogen/timestamp	40b8612afa54c0d5
+23	599	7786124659762086	CryptoClient_GUI_autogen/mocs_compilation.cpp	40b8612afa54c0d5
+604	3800	7786124661418804	CMakeFiles/CryptoClient_GUI.dir/main.cpp.obj	e9e9995beee326c0
+23	599	7786124659762086	C:/Users/yusai/source/repos/CryproClientTest/build-CryptoClient_GUI-Desktop_Qt_6_4_0_MSVC2019_64bit-Release/CryptoClient_GUI_autogen/timestamp	40b8612afa54c0d5
+3800	4193	7786124693373728	CryptoClient_GUI.exe	d0ccce5fb44363f0
+23	599	7786124659762086	C:/Users/yusai/source/repos/CryproClientTest/build-CryptoClient_GUI-Desktop_Qt_6_4_0_MSVC2019_64bit-Release/CryptoClient_GUI_autogen/mocs_compilation.cpp	40b8612afa54c0d5
+600	3658	7786124661373125	CMakeFiles/CryptoClient_GUI.dir/CryptoClient_GUI_autogen/mocs_compilation.cpp.obj	45830809cc2c5af8
+609	3678	7786124661458802	CMakeFiles/CryptoClient_GUI.dir/mainwindow.cpp.obj	5d6030a419da3dcd
+115	470	7786942777524472	CryptoClient_GUI_autogen/timestamp	40b8612afa54c0d5
+115	470	7786942777524472	CryptoClient_GUI_autogen/mocs_compilation.cpp	40b8612afa54c0d5
+115	470	7786942777524472	C:/Users/yusai/source/repos/CryproClientTest/build-CryptoClient_GUI-Desktop_Qt_6_4_0_MSVC2019_64bit-Release/CryptoClient_GUI_autogen/timestamp	40b8612afa54c0d5
+115	470	7786942777524472	C:/Users/yusai/source/repos/CryproClientTest/build-CryptoClient_GUI-Desktop_Qt_6_4_0_MSVC2019_64bit-Release/CryptoClient_GUI_autogen/mocs_compilation.cpp	40b8612afa54c0d5
+471	2769	7786942781097698	CMakeFiles/CryptoClient_GUI.dir/mainwindow.cpp.obj	5d6030a419da3dcd
+2770	3220	7786942804091871	CryptoClient_GUI.exe	d0ccce5fb44363f0
