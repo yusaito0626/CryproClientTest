@@ -37,6 +37,9 @@ namespace Crypto_Trading
         public decimal sell_notional;
         public decimal buy_notional;
 
+        public Balance baseBalance;
+        public Balance quoteBalance;
+
         public decimal taker_fee;
         public decimal maker_fee;
 
@@ -71,6 +74,9 @@ namespace Crypto_Trading
             this.sell_notional = 0;
             this.buy_notional = 0;
 
+            this.baseBalance = new Balance();
+            this.quoteBalance = new Balance();
+
             this.taker_fee = 0;
             this.maker_fee = 0;
 
@@ -102,6 +108,10 @@ namespace Crypto_Trading
                 i++;
             }
             this.master_symbol = this.baseCcy + this.quoteCcy;
+            this.baseBalance.market = this.market;
+            this.baseBalance.ccy = this.baseCcy;
+            this.quoteBalance.market = this.market;
+            this.quoteBalance.ccy = this.quoteCcy;
             this.setSymbolMarket(symbol, market);
         }
 

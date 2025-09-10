@@ -1,4 +1,5 @@
 ﻿using Crypto_Clients;
+using CryptoExchange.Net.SharedApis;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -15,6 +16,9 @@ namespace Crypto_Trading
     public class QuoteManager
     {
         public Dictionary<string, Instrument> instruments;
+        public Dictionary<string, Balance> balances;
+
+        public List<string> markets;
 
         public ConcurrentQueue<DataOrderBook> ordBookQueue;
         private ConcurrentStack<DataOrderBook> ordBookStack;
@@ -28,6 +32,8 @@ namespace Crypto_Trading
         QuoteManager() 
         {
             this.instruments = new Dictionary<string, Instrument>();
+            this.balances = new Dictionary<string, Balance>();
+            this.markets = new List<string>(); 
             this.addLog = Console.WriteLine;
         }
         public void setQueues(Crypto_Clients.Crypto_Clients client)
@@ -54,6 +60,10 @@ namespace Crypto_Trading
                         ins = new Instrument();
                         ins.initialize(line);
                         this.instruments[ins.symbol_market] = ins;
+                        if(!this.markets.Contains(ins.market))
+                        {
+                            this.markets.Add(ins.market);
+                        }
                     }
                 }
                 return true;
@@ -63,6 +73,53 @@ namespace Crypto_Trading
                 this.addLog("[ERROR] The master file doesn't exist. Filename:" + masterfile);
                 return false;
             }
+        }
+        public bool setBalance(ExchangeWebResult<SharedBalance[]>[] results)
+        {
+            bool output = true;
+            string key;
+            foreach (var subResult in results)
+            {
+                if(subResult.Success)
+                {
+                    foreach (var data in subResult.Data)
+                    {
+                        key = data.Asset + "@" + subResult.Exchange;
+                        if(this.balances.ContainsKey(key))
+                        {
+                            this.balances[key].balance = data.Available;
+                        }
+                        else
+                        {
+                            Balance balance = new Balance();
+                            balance.ccy = data.Asset;
+                            balance.market = subResult.Exchange;
+                            balance.balance = data.Available;
+                            this.balances[key] = balance;
+                            foreach(var ins in this.instruments.Values)
+                            {
+                                if(ins.market == balance.market)
+                                {
+                                    if(ins.quoteCcy == balance.ccy)
+                                    {
+                                        ins.quoteBalance = balance;
+                                    }
+                                    else if(ins.baseCcy == balance.ccy)
+                                    {
+                                        ins.baseBalance = balance;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    this.addLog("[ERROR]Failed to receive balance information.  Exchange:" + subResult.Exchange);
+                    output = false;
+                }
+            }
+            return output;
         }
 
         public void updateQuotes()

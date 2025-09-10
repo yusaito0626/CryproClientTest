@@ -121,6 +121,8 @@ namespace Crypto_GUI
                 this.lbl_market.Text = this.selected_ins.market;
                 this.lbl_lastprice.Text = this.selected_ins.last_price.ToString();
                 this.lbl_notional.Text = (this.selected_ins.buy_notional + this.selected_ins.sell_notional).ToString("N2");
+                this.lbl_baseBalance.Text = this.selected_ins.baseBalance.balance.ToString("N5");
+                this.lbl_quoteBalance.Text = this.selected_ins.quoteBalance.balance.ToString("N5");
                 this.updateQuotesView(this.gridView_Ins,this.selected_ins);
             }
         }
@@ -197,6 +199,7 @@ namespace Crypto_GUI
 
         private async void button1_Click(object sender, EventArgs e)
         {
+            this.qManager.setBalance(await this.cl.getBalance(this.qManager.markets));
             foreach (var ins in this.qManager.instruments.Values)
             {
                 string[] markets = [ins.market];
@@ -214,7 +217,8 @@ namespace Crypto_GUI
                 }
                 await cl.subscribeTrades(markets, ins.baseCcy, ins.quoteCcy);
             }
-            await cl.subscribeSpotOrderUpdates([Exchange.Bybit]);
+            await cl.subscribeSpotOrderUpdates(this.qManager.markets);
+
             this.quoteupdateTh = new System.Threading.Thread(this.qManager.updateQuotes);
             this.tradeupdateTh = new System.Threading.Thread(this.qManager.updateTrades);
             this.orderUpdateTh = new System.Threading.Thread(this.oManager.updateOrders);

@@ -108,24 +108,10 @@ namespace Crypto_Clients
         }
 
         //REST API
-        async public Task getBalance(IEnumerable<string>? markets)
+        async public Task<ExchangeWebResult<SharedBalance[]>[]> getBalance(IEnumerable<string>? markets)
         {
             GetBalancesRequest req = new GetBalancesRequest(TradingMode.Spot);
-            foreach (var subResult in await this._rest_client.GetBalancesAsync(req, markets))
-            {
-                if (subResult.Success)
-                {
-                    foreach (var data in subResult.Data)
-                    {
-                        this.strQueue.Enqueue(subResult.Exchange + " " + data.ToString());
-                    }
-
-                }
-                else
-                {
-                    this.strQueue.Enqueue("ERROR");
-                }
-            }
+            return await this._rest_client.GetBalancesAsync(req, markets);
         }
         async public Task<DataSpotOrderUpdate?> placeNewSpotOrder(string market, string baseCcy, string quoteCcy, orderSide _side,orderType _ordtype, decimal quantity, decimal price, timeInForce? _timeinforce = null, string? clordId = null, ExchangeParameters? param = null)
         {
