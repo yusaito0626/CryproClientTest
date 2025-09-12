@@ -283,18 +283,25 @@ namespace Crypto_Trading
         }
         public void updateFills(DataSpotOrderUpdate prev_ord,DataSpotOrderUpdate new_ord)
         {
-            decimal filledQuantity = new_ord.filled_quantity - prev_ord.filled_quantity;
-            decimal filledPrice = (new_ord.filled_quantity * new_ord.average_price - prev_ord.filled_quantity * prev_ord.average_price) / filledQuantity;
-            decimal fee = new_ord.fee - prev_ord.fee;
+            decimal filledQuantity;
+            decimal filledPrice;
+            decimal fee;
 
-            if(filledQuantity == 0)
+            filledQuantity = new_ord.filled_quantity - prev_ord.filled_quantity;
+
+            if (filledQuantity == 0)
             {
                 filledQuantity = new_ord.filled_quantity;
                 filledPrice = new_ord.average_price;
                 fee = new_ord.fee;
             }
+            else
+            {
+                filledPrice = (new_ord.filled_quantity * new_ord.average_price - prev_ord.filled_quantity * prev_ord.average_price) / filledQuantity;
+                fee = new_ord.fee - prev_ord.fee;
+            }
 
-            if(new_ord.side == orderSide.Sell)
+            if (new_ord.side == orderSide.Sell)
             {
                 this.my_sell_quantity += filledQuantity;
                 this.my_sell_notional += filledQuantity * filledPrice;

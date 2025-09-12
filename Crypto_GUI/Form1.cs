@@ -335,7 +335,7 @@ namespace Crypto_GUI
             this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
             Thread.Sleep(3000);
             this.addLog("modifing a order");
-            ord = await this.oManager.placeModSpotOrder(ins, ordid, (decimal)0.001, 3900, true);
+            ord = await this.oManager.placeModSpotOrder(ins, ordid, (decimal)0.001, 3900, false);
             if (ord != null)
             {
                 ordid = ord.order_id;
@@ -367,6 +367,19 @@ namespace Crypto_GUI
             }
             Thread.Sleep(1000);
             this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
+
+            this.addLog("Fill Check");
+            ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.001, 5000);
+            this.addLog(ord.ToString());
+            Thread.Sleep(1000);
+            this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
+
+            this.addLog("Market Order");
+            ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Market, (decimal)0.001, 5000);
+            this.addLog(ord.ToString());
+            Thread.Sleep(1000);
+            this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
+
         }
     }
 }

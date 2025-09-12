@@ -30,6 +30,8 @@ namespace Crypto_Trading
 
         public Strategy? stg;
 
+        private OrderManager oManager;
+
         public Action<string> addLog;
 
         public const int NUM_OF_QUOTES = 5;
@@ -39,6 +41,7 @@ namespace Crypto_Trading
             this.ins_bymaster = new Dictionary<string, Instrument>();
             this.balances = new Dictionary<string, Balance>();
             this.markets = new List<string>(); 
+            this.oManager = OrderManager.GetInstance();
             this.addLog = Console.WriteLine;
         }
         public void setQueues(Crypto_Clients.Crypto_Clients client)
@@ -176,6 +179,7 @@ namespace Crypto_Trading
                         {
                             await this.stg.updateOrders();
                         }
+                        this.oManager.checkVirtualOrders(ins);
                     }
                     else
                     {
@@ -211,6 +215,8 @@ namespace Crypto_Trading
                     {
                         ins = instruments[symbol_market];
                         ins.updateTrade(msg);
+
+                        this.oManager.checkVirtualOrders(ins,msg);
                     }
                     else
                     {
