@@ -37,6 +37,19 @@
             textBoxMainLog = new RichTextBox();
             button2 = new Button();
             tabPage3 = new TabPage();
+            gridView_orders = new DataGridView();
+            col_time = new DataGridViewTextBoxColumn();
+            col_market = new DataGridViewTextBoxColumn();
+            col_symbol = new DataGridViewTextBoxColumn();
+            col_side = new DataGridViewTextBoxColumn();
+            col_fillprice = new DataGridViewTextBoxColumn();
+            col_quantity = new DataGridViewTextBoxColumn();
+            col_feeCcy = new DataGridViewTextBoxColumn();
+            col_fee = new DataGridViewTextBoxColumn();
+            label25 = new Label();
+            lbl_adjustedbid = new Label();
+            lbl_adjustedask = new Label();
+            label28 = new Label();
             lbl_skewpoint = new Label();
             label24 = new Label();
             label21 = new Label();
@@ -51,21 +64,6 @@
             lbl_baseCcy_maker = new Label();
             label19 = new Label();
             label18 = new Label();
-            groupBox1 = new GroupBox();
-            lbl_ordUpdateTh = new Label();
-            lbl_fillInterval = new Label();
-            lbl_oneside = new Label();
-            lbl_skew = new Label();
-            lbl_maxpos = new Label();
-            lbl_tobsize = new Label();
-            lbl_markup = new Label();
-            label17 = new Label();
-            label16 = new Label();
-            label15 = new Label();
-            label14 = new Label();
-            label13 = new Label();
-            label11 = new Label();
-            label8 = new Label();
             lbl_takerfee_taker = new Label();
             label10 = new Label();
             lbl_makerfee_taker = new Label();
@@ -102,18 +100,32 @@
             label2 = new Label();
             label1 = new Label();
             comboSymbols = new ComboBox();
-            label25 = new Label();
-            lbl_adjustedbid = new Label();
-            lbl_adjustedask = new Label();
-            label28 = new Label();
+            tabPage4 = new TabPage();
+            groupBox1 = new GroupBox();
+            lbl_ordUpdateTh = new Label();
+            lbl_fillInterval = new Label();
+            lbl_oneside = new Label();
+            lbl_skew = new Label();
+            lbl_maxpos = new Label();
+            lbl_tobsize = new Label();
+            lbl_markup = new Label();
+            label17 = new Label();
+            label16 = new Label();
+            label15 = new Label();
+            label14 = new Label();
+            label13 = new Label();
+            label11 = new Label();
+            label8 = new Label();
             tabControl.SuspendLayout();
             tabPage1.SuspendLayout();
             tabPage3.SuspendLayout();
-            groupBox1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)gridView_orders).BeginInit();
             ((System.ComponentModel.ISupportInitialize)gridView_Maker).BeginInit();
             ((System.ComponentModel.ISupportInitialize)gridView_Taker).BeginInit();
             tabPage2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)gridView_Ins).BeginInit();
+            tabPage4.SuspendLayout();
+            groupBox1.SuspendLayout();
             SuspendLayout();
             // 
             // button1
@@ -131,6 +143,7 @@
             tabControl.Controls.Add(tabPage1);
             tabControl.Controls.Add(tabPage3);
             tabControl.Controls.Add(tabPage2);
+            tabControl.Controls.Add(tabPage4);
             tabControl.Location = new Point(12, 12);
             tabControl.Name = "tabControl";
             tabControl.SelectedIndex = 0;
@@ -173,6 +186,7 @@
             // tabPage3
             // 
             tabPage3.BackColor = Color.WhiteSmoke;
+            tabPage3.Controls.Add(gridView_orders);
             tabPage3.Controls.Add(label25);
             tabPage3.Controls.Add(lbl_adjustedbid);
             tabPage3.Controls.Add(lbl_adjustedask);
@@ -191,7 +205,6 @@
             tabPage3.Controls.Add(lbl_baseCcy_maker);
             tabPage3.Controls.Add(label19);
             tabPage3.Controls.Add(label18);
-            tabPage3.Controls.Add(groupBox1);
             tabPage3.Controls.Add(lbl_takerfee_taker);
             tabPage3.Controls.Add(label10);
             tabPage3.Controls.Add(lbl_makerfee_taker);
@@ -210,6 +223,110 @@
             tabPage3.Size = new Size(1539, 1232);
             tabPage3.TabIndex = 2;
             tabPage3.Text = "Strategy";
+            // 
+            // gridView_orders
+            // 
+            gridView_orders.BackgroundColor = SystemColors.Window;
+            gridView_orders.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            gridView_orders.Columns.AddRange(new DataGridViewColumn[] { col_time, col_market, col_symbol, col_side, col_fillprice, col_quantity, col_feeCcy, col_fee });
+            gridView_orders.Location = new Point(6, 855);
+            gridView_orders.Name = "gridView_orders";
+            gridView_orders.RowHeadersVisible = false;
+            gridView_orders.RowHeadersWidth = 82;
+            gridView_orders.Size = new Size(1527, 371);
+            gridView_orders.TabIndex = 32;
+            // 
+            // col_time
+            // 
+            col_time.HeaderText = "Time";
+            col_time.MinimumWidth = 10;
+            col_time.Name = "col_time";
+            col_time.Width = 200;
+            // 
+            // col_market
+            // 
+            col_market.HeaderText = "Market";
+            col_market.MinimumWidth = 10;
+            col_market.Name = "col_market";
+            col_market.Width = 200;
+            // 
+            // col_symbol
+            // 
+            col_symbol.HeaderText = "Symbol";
+            col_symbol.MinimumWidth = 10;
+            col_symbol.Name = "col_symbol";
+            col_symbol.Width = 200;
+            // 
+            // col_side
+            // 
+            col_side.HeaderText = "Side";
+            col_side.MinimumWidth = 10;
+            col_side.Name = "col_side";
+            col_side.Width = 200;
+            // 
+            // col_fillprice
+            // 
+            col_fillprice.HeaderText = "Fill Price";
+            col_fillprice.MinimumWidth = 10;
+            col_fillprice.Name = "col_fillprice";
+            col_fillprice.Width = 200;
+            // 
+            // col_quantity
+            // 
+            col_quantity.HeaderText = "Quantity";
+            col_quantity.MinimumWidth = 10;
+            col_quantity.Name = "col_quantity";
+            col_quantity.Width = 200;
+            // 
+            // col_feeCcy
+            // 
+            col_feeCcy.HeaderText = "Fee Ccy";
+            col_feeCcy.MinimumWidth = 10;
+            col_feeCcy.Name = "col_feeCcy";
+            col_feeCcy.Width = 200;
+            // 
+            // col_fee
+            // 
+            col_fee.HeaderText = "Fee";
+            col_fee.MinimumWidth = 10;
+            col_fee.Name = "col_fee";
+            col_fee.Width = 200;
+            // 
+            // label25
+            // 
+            label25.AutoSize = true;
+            label25.Location = new Point(1091, 743);
+            label25.Name = "label25";
+            label25.Size = new Size(53, 32);
+            label25.TabIndex = 31;
+            label25.Text = "bid:";
+            // 
+            // lbl_adjustedbid
+            // 
+            lbl_adjustedbid.AutoSize = true;
+            lbl_adjustedbid.Location = new Point(1223, 743);
+            lbl_adjustedbid.Name = "lbl_adjustedbid";
+            lbl_adjustedbid.Size = new Size(71, 32);
+            lbl_adjustedbid.TabIndex = 30;
+            lbl_adjustedbid.Text = "value";
+            // 
+            // lbl_adjustedask
+            // 
+            lbl_adjustedask.AutoSize = true;
+            lbl_adjustedask.Location = new Point(949, 743);
+            lbl_adjustedask.Name = "lbl_adjustedask";
+            lbl_adjustedask.Size = new Size(71, 32);
+            lbl_adjustedask.TabIndex = 29;
+            lbl_adjustedask.Text = "value";
+            // 
+            // label28
+            // 
+            label28.AutoSize = true;
+            label28.Location = new Point(818, 743);
+            label28.Name = "label28";
+            label28.Size = new Size(53, 32);
+            label28.TabIndex = 28;
+            label28.Text = "ask:";
             // 
             // lbl_skewpoint
             // 
@@ -336,155 +453,6 @@
             label18.Size = new Size(106, 32);
             label18.TabIndex = 14;
             label18.Text = "baseCcy:";
-            // 
-            // groupBox1
-            // 
-            groupBox1.Controls.Add(lbl_ordUpdateTh);
-            groupBox1.Controls.Add(lbl_fillInterval);
-            groupBox1.Controls.Add(lbl_oneside);
-            groupBox1.Controls.Add(lbl_skew);
-            groupBox1.Controls.Add(lbl_maxpos);
-            groupBox1.Controls.Add(lbl_tobsize);
-            groupBox1.Controls.Add(lbl_markup);
-            groupBox1.Controls.Add(label17);
-            groupBox1.Controls.Add(label16);
-            groupBox1.Controls.Add(label15);
-            groupBox1.Controls.Add(label14);
-            groupBox1.Controls.Add(label13);
-            groupBox1.Controls.Add(label11);
-            groupBox1.Controls.Add(label8);
-            groupBox1.Location = new Point(6, 866);
-            groupBox1.Name = "groupBox1";
-            groupBox1.Size = new Size(1518, 360);
-            groupBox1.TabIndex = 13;
-            groupBox1.TabStop = false;
-            groupBox1.Text = "Setting";
-            // 
-            // lbl_ordUpdateTh
-            // 
-            lbl_ordUpdateTh.AutoSize = true;
-            lbl_ordUpdateTh.Location = new Point(957, 124);
-            lbl_ordUpdateTh.Name = "lbl_ordUpdateTh";
-            lbl_ordUpdateTh.Size = new Size(71, 32);
-            lbl_ordUpdateTh.TabIndex = 20;
-            lbl_ordUpdateTh.Text = "value";
-            // 
-            // lbl_fillInterval
-            // 
-            lbl_fillInterval.AutoSize = true;
-            lbl_fillInterval.Location = new Point(957, 69);
-            lbl_fillInterval.Name = "lbl_fillInterval";
-            lbl_fillInterval.Size = new Size(71, 32);
-            lbl_fillInterval.TabIndex = 19;
-            lbl_fillInterval.Text = "value";
-            // 
-            // lbl_oneside
-            // 
-            lbl_oneside.AutoSize = true;
-            lbl_oneside.Location = new Point(232, 286);
-            lbl_oneside.Name = "lbl_oneside";
-            lbl_oneside.Size = new Size(71, 32);
-            lbl_oneside.TabIndex = 18;
-            lbl_oneside.Text = "value";
-            // 
-            // lbl_skew
-            // 
-            lbl_skew.AutoSize = true;
-            lbl_skew.Location = new Point(232, 233);
-            lbl_skew.Name = "lbl_skew";
-            lbl_skew.Size = new Size(71, 32);
-            lbl_skew.TabIndex = 17;
-            lbl_skew.Text = "value";
-            // 
-            // lbl_maxpos
-            // 
-            lbl_maxpos.AutoSize = true;
-            lbl_maxpos.Location = new Point(232, 179);
-            lbl_maxpos.Name = "lbl_maxpos";
-            lbl_maxpos.Size = new Size(71, 32);
-            lbl_maxpos.TabIndex = 16;
-            lbl_maxpos.Text = "value";
-            // 
-            // lbl_tobsize
-            // 
-            lbl_tobsize.AutoSize = true;
-            lbl_tobsize.Location = new Point(232, 124);
-            lbl_tobsize.Name = "lbl_tobsize";
-            lbl_tobsize.Size = new Size(71, 32);
-            lbl_tobsize.TabIndex = 15;
-            lbl_tobsize.Text = "value";
-            // 
-            // lbl_markup
-            // 
-            lbl_markup.AutoSize = true;
-            lbl_markup.Location = new Point(232, 69);
-            lbl_markup.Name = "lbl_markup";
-            lbl_markup.Size = new Size(71, 32);
-            lbl_markup.TabIndex = 14;
-            lbl_markup.Text = "value";
-            // 
-            // label17
-            // 
-            label17.AutoSize = true;
-            label17.Location = new Point(738, 124);
-            label17.Name = "label17";
-            label17.Size = new Size(209, 32);
-            label17.TabIndex = 12;
-            label17.Text = "Update Threshold:";
-            // 
-            // label16
-            // 
-            label16.AutoSize = true;
-            label16.Location = new Point(738, 69);
-            label16.Name = "label16";
-            label16.Size = new Size(194, 32);
-            label16.TabIndex = 11;
-            label16.Text = "Interval After Fill:";
-            // 
-            // label15
-            // 
-            label15.AutoSize = true;
-            label15.Location = new Point(30, 286);
-            label15.Name = "label15";
-            label15.Size = new Size(191, 32);
-            label15.TabIndex = 10;
-            label15.Text = "One Side Quote:";
-            // 
-            // label14
-            // 
-            label14.AutoSize = true;
-            label14.Location = new Point(30, 233);
-            label14.Name = "label14";
-            label14.Size = new Size(136, 32);
-            label14.TabIndex = 9;
-            label14.Text = "Skew Level:";
-            // 
-            // label13
-            // 
-            label13.AutoSize = true;
-            label13.Location = new Point(30, 179);
-            label13.Name = "label13";
-            label13.Size = new Size(155, 32);
-            label13.TabIndex = 8;
-            label13.Text = "Max Position:";
-            // 
-            // label11
-            // 
-            label11.AutoSize = true;
-            label11.Location = new Point(30, 124);
-            label11.Name = "label11";
-            label11.Size = new Size(105, 32);
-            label11.TabIndex = 7;
-            label11.Text = "ToB size:";
-            // 
-            // label8
-            // 
-            label8.AutoSize = true;
-            label8.Location = new Point(30, 69);
-            label8.Name = "label8";
-            label8.Size = new Size(101, 32);
-            label8.TabIndex = 6;
-            label8.Text = "Markup:";
             // 
             // lbl_takerfee_taker
             // 
@@ -846,41 +814,165 @@
             comboSymbols.TabIndex = 0;
             comboSymbols.SelectedIndexChanged += comboSymbols_SelectedIndexChanged;
             // 
-            // label25
+            // tabPage4
             // 
-            label25.AutoSize = true;
-            label25.Location = new Point(1091, 743);
-            label25.Name = "label25";
-            label25.Size = new Size(53, 32);
-            label25.TabIndex = 31;
-            label25.Text = "bid:";
+            tabPage4.Controls.Add(groupBox1);
+            tabPage4.Location = new Point(8, 46);
+            tabPage4.Name = "tabPage4";
+            tabPage4.Padding = new Padding(3);
+            tabPage4.Size = new Size(1539, 1232);
+            tabPage4.TabIndex = 3;
+            tabPage4.Text = "Setting";
+            tabPage4.UseVisualStyleBackColor = true;
             // 
-            // lbl_adjustedbid
+            // groupBox1
             // 
-            lbl_adjustedbid.AutoSize = true;
-            lbl_adjustedbid.Location = new Point(1223, 743);
-            lbl_adjustedbid.Name = "lbl_adjustedbid";
-            lbl_adjustedbid.Size = new Size(71, 32);
-            lbl_adjustedbid.TabIndex = 30;
-            lbl_adjustedbid.Text = "value";
+            groupBox1.Controls.Add(lbl_ordUpdateTh);
+            groupBox1.Controls.Add(lbl_fillInterval);
+            groupBox1.Controls.Add(lbl_oneside);
+            groupBox1.Controls.Add(lbl_skew);
+            groupBox1.Controls.Add(lbl_maxpos);
+            groupBox1.Controls.Add(lbl_tobsize);
+            groupBox1.Controls.Add(lbl_markup);
+            groupBox1.Controls.Add(label17);
+            groupBox1.Controls.Add(label16);
+            groupBox1.Controls.Add(label15);
+            groupBox1.Controls.Add(label14);
+            groupBox1.Controls.Add(label13);
+            groupBox1.Controls.Add(label11);
+            groupBox1.Controls.Add(label8);
+            groupBox1.Location = new Point(15, 36);
+            groupBox1.Name = "groupBox1";
+            groupBox1.Size = new Size(1518, 360);
+            groupBox1.TabIndex = 14;
+            groupBox1.TabStop = false;
+            groupBox1.Text = "Setting";
             // 
-            // lbl_adjustedask
+            // lbl_ordUpdateTh
             // 
-            lbl_adjustedask.AutoSize = true;
-            lbl_adjustedask.Location = new Point(949, 743);
-            lbl_adjustedask.Name = "lbl_adjustedask";
-            lbl_adjustedask.Size = new Size(71, 32);
-            lbl_adjustedask.TabIndex = 29;
-            lbl_adjustedask.Text = "value";
+            lbl_ordUpdateTh.AutoSize = true;
+            lbl_ordUpdateTh.Location = new Point(957, 124);
+            lbl_ordUpdateTh.Name = "lbl_ordUpdateTh";
+            lbl_ordUpdateTh.Size = new Size(71, 32);
+            lbl_ordUpdateTh.TabIndex = 20;
+            lbl_ordUpdateTh.Text = "value";
             // 
-            // label28
+            // lbl_fillInterval
             // 
-            label28.AutoSize = true;
-            label28.Location = new Point(818, 743);
-            label28.Name = "label28";
-            label28.Size = new Size(53, 32);
-            label28.TabIndex = 28;
-            label28.Text = "ask:";
+            lbl_fillInterval.AutoSize = true;
+            lbl_fillInterval.Location = new Point(957, 69);
+            lbl_fillInterval.Name = "lbl_fillInterval";
+            lbl_fillInterval.Size = new Size(71, 32);
+            lbl_fillInterval.TabIndex = 19;
+            lbl_fillInterval.Text = "value";
+            // 
+            // lbl_oneside
+            // 
+            lbl_oneside.AutoSize = true;
+            lbl_oneside.Location = new Point(232, 286);
+            lbl_oneside.Name = "lbl_oneside";
+            lbl_oneside.Size = new Size(71, 32);
+            lbl_oneside.TabIndex = 18;
+            lbl_oneside.Text = "value";
+            // 
+            // lbl_skew
+            // 
+            lbl_skew.AutoSize = true;
+            lbl_skew.Location = new Point(232, 233);
+            lbl_skew.Name = "lbl_skew";
+            lbl_skew.Size = new Size(71, 32);
+            lbl_skew.TabIndex = 17;
+            lbl_skew.Text = "value";
+            // 
+            // lbl_maxpos
+            // 
+            lbl_maxpos.AutoSize = true;
+            lbl_maxpos.Location = new Point(232, 179);
+            lbl_maxpos.Name = "lbl_maxpos";
+            lbl_maxpos.Size = new Size(71, 32);
+            lbl_maxpos.TabIndex = 16;
+            lbl_maxpos.Text = "value";
+            // 
+            // lbl_tobsize
+            // 
+            lbl_tobsize.AutoSize = true;
+            lbl_tobsize.Location = new Point(232, 124);
+            lbl_tobsize.Name = "lbl_tobsize";
+            lbl_tobsize.Size = new Size(71, 32);
+            lbl_tobsize.TabIndex = 15;
+            lbl_tobsize.Text = "value";
+            // 
+            // lbl_markup
+            // 
+            lbl_markup.AutoSize = true;
+            lbl_markup.Location = new Point(232, 69);
+            lbl_markup.Name = "lbl_markup";
+            lbl_markup.Size = new Size(71, 32);
+            lbl_markup.TabIndex = 14;
+            lbl_markup.Text = "value";
+            // 
+            // label17
+            // 
+            label17.AutoSize = true;
+            label17.Location = new Point(738, 124);
+            label17.Name = "label17";
+            label17.Size = new Size(209, 32);
+            label17.TabIndex = 12;
+            label17.Text = "Update Threshold:";
+            // 
+            // label16
+            // 
+            label16.AutoSize = true;
+            label16.Location = new Point(738, 69);
+            label16.Name = "label16";
+            label16.Size = new Size(194, 32);
+            label16.TabIndex = 11;
+            label16.Text = "Interval After Fill:";
+            // 
+            // label15
+            // 
+            label15.AutoSize = true;
+            label15.Location = new Point(30, 286);
+            label15.Name = "label15";
+            label15.Size = new Size(191, 32);
+            label15.TabIndex = 10;
+            label15.Text = "One Side Quote:";
+            // 
+            // label14
+            // 
+            label14.AutoSize = true;
+            label14.Location = new Point(30, 233);
+            label14.Name = "label14";
+            label14.Size = new Size(136, 32);
+            label14.TabIndex = 9;
+            label14.Text = "Skew Level:";
+            // 
+            // label13
+            // 
+            label13.AutoSize = true;
+            label13.Location = new Point(30, 179);
+            label13.Name = "label13";
+            label13.Size = new Size(155, 32);
+            label13.TabIndex = 8;
+            label13.Text = "Max Position:";
+            // 
+            // label11
+            // 
+            label11.AutoSize = true;
+            label11.Location = new Point(30, 124);
+            label11.Name = "label11";
+            label11.Size = new Size(105, 32);
+            label11.TabIndex = 7;
+            label11.Text = "ToB size:";
+            // 
+            // label8
+            // 
+            label8.AutoSize = true;
+            label8.Location = new Point(30, 69);
+            label8.Name = "label8";
+            label8.Size = new Size(101, 32);
+            label8.TabIndex = 6;
+            label8.Text = "Markup:";
             // 
             // Form1
             // 
@@ -894,13 +986,15 @@
             tabPage1.ResumeLayout(false);
             tabPage3.ResumeLayout(false);
             tabPage3.PerformLayout();
-            groupBox1.ResumeLayout(false);
-            groupBox1.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)gridView_orders).EndInit();
             ((System.ComponentModel.ISupportInitialize)gridView_Maker).EndInit();
             ((System.ComponentModel.ISupportInitialize)gridView_Taker).EndInit();
             tabPage2.ResumeLayout(false);
             tabPage2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)gridView_Ins).EndInit();
+            tabPage4.ResumeLayout(false);
+            groupBox1.ResumeLayout(false);
+            groupBox1.PerformLayout();
             ResumeLayout(false);
         }
 
@@ -923,7 +1017,6 @@
         private TabPage tabPage3;
         private Button button2;
         private RichTextBox textBoxMainLog;
-        private GroupBox groupBox1;
         private DataGridView gridView_Taker;
         private DataGridViewTextBoxColumn col_Ask;
         private DataGridViewTextBoxColumn col_price;
@@ -950,20 +1043,6 @@
         private Label label10;
         private Label lbl_makerfee_taker;
         private Label label12;
-        private Label label11;
-        private Label label8;
-        private Label label13;
-        private Label label15;
-        private Label label14;
-        private Label label17;
-        private Label label16;
-        private Label lbl_maxpos;
-        private Label lbl_tobsize;
-        private Label lbl_markup;
-        private Label lbl_ordUpdateTh;
-        private Label lbl_fillInterval;
-        private Label lbl_oneside;
-        private Label lbl_skew;
         private Label lbl_quoteCcy_maker;
         private Label lbl_baseCcy_maker;
         private Label label19;
@@ -982,5 +1061,30 @@
         private Label lbl_adjustedbid;
         private Label lbl_adjustedask;
         private Label label28;
+        private TabPage tabPage4;
+        private DataGridView gridView_orders;
+        private GroupBox groupBox1;
+        private Label lbl_ordUpdateTh;
+        private Label lbl_fillInterval;
+        private Label lbl_oneside;
+        private Label lbl_skew;
+        private Label lbl_maxpos;
+        private Label lbl_tobsize;
+        private Label lbl_markup;
+        private Label label17;
+        private Label label16;
+        private Label label15;
+        private Label label14;
+        private Label label13;
+        private Label label11;
+        private Label label8;
+        private DataGridViewTextBoxColumn col_time;
+        private DataGridViewTextBoxColumn col_market;
+        private DataGridViewTextBoxColumn col_symbol;
+        private DataGridViewTextBoxColumn col_side;
+        private DataGridViewTextBoxColumn col_fillprice;
+        private DataGridViewTextBoxColumn col_quantity;
+        private DataGridViewTextBoxColumn col_feeCcy;
+        private DataGridViewTextBoxColumn col_fee;
     }
 }

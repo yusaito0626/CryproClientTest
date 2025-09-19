@@ -17,6 +17,7 @@ namespace Crypto_GUI
         Strategy stg;
 
         ConcurrentQueue<string> logQueue;
+        ConcurrentQueue<string> filledOrderQueue;
 
         Instrument selected_ins;
 
@@ -32,6 +33,7 @@ namespace Crypto_GUI
             InitializeComponent();
 
             this.logQueue = new ConcurrentQueue<string>();
+            this.filledOrderQueue = new ConcurrentQueue<string>();
 
             this.qManager.addLog = this.addLog;
             this.oManager.addLog = this.addLog;
@@ -49,6 +51,7 @@ namespace Crypto_GUI
 
             this.oManager.setInstruments(this.qManager.instruments);
             this.oManager.setOrderClient(this.cl);
+            this.oManager.filledOrderQueue = this.filledOrderQueue;
 
             this.stg = new Strategy();
             this.stg.readStrategyFile("C:\\Users\\yusai\\strategy.json");
@@ -57,6 +60,7 @@ namespace Crypto_GUI
             this.stg.taker = this.qManager.instruments[this.stg.taker_symbol_market];
 
             this.qManager.stg = this.stg;
+            this.oManager.stg = this.stg;
 
             this.lbl_makerName.Text = this.stg.maker_symbol_market;
             this.lbl_takerName.Text = this.stg.taker_symbol_market;
@@ -168,56 +172,33 @@ namespace Crypto_GUI
                 this.lbl_askprice.Text = this.stg.live_askprice.ToString("N" + this.stg.maker.price_scale);
                 this.lbl_bidprice.Text = this.stg.live_bidprice.ToString("N" + this.stg.maker.price_scale);
                 this.lbl_skewpoint.Text = this.stg.skew_point.ToString("N");
-                //if (this.stg.live_askprice > 0)
-                //{
-                //    int i = 0;
-                //    bool askfound = false;
-                //    while (i < QuoteManager.NUM_OF_QUOTES)
-                //    {
-                //        if (this.gridView_Maker.Rows[i].Cells[1].Value == this.stg.live_askprice.ToString("N" + this.stg.maker.price_scale))
-                //        {
-                //            this.gridView_Maker.Rows[i].Cells[1].Style.Font = this.font_gridView_Bold;
-                //            askfound = true;
-                //        }
-                //        else
-                //        {
-                //            this.gridView_Maker.Rows[i].Cells[1].Style.Font = this.font_gridView;
-                //        }
-                //        if (this.gridView_Maker.Rows[QuoteManager.NUM_OF_QUOTES + 1 + i].Cells[1].Value == this.stg.live_askprice.ToString("N" + this.stg.maker.price_scale))
-                //        {
-                //            this.gridView_Maker.Rows[QuoteManager.NUM_OF_QUOTES + 1 + i].Cells[1].Style.Font = this.font_gridView_Bold;
-                //        }
-                //        ++i;
-                //    }
-                //    if (!askfound)
-                //    {
-                //        this.gridView_Maker.Rows[0].Cells[1].Value = this.stg.live_askprice.ToString("N" + this.stg.maker.price_scale);
-                //        this.gridView_Maker.Rows[0].Cells[1].Style.Font = this.font_gridView_Bold;
-                //    }
-                //}
-                //if (this.stg.live_bidprice > 0)
-                //{
-                //    int i = 0;
-                //    bool bidfound = false;
-                //    while (i < QuoteManager.NUM_OF_QUOTES)
-                //    {
-                //        if (this.gridView_Maker.Rows[QuoteManager.NUM_OF_QUOTES + 1 + i].Cells[1].Value == this.stg.live_askprice.ToString("N" + this.stg.maker.price_scale))
-                //        {
-                //            this.gridView_Maker.Rows[QuoteManager.NUM_OF_QUOTES + 1 + i].Cells[1].Style.Font = this.font_gridView_Bold;
-                //            bidfound = true;
-                //        }
-                //        else
-                //        {
-                //            this.gridView_Maker.Rows[QuoteManager.NUM_OF_QUOTES + 1 + i].Cells[1].Style.Font = this.font_gridView;
-                //        }
-                //        ++i;
-                //    }
-                //    if (!bidfound)
-                //    {
-                //        this.gridView_Maker.Rows[QuoteManager.NUM_OF_QUOTES * 2].Cells[1].Value = this.stg.live_bidprice.ToString("N" + this.stg.maker.price_scale);
-                //        this.gridView_Maker.Rows[QuoteManager.NUM_OF_QUOTES * 2].Cells[1].Style.Font = this.font_gridView_Bold;
-                //    }
-                //}
+            }
+            string ord_id;
+            DataSpotOrderUpdate ord;
+            while (this.filledOrderQueue.Count > 0)
+            {
+                if (this.filledOrderQueue.TryDequeue(out ord_id))
+                {
+                    ord = this.oManager.orders[ord_id];
+                    this.gridView_orders.Rows.Insert(0);
+                    this.gridView_orders.Rows[0].Cells[0].Value = ((DateTime)ord.timestamp).ToString("HH:mm:ss.fff");
+                    this.gridView_orders.Rows[0].Cells[1].Value = ord.market;
+                    this.gridView_orders.Rows[0].Cells[2].Value = ord.symbol;
+                    this.gridView_orders.Rows[0].Cells[3].Value = ord.side.ToString();
+                    if(ord.symbol_market == this.stg.maker_symbol_market)
+                    {
+                        this.gridView_orders.Rows[0].Cells[4].Value = ord.average_price.ToString("N" + this.stg.maker.price_scale);
+                        this.gridView_orders.Rows[0].Cells[5].Value = ord.filled_quantity.ToString("N" + this.stg.maker.quantity_scale);
+                    }
+                    else
+                    {
+                        this.gridView_orders.Rows[0].Cells[4].Value = ord.average_price.ToString("N" + this.stg.taker.price_scale);
+                        this.gridView_orders.Rows[0].Cells[5].Value = ord.filled_quantity.ToString("N" + this.stg.taker.quantity_scale);
+                    }
+                    this.gridView_orders.Rows[0].Cells[6].Value = ord.fee_asset;
+                    this.gridView_orders.Rows[0].Cells[7].Value = ord.fee;
+
+                }
             }
         }
 
@@ -282,7 +263,7 @@ namespace Crypto_GUI
         private async void button1_Click(object sender, EventArgs e)
         {
             this.qManager.setBalance(await this.cl.getBalance(this.qManager.markets));
-            this.qManager.setFees(await this.cl.getFees([Exchange.Bybit, Exchange.Coinbase], this.stg.baseCcy, this.stg.quoteCcy),this.stg.baseCcy + this.stg.quoteCcy);
+            //this.qManager.setFees(await this.cl.getFees([Exchange.Bybit, Exchange.Coinbase], this.stg.baseCcy, this.stg.quoteCcy),this.stg.baseCcy + this.stg.quoteCcy);
             
             foreach (var ins in this.qManager.instruments.Values)
             {

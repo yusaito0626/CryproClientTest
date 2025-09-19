@@ -34,6 +34,10 @@ namespace Crypto_Trading
         public ConcurrentQueue<string> ordLogQueue;
         public Thread ordLoggingTh;
 
+        public ConcurrentQueue<string> filledOrderQueue;
+
+        public Strategy stg;
+
         const int MOD_STACK_SIZE = 100;
 
         Dictionary<string, Instrument> Instruments;
@@ -117,6 +121,9 @@ namespace Crypto_Trading
                 output.update_time = DateTime.UtcNow;
                 if(ordtype == orderType.Market || (side == orderSide.Buy && price > ins.bestask.Item1) || (side == orderSide.Sell && price < ins.bestbid.Item1))
                 {
+                    Thread.Sleep(100);
+                    output.timestamp = DateTime.UtcNow;
+                    output.update_time = DateTime.UtcNow;
                     output.status = orderStatus.Filled;
                     output.filled_quantity = quantity;
                     switch (side)
@@ -355,7 +362,10 @@ namespace Crypto_Trading
                             {
                                 ins = this.Instruments[ord.symbol_market];
                                 ins.updateFills(prevord, ord);
+                                this.filledOrderQueue.Enqueue(ord.order_id);
                             }
+                            this.stg.on_Message(prevord, ord);
+                            
                             prevord.init();
                             this.ord_client.ordUpdateStack.Push(prevord);
                         }
@@ -370,7 +380,9 @@ namespace Crypto_Trading
                             {
                                 ins = this.Instruments[ord.symbol_market];
                                 ins.updateFills(ord, ord);
+                                this.filledOrderQueue.Enqueue(ord.order_id);
                             }
+                            this.stg.on_Message(ord, ord);
                         }
                     }
                     i = 0;
@@ -436,6 +448,7 @@ namespace Crypto_Trading
                                 {
 
                                 }
+                                output.order_id = ord.order_id;
                                 output.symbol = ins.symbol;
                                 output.market = ins.market;
                                 output.symbol_market = ins.symbol_market;

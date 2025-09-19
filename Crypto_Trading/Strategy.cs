@@ -134,13 +134,13 @@ namespace Crypto_Trading
             {
                 if (this.maker.baseBalance.balance > this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200))
                 {
-                    //this.live_buyorder = await this.oManager.placeCancelSpotOrder(this.maker, this.buyorderId);
+                    this.live_buyorder = await this.oManager.placeCancelSpotOrder(this.maker, this.live_buyorder.order_id);
                     this.live_bidprice = 0;
                 }
                 else if (isPriceChanged && this.live_buyorder.status == orderStatus.Open && this.live_buyorder.order_price != bid_price)
                 {
-                    //this.prev_buyorder = this.live_buyorder;
-                    //this.live_buyorder = await this.oManager.placeModSpotOrder(this.maker, this.live_buyorder.order_id, this.ToBsize, bid_price, false);
+                    this.prev_buyorder = this.live_buyorder;
+                    this.live_buyorder = await this.oManager.placeModSpotOrder(this.maker, this.live_buyorder.order_id, this.ToBsize, bid_price, false);
                     this.live_bidprice = bid_price;
                 }
             }
@@ -152,8 +152,7 @@ namespace Crypto_Trading
                 }
                 else if (this.last_filled_time == null || (decimal)(DateTime.UtcNow - this.last_filled_time).Value.TotalSeconds > this.intervalAfterFill)
                 {
-                    //this.prev_buyorder = this.live_buyorder;
-                    //this.live_buyorder = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, this.ToBsize, bid_price);
+                    this.live_buyorder = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, this.ToBsize, bid_price);
                     this.live_bidprice = bid_price;
                 }
             }
@@ -162,13 +161,13 @@ namespace Crypto_Trading
             {
                 if (this.maker.baseBalance.balance < this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200))
                 {
-                    //this.live_sellorder = await this.oManager.placeCancelSpotOrder(this.maker, this.sellorderId);
+                    this.live_sellorder = await this.oManager.placeCancelSpotOrder(this.maker, this.live_sellorder.order_id);
                     this.live_askprice = 0;
                 }
                 else if (isPriceChanged && this.live_sellorder.status == orderStatus.Open && this.live_sellorder.order_price != ask_price)
                 {
-                    //this.prev_sellorder = this.live_sellorder;
-                    //this.live_sellorder = await this.oManager.placeModSpotOrder(this.maker, this.live_sellorder.order_id, this.ToBsize * (1 - this.maker.maker_fee), ask_price, false);
+                    this.prev_sellorder = this.live_sellorder;
+                    this.live_sellorder = await this.oManager.placeModSpotOrder(this.maker, this.live_sellorder.order_id, this.ToBsize * (1 - this.maker.maker_fee), ask_price, false);
                     this.live_askprice = ask_price;
                 }
             }
@@ -180,8 +179,7 @@ namespace Crypto_Trading
                 }
                 else if (this.last_filled_time == null || (decimal)(DateTime.UtcNow - this.last_filled_time).Value.TotalSeconds > this.intervalAfterFill)
                 {
-                    //this.prev_sellorder = this.live_sellorder;
-                    //this.live_sellorder = await this.oManager.placeModSpotOrder(this.maker, this.live_sellorder.order_id, this.ToBsize * (1 - this.maker.maker_fee), ask_price, false);
+                    this.live_sellorder = await this.oManager.placeNewSpotOrder(this.maker,orderSide.Sell,orderType.Limit, this.ToBsize * (1 - this.maker.maker_fee),ask_price);
                     this.live_askprice = ask_price;
                 }
             }
@@ -217,6 +215,10 @@ namespace Crypto_Trading
         public void on_Message(DataSpotOrderUpdate prev_ord, DataSpotOrderUpdate new_ord)
         {
             decimal filled_quantity = new_ord.filled_quantity - prev_ord.filled_quantity;
+            if(filled_quantity == 0)
+            {
+                filled_quantity = new_ord.filled_quantity;
+            }
             orderSide side;
 
             if(new_ord.status == orderStatus.WaitOpen || new_ord.status == orderStatus.WaitMod || new_ord.status == orderStatus.WaitCancel)
@@ -238,7 +240,7 @@ namespace Crypto_Trading
                             side = orderSide.Sell;
                             filled_quantity = filled_quantity / (1 - this.taker.taker_fee);
                             filled_quantity = Math.Round(filled_quantity / this.taker.quantity_unit) * this.taker.quantity_unit;
-                            //this.oManager.placeNewSpotOrder(this.taker, side, orderType.Market, filled_quantity, 0);
+                            this.oManager.placeNewSpotOrder(this.taker, side, orderType.Market, filled_quantity, 0);
                         }
 
                         this.live_buyorder = new_ord;
@@ -247,6 +249,7 @@ namespace Crypto_Trading
                         {
                             this.prev_buyorder = this.live_buyorder;
                             this.live_buyorder = null;
+                            this.live_bidprice = 0;
                             this.last_filled_time = DateTime.UtcNow;
                         }
                     }
@@ -257,7 +260,7 @@ namespace Crypto_Trading
                             side = orderSide.Sell;
                             filled_quantity = filled_quantity / (1 - this.taker.taker_fee);
                             filled_quantity = Math.Round(filled_quantity / this.taker.quantity_unit) * this.taker.quantity_unit;
-                            //this.oManager.placeNewSpotOrder(this.taker, side, orderType.Market, filled_quantity, 0);
+                            this.oManager.placeNewSpotOrder(this.taker, side, orderType.Market, filled_quantity, 0);
                         }
                         this.prev_buyorder = new_ord;
                     }
@@ -269,7 +272,7 @@ namespace Crypto_Trading
                         {
                             side = orderSide.Buy;
                             filled_quantity = Math.Round(filled_quantity / this.taker.quantity_unit) * this.taker.quantity_unit;
-                            //this.oManager.placeNewSpotOrder(this.taker, side, orderType.Market, filled_quantity, 0);
+                            this.oManager.placeNewSpotOrder(this.taker, side, orderType.Market, filled_quantity, 0);
                         }
 
                         this.live_sellorder = new_ord;
@@ -278,6 +281,7 @@ namespace Crypto_Trading
                         {
                             this.prev_sellorder = this.live_sellorder;
                             this.live_sellorder = null;
+                            this.live_askprice = 0;
                             this.last_filled_time = DateTime.UtcNow;
                         }
                     }
@@ -287,7 +291,7 @@ namespace Crypto_Trading
                         {
                             side = orderSide.Buy;
                             filled_quantity = Math.Round(filled_quantity / this.taker.quantity_unit) * this.taker.quantity_unit;
-                            //this.oManager.placeNewSpotOrder(this.taker, side, orderType.Market, filled_quantity, 0);
+                            this.oManager.placeNewSpotOrder(this.taker, side, orderType.Market, filled_quantity, 0);
                         }
                         this.prev_sellorder = new_ord;
                     }
