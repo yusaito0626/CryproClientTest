@@ -28,7 +28,7 @@ namespace Crypto_Clients
 
         public Action<string> addLog;
 
-        public bitbank_connection()
+        private bitbank_connection()
         {
             this.apiName = "";
             this.secretKey = "";
@@ -231,6 +231,21 @@ namespace Crypto_Clients
             using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(key));
             var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(value));
             return BitConverter.ToString(hash).Replace("-", "").ToLower();
+        }
+
+        private static bitbank_connection _instance;
+        private static readonly object _lockObject = new object();
+
+        public static bitbank_connection GetInstance()
+        {
+            lock (_lockObject)
+            {
+                if (_instance == null)
+                {
+                    _instance = new bitbank_connection();
+                }
+                return _instance;
+            }
         }
     }
 }

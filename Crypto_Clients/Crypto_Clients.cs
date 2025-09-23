@@ -56,7 +56,7 @@ namespace Crypto_Clients
             this.CoinbaseSocketClient = new Coinbase.Net.Clients.CoinbaseSocketClient();
             this._rest_client = new ExchangeRestClient();
 
-            this.bitbank_private = new bitbank_connection();
+            this.bitbank_private = bitbank_connection.GetInstance();
             this.bitbank_client = new ClientWebSocket();
 
             this.creds = new CryptoClients.Net.Models.ExchangeCredentials();

@@ -6,13 +6,17 @@ using CryptoExchange.Net.Objects;
 using CryptoExchange.Net.Objects.Sockets;
 using CryptoExchange.Net.Requests;
 using CryptoExchange.Net.SharedApis;
+using PubnubApi;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
+using XT.Net.Objects.Models;
 
 namespace Crypto_Trading
 {
@@ -22,6 +26,7 @@ namespace Crypto_Trading
     {
 
         Crypto_Clients.Crypto_Clients ord_client;
+        bitbank_connection bitbank_client = bitbank_connection.GetInstance();
 
         public Dictionary<string, DataSpotOrderUpdate> orders;
         public Dictionary<string, DataSpotOrderUpdate> live_orders;
@@ -90,7 +95,8 @@ namespace Crypto_Trading
 
         async public Task<DataSpotOrderUpdate?> placeNewSpotOrder(Instrument ins, orderSide side, orderType ordtype, decimal quantity, decimal price, timeInForce? timeinforce = null)
         {
-            DataSpotOrderUpdate? output;
+            DataSpotOrderUpdate? output = null;
+            JsonDocument bitbank_obj;
             if(this.virtualMode)
             {
                 while(!this.ord_client.ordUpdateStack.TryPop(out output))
@@ -153,6 +159,70 @@ namespace Crypto_Trading
                     Thread.Sleep(100);
                 }
             }
+            else if(ins.market == "bitbank")
+            {
+                if(ordtype == orderType.Limit)
+                {
+                    bitbank_obj = await this.bitbank_client.placeNewOrder(ins.symbol, ordtype.ToString().ToLower(), side.ToString().ToLower(), price, quantity, true);
+                }
+                else
+                {
+                    bitbank_obj = await this.bitbank_client.placeNewOrder(ins.symbol, ordtype.ToString().ToLower(), side.ToString().ToLower(), price, quantity, true);
+                }
+
+                if(bitbank_obj.RootElement.GetProperty("success").GetUInt16() == 1)
+                {
+                    var ord_obj = bitbank_obj.RootElement.GetProperty("data");
+                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    {
+
+                    }
+                    output.timestamp = DateTime.UtcNow;
+                    output.order_id = ord_obj.GetProperty("order_id").GetInt64().ToString();
+                    output.symbol = ord_obj.GetProperty("pair").GetString();
+                    output.market = ins.market;
+                    output.symbol_market = ins.symbol_market;
+                    string str_side = ord_obj.GetProperty("side").GetString();
+                    if(str_side == "buy")
+                    {
+                        output.side = orderSide.Buy;
+                    }
+                    else if(str_side == "sell")
+                    {
+                        output.side = orderSide.Sell;
+                    }
+                    string str_type = ord_obj.GetProperty("type").GetString();
+                    switch(str_type)
+                    {
+                        case "limit":
+                            output.order_type = orderType.Limit;
+                            break;
+                        case "market":
+                            output.order_type = orderType.Market;
+                            break;
+                        default:
+                            output.order_type = orderType.Other;
+                            break;
+                    }
+                    output.order_quantity = decimal.Parse(ord_obj.GetProperty("start_amount").GetString());
+                    output.filled_quantity = 0;//Even if an executed order is passed, output 0 executed quantity as the execution will be streamed anyway.
+                    output.order_price = decimal.Parse(ord_obj.GetProperty("price").GetString());
+                    output.average_price = 0;
+                    output.create_time = DateTimeOffset.FromUnixTimeMilliseconds(ord_obj.GetProperty("ordered_at").GetInt64()).UtcDateTime;
+                    output.update_time = output.create_time;
+                    string str_status = ord_obj.GetProperty("side").GetString();
+                    output.status = orderStatus.WaitOpen;
+                    output.fee = 0;
+                    output.fee_asset = "";
+                    output.is_trigger_order = true;
+                    output.last_trade = "";
+                    this.ord_client.ordUpdateQueue.Enqueue(output);
+                }
+                else
+                {
+                    output = null;
+                }
+            }
             else
             {
                 output = await this.ord_client.placeNewSpotOrder(ins.market, ins.baseCcy, ins.quoteCcy, side, ordtype, quantity, price, timeinforce);
@@ -162,13 +232,12 @@ namespace Crypto_Trading
                     this.ord_client.ordUpdateQueue.Enqueue(output);
                 }
             }
-                
-            
             return output;
         }
         async public Task<DataSpotOrderUpdate?> placeCancelSpotOrder(Instrument ins, string orderId)
         {
-            DataSpotOrderUpdate? output;
+            DataSpotOrderUpdate? output = null;
+            JsonDocument bitbank_obj;
             if(this.virtualMode)
             {
                 while (!this.ord_client.ordUpdateStack.TryPop(out output))
@@ -209,6 +278,26 @@ namespace Crypto_Trading
                 }
                 this.ord_client.ordUpdateQueue.Enqueue(output);
                 Thread.Sleep(100);
+            }
+            else if(ins.market == "bitbank")
+            {
+                bitbank_obj = await this.bitbank_client.placeCanOrder(ins.symbol, orderId);
+                if (bitbank_obj.RootElement.GetProperty("success").GetUInt16() == 1)
+                {
+                    var ord_obj = bitbank_obj.RootElement.GetProperty("data");
+                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    {
+                    }
+                    output.order_id = ord_obj.GetProperty("order_id").GetInt64().ToString();
+                    output.timestamp = DateTime.UtcNow;
+                    output.order_price = -1;
+                    output.order_quantity = 0;
+                    output.market = ins.market;
+                    output.symbol = ins.symbol;
+                    output.filled_quantity = 0;
+                    output.status = orderStatus.WaitCancel;
+                    this.ord_client.ordUpdateQueue.Enqueue(output);
+                }
             }
             else
             {
