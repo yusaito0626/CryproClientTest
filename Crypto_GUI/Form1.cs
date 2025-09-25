@@ -46,7 +46,7 @@ namespace Crypto_GUI
 
             cl.readCredentials(Exchange.Coinbase, "C:\\Users\\yusai\\coinbase_viewonly.json");
             cl.readCredentials(Exchange.Bybit, "C:\\Users\\yusai\\bybit_viewonly.json");
-            cl.readCredentials("bitbank", "C:\\Users\\yusai\\bitbank_viewonly.json");
+            cl.readCredentials("bitbank", "C:\\Users\\yusai\\bitbank_tradable.json");
 
             string master_file = "C:\\Users\\yusai\\crypto_master.csv";
 
@@ -294,8 +294,6 @@ namespace Crypto_GUI
         private async void button1_Click(object sender, EventArgs e)
         {
             await this.cl.connectAsync();
-            this.bitBankTh = new System.Threading.Thread(this.cl.logBitbank);
-            this.bitBankTh.Start();
 
             this.qManager.setBalance(await this.cl.getBalance(this.qManager.markets));
             //this.qManager.setFees(await this.cl.getFees([Exchange.Bybit, Exchange.Coinbase], this.stg.baseCcy, this.stg.quoteCcy),this.stg.baseCcy + this.stg.quoteCcy);
@@ -331,13 +329,15 @@ namespace Crypto_GUI
         private async void button2_Click(object sender, EventArgs e)
         {
             DataSpotOrderUpdate ord;
-            Instrument ins = this.qManager.instruments["ETHUSDT@Bybit"];
+            Instrument ins = this.qManager.instruments["eth_jpy@bitbank"];
+
+            this.oManager.setVirtualMode(false);
 
             this.addLog("Testing orderManager");
             Thread.Sleep(3000);
             this.addLog("Placing a new order");
             string ordid;
-            ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.001, 4000);
+            ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.001, 600000);
             if (ord != null)
             {
                 ordid = ord.order_id;
@@ -352,7 +352,7 @@ namespace Crypto_GUI
             this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
             Thread.Sleep(3000);
             this.addLog("modifing a order");
-            ord = await this.oManager.placeModSpotOrder(ins, ordid, (decimal)0.001, 3900, false);
+            ord = await this.oManager.placeModSpotOrder(ins, ordid, (decimal)0.001, 590000, false);
             if (ord != null)
             {
                 ordid = ord.order_id;
@@ -386,13 +386,13 @@ namespace Crypto_GUI
             this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
 
             this.addLog("Fill Check");
-            ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.001, 5000);
+            ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.001, 620000);
             this.addLog(ord.ToString());
             Thread.Sleep(1000);
             this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
 
             this.addLog("Market Order");
-            ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Market, (decimal)0.001, 5000);
+            ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Market, (decimal)0.001, 620000);
             this.addLog(ord.ToString());
             Thread.Sleep(1000);
             this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());

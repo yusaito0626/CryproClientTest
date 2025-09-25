@@ -26,12 +26,17 @@ namespace Crypto_Clients
         public ConcurrentQueue<JsonElement> orderQueue;
         public ConcurrentQueue<JsonElement> fillQueue;
 
+        ClientWebSocket websocket_client;
+
+        public Action<string> onMessage;
         public Action<string> addLog;
 
         private bitbank_connection()
         {
             this.apiName = "";
             this.secretKey = "";
+
+            this.websocket_client = new ClientWebSocket();
 
             this.orderQueue = new ConcurrentQueue<JsonElement>();
             this.fillQueue = new ConcurrentQueue<JsonElement>();
@@ -51,7 +56,110 @@ namespace Crypto_Clients
                   .Channels(new[] { channel })
                   .Execute();
         }
-       
+
+        public async Task connectPublicAsync()
+        {
+            this.addLog("Connecting to bitbank");
+            var uri = new Uri("wss://stream.bitbank.cc/socket.io/?EIO=4&transport=websocket");
+            try
+            {
+                await this.websocket_client.ConnectAsync(uri, CancellationToken.None);
+                this.addLog("[INFO] Connected to bitbank.");
+            }
+            catch (WebSocketException wse)
+            {
+                this.addLog($"WebSocketException: {wse.Message}");
+            }
+            catch (Exception ex)
+            {
+                this.addLog($"Connection failed: {ex.Message}");
+            }
+        }
+
+        public async Task subscribeTrades(string baseCcy, string quoteCcy)
+        {
+            string event_name = "transactions_" + baseCcy.ToLower() + "_" + quoteCcy.ToLower();
+            var subscribeJson = @"42[""join-room"",""" + event_name + @"""]";
+            this.addLog(subscribeJson);
+            var bytes = Encoding.UTF8.GetBytes(subscribeJson);
+            await this.websocket_client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+        }
+
+        public async Task subscribeOrderBook(string baseCcy,string quoteCcy)
+        {
+            string event_name = "depth_diff_" + baseCcy.ToLower() + "_" + quoteCcy.ToLower();
+            var subscribeJson = @"42[""join-room"",""" + event_name + @"""]";
+            this.addLog(subscribeJson);
+            var bytes = Encoding.UTF8.GetBytes(subscribeJson);
+            await this.websocket_client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+
+            event_name = "depth_whole_" + baseCcy.ToLower() + "_" + quoteCcy.ToLower();
+            subscribeJson = @"42[""join-room"",""" + event_name + @"""]";
+            this.addLog(subscribeJson);
+            bytes = Encoding.UTF8.GetBytes(subscribeJson);
+            await this.websocket_client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+        }
+
+        public async void startListen(Action<string> onMsg)
+        {
+            this.onMessage = onMsg;
+            var buffer = new byte[16384];
+            while (this.websocket_client.State == WebSocketState.Open)
+            {
+                var result = await this.websocket_client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                if (result.MessageType == WebSocketMessageType.Text)
+                {
+
+                    var msg = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    int idx = msg.IndexOf("{");
+                    int idx_temp = msg.IndexOf("[");
+                    if (idx_temp != -1 && idx_temp < idx)
+                    {
+                        idx = idx_temp;
+                    }
+                    if (idx != -1)
+                    {
+                        string num = msg.Substring(0, idx);
+                        switch (num)
+                        {
+                            case "0":
+                                this.websocket_client.SendAsync(Encoding.UTF8.GetBytes("40"), WebSocketMessageType.Text, true, CancellationToken.None);
+                                break;
+                            case "2":
+                                this.websocket_client.SendAsync(Encoding.UTF8.GetBytes("3"), WebSocketMessageType.Text, true, CancellationToken.None);
+                                break;
+                            case "40":
+                                this.addLog("Hand shake completed");
+                                break;
+                            case "42"://Actual Message
+                                if (result.EndOfMessage)
+                                {
+                                    string msg_body = msg.Substring(idx);
+                                    this.onMessage(msg_body);
+                                }
+                                else
+                                {
+                                    this.addLog("[ERROR] The message is too large");
+                                }
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        if (msg == "2")
+                        {
+                            this.websocket_client.SendAsync(Encoding.UTF8.GetBytes("3"), WebSocketMessageType.Text, true, CancellationToken.None);
+                        }
+                    }
+                }
+                else if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    this.addLog("Closed by server");
+                    await this.websocket_client.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+                }
+            }
+        }
+
         private async Task<string> getAsync(string endpoint)
         {
             var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -78,7 +186,7 @@ namespace Crypto_Clients
         {
             var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             var timeWindow = "5000";
-            var message = $"{nonce}{timeWindow}{endpoint}";
+            var message = $"{nonce}{timeWindow}{body}";
 
             using var client = new HttpClient();
             var request = new HttpRequestMessage(HttpMethod.Post, bitbank_connection.URL + endpoint);
@@ -107,8 +215,9 @@ namespace Crypto_Clients
                 type = ord_type,
                 post_only = postonly
             };
+
             var jsonBody = JsonSerializer.Serialize(body);
-            var resString = await this.postAsync("/user/spot/order", jsonBody);
+            var resString = await this.postAsync("/v1/user/spot/order", jsonBody);
 
             return JsonDocument.Parse(resString);
         }
@@ -121,7 +230,7 @@ namespace Crypto_Clients
             };
 
             var jsonBody = JsonSerializer.Serialize(body);
-            var resString = await this.postAsync("/user/spot/cancel_order", jsonBody);
+            var resString = await this.postAsync("/v1/user/spot/cancel_order", jsonBody);
 
             return JsonDocument.Parse(resString);
         }
@@ -209,7 +318,7 @@ namespace Crypto_Clients
                         case PNStatusCategory.PNNetworkIssuesCategory:
                         case PNStatusCategory.PNAccessDeniedCategory:
                             this.addLog("pubnub reconnecting...");
-                            await connect();
+                            await connectPrivateAsync();
                             break;
 
                         default:
@@ -220,7 +329,7 @@ namespace Crypto_Clients
 
             return pubnub;
         }
-        public async Task connect()
+        public async Task connectPrivateAsync()
         {
             var (channel, token) = await this.GetChannelAndToken();
             var pubnub = this.GetPubNubAndAddListener(channel, token);

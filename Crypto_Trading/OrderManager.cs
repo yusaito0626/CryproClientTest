@@ -167,7 +167,7 @@ namespace Crypto_Trading
                 }
                 else
                 {
-                    bitbank_obj = await this.bitbank_client.placeNewOrder(ins.symbol, ordtype.ToString().ToLower(), side.ToString().ToLower(), price, quantity, true);
+                    bitbank_obj = await this.bitbank_client.placeNewOrder(ins.symbol, ordtype.ToString().ToLower(), side.ToString().ToLower(), price, quantity, false);
                 }
 
                 if(bitbank_obj.RootElement.GetProperty("success").GetUInt16() == 1)
@@ -196,9 +196,11 @@ namespace Crypto_Trading
                     {
                         case "limit":
                             output.order_type = orderType.Limit;
+                            output.order_price = decimal.Parse(ord_obj.GetProperty("price").GetString());
                             break;
                         case "market":
                             output.order_type = orderType.Market;
+                            output.order_price = 0;
                             break;
                         default:
                             output.order_type = orderType.Other;
@@ -206,7 +208,6 @@ namespace Crypto_Trading
                     }
                     output.order_quantity = decimal.Parse(ord_obj.GetProperty("start_amount").GetString());
                     output.filled_quantity = 0;//Even if an executed order is passed, output 0 executed quantity as the execution will be streamed anyway.
-                    output.order_price = decimal.Parse(ord_obj.GetProperty("price").GetString());
                     output.average_price = 0;
                     output.create_time = DateTimeOffset.FromUnixTimeMilliseconds(ord_obj.GetProperty("ordered_at").GetInt64()).UtcDateTime;
                     output.update_time = output.create_time;
@@ -216,10 +217,13 @@ namespace Crypto_Trading
                     output.fee_asset = "";
                     output.is_trigger_order = true;
                     output.last_trade = "";
+                    this.addLog(output.ToString());
                     this.ord_client.ordUpdateQueue.Enqueue(output);
                 }
                 else
                 {
+                    this.addLog("New Order Failed");
+                    this.addLog(bitbank_obj.RootElement.GetRawText());
                     output = null;
                 }
             }
@@ -298,6 +302,11 @@ namespace Crypto_Trading
                     output.status = orderStatus.WaitCancel;
                     this.ord_client.ordUpdateQueue.Enqueue(output);
                 }
+                else
+                {
+                    this.addLog("Cancel Order Failed");
+                    this.addLog(bitbank_obj.RootElement.GetRawText());
+                }
             }
             else
             {
@@ -339,7 +348,7 @@ namespace Crypto_Trading
                 }
                 else
                 {
-                    //this.addLog("[ERROR] Order not found. Id:" + orderId);
+                    this.addLog("[ERROR] Order not found. Id:" + orderId);
                     return null;
                 }
             }
@@ -357,7 +366,7 @@ namespace Crypto_Trading
                 }
                 else
                 {
-                    //this.addLog("[ERROR] Order not found. Id:" + orderId);
+                    this.addLog("[ERROR] Order not found. Id:" + orderId);
                     return null;
                 }
             }
