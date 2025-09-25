@@ -271,17 +271,48 @@ namespace Crypto_Trading
             }
             else
             {
-                this.adjusted_bestask.Item1 = this.asks.First().Key * (1 + this.taker_fee);
-                this.adjusted_bestask.Item2 = this.asks.First().Value;
-                this.adjusted_bestbid.Item1 = this.bids.Last().Key * (1 - this.taker_fee);
-                this.adjusted_bestbid.Item2 = this.bids.Last().Value;
+                if(this.asks.Count > 0)
+                {
+                    this.adjusted_bestask.Item1 = this.asks.First().Key * (1 + this.taker_fee);
+                    this.adjusted_bestask.Item2 = this.asks.First().Value;
+                }
+                if(this.bids.Count > 0)
+                {
+                    this.adjusted_bestbid.Item1 = this.bids.Last().Key * (1 - this.taker_fee);
+                    this.adjusted_bestbid.Item2 = this.bids.Last().Value;
+                }
             }
-            this.bestask.Item1 = this.asks.First().Key;
-            this.bestask.Item2 = this.asks.First().Value;
-            this.bestbid.Item1 = this.bids.Last().Key;
-            this.bestbid.Item2 = this.bids.Last().Value;
-            this.prev_mid = this.mid;
-            this.mid = (this.bestask.Item1 + this.bestbid.Item1) / 2;
+            if (this.asks.Count > 0)
+            {
+                this.bestask.Item1 = this.asks.First().Key;
+                this.bestask.Item2 = this.asks.First().Value;
+            }
+            if (this.bids.Count > 0)
+            {
+                this.bestbid.Item1 = this.bids.Last().Key;
+                this.bestbid.Item2 = this.bids.Last().Value;
+            }
+
+            if(this.bestask.Item1 > 0 && this.bestbid.Item1 > 0)
+            {
+                this.prev_mid = this.mid;
+                this.mid = (this.bestask.Item1 + this.bestbid.Item1) / 2;
+            }
+            else if(this.bestask.Item1 > 0)
+            {
+                this.prev_mid = this.mid;
+                this.mid = this.bestask.Item1;
+            }
+            else if (this.bestbid.Item1 > 0)
+            {
+                this.prev_mid = this.mid;
+                this.mid = this.bestbid.Item1;
+            }
+            else
+            {
+                this.mid = 0;
+            }
+
         }
         public void updateFills(DataSpotOrderUpdate prev_ord,DataSpotOrderUpdate new_ord)
         {
