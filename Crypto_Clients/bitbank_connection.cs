@@ -44,7 +44,7 @@ namespace Crypto_Clients
 
             this.addLog = Console.WriteLine;
         }
-        public void SetApiCredentials(string name,string key)
+        public void SetApiCredentials(string name, string key)
         {
             this.apiName = name;
             this.secretKey = key;
@@ -86,7 +86,7 @@ namespace Crypto_Clients
             await this.websocket_client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
         }
 
-        public async Task subscribeOrderBook(string baseCcy,string quoteCcy)
+        public async Task subscribeOrderBook(string baseCcy, string quoteCcy)
         {
             string event_name = "depth_diff_" + baseCcy.ToLower() + "_" + quoteCcy.ToLower();
             var subscribeJson = @"42[""join-room"",""" + event_name + @"""]";
@@ -182,8 +182,7 @@ namespace Crypto_Clients
 
             return resString;
         }
-
-        private async Task<string> postAsync(string endpoint,string body)
+        private async Task<string> postAsync(string endpoint, string body)
         {
             var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             var timeWindow = "5000";
@@ -202,8 +201,16 @@ namespace Crypto_Clients
             var response = await client.SendAsync(request);
             var resString = await response.Content.ReadAsStringAsync();
 
-            return resString;   
+            return resString;
         }
+
+        public async Task<JsonDocument> getBalance()
+        {
+            var resString = await this.getAsync("/v1/user/assets");
+            var json = JsonDocument.Parse(resString);
+            return json;
+        }
+
 
         public async Task<JsonDocument> placeNewOrder(string symbol,string ord_type,string side,decimal price = 0,decimal quantity = 0,bool postonly = false)
         {

@@ -330,7 +330,7 @@ namespace Crypto_GUI
         private async void button2_Click(object sender, EventArgs e)
         {
             DataSpotOrderUpdate ord;
-            Instrument ins = this.qManager.instruments["eth_jpy@bitbank"];
+            Instrument ins = this.qManager.instruments["eth_jpy@coincheck"];
 
             this.oManager.setVirtualMode(false);
 
@@ -338,7 +338,7 @@ namespace Crypto_GUI
             Thread.Sleep(3000);
             this.addLog("Placing a new order");
             string ordid;
-            ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.001, 600000);
+            ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.01, 580000);
             if (ord != null)
             {
                 ordid = ord.order_id;
@@ -353,7 +353,7 @@ namespace Crypto_GUI
             this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
             Thread.Sleep(3000);
             this.addLog("modifing a order");
-            ord = await this.oManager.placeModSpotOrder(ins, ordid, (decimal)0.001, 590000, false);
+            ord = await this.oManager.placeModSpotOrder(ins, ordid, (decimal)0.01, 570000, false);
             if (ord != null)
             {
                 ordid = ord.order_id;
@@ -387,13 +387,13 @@ namespace Crypto_GUI
             this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
 
             this.addLog("Fill Check");
-            ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.001, 620000);
+            //ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.001, 620000);
             this.addLog(ord.ToString());
             Thread.Sleep(1000);
             this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
 
             this.addLog("Market Order");
-            ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Market, (decimal)0.001, 620000);
+            //ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Market, (decimal)0.001, 620000);
             this.addLog(ord.ToString());
             Thread.Sleep(1000);
             this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());

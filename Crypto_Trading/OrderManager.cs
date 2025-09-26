@@ -27,6 +27,7 @@ namespace Crypto_Trading
 
         Crypto_Clients.Crypto_Clients ord_client;
         bitbank_connection bitbank_client = bitbank_connection.GetInstance();
+        coincheck_connection coincheck_client = coincheck_connection.GetInstance();
 
         public Dictionary<string, DataSpotOrderUpdate> orders;
         public Dictionary<string, DataSpotOrderUpdate> live_orders;
@@ -96,7 +97,7 @@ namespace Crypto_Trading
         async public Task<DataSpotOrderUpdate?> placeNewSpotOrder(Instrument ins, orderSide side, orderType ordtype, decimal quantity, decimal price, timeInForce? timeinforce = null)
         {
             DataSpotOrderUpdate? output = null;
-            JsonDocument bitbank_obj;
+            JsonDocument js;
             if(this.virtualMode)
             {
                 while(!this.ord_client.ordUpdateStack.TryPop(out output))
@@ -163,16 +164,16 @@ namespace Crypto_Trading
             {
                 if(ordtype == orderType.Limit)
                 {
-                    bitbank_obj = await this.bitbank_client.placeNewOrder(ins.symbol, ordtype.ToString().ToLower(), side.ToString().ToLower(), price, quantity, true);
+                    js = await this.bitbank_client.placeNewOrder(ins.symbol, ordtype.ToString().ToLower(), side.ToString().ToLower(), price, quantity, true);
                 }
                 else
                 {
-                    bitbank_obj = await this.bitbank_client.placeNewOrder(ins.symbol, ordtype.ToString().ToLower(), side.ToString().ToLower(), price, quantity, false);
+                    js = await this.bitbank_client.placeNewOrder(ins.symbol, ordtype.ToString().ToLower(), side.ToString().ToLower(), price, quantity, false);
                 }
 
-                if(bitbank_obj.RootElement.GetProperty("success").GetUInt16() == 1)
+                if(js.RootElement.GetProperty("success").GetUInt16() == 1)
                 {
-                    var ord_obj = bitbank_obj.RootElement.GetProperty("data");
+                    var ord_obj = js.RootElement.GetProperty("data");
                     while (!this.ord_client.ordUpdateStack.TryPop(out output))
                     {
 
@@ -211,7 +212,6 @@ namespace Crypto_Trading
                     output.average_price = 0;
                     output.create_time = DateTimeOffset.FromUnixTimeMilliseconds(ord_obj.GetProperty("ordered_at").GetInt64()).UtcDateTime;
                     output.update_time = output.create_time;
-                    string str_status = ord_obj.GetProperty("side").GetString();
                     output.status = orderStatus.WaitOpen;
                     output.fee = 0;
                     output.fee_asset = "";
@@ -223,8 +223,71 @@ namespace Crypto_Trading
                 else
                 {
                     this.addLog("New Order Failed");
-                    this.addLog(bitbank_obj.RootElement.GetRawText());
+                    this.addLog(js.RootElement.GetRawText());
                     output = null;
+                }
+            }
+            else if(ins.market == "coincheck")
+            {
+                if(ordtype == orderType.Limit)
+                {
+                    js = await this.coincheck_client.placeNewOrder(ins.symbol, side.ToString().ToLower(), price, quantity, "post_only");
+                }
+                else
+                {
+                    decimal order_price;
+                    if(side == orderSide.Buy)
+                    {
+                        order_price = Math.Round(ins.bestask.Item1 * (decimal)1.1 / ins.price_unit) * ins.price_unit;
+                    }
+                    else
+                    {
+                        order_price = ins.price_unit;
+                    }
+                    //Market Order
+                    js = await this.coincheck_client.placeNewOrder(ins.symbol, side.ToString().ToLower(), order_price, quantity);
+                }
+                if (js.RootElement.GetProperty("success").GetBoolean())
+                {
+                    JsonElement ord_obj = js.RootElement;
+                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    {
+
+                    }
+                    output.timestamp = DateTime.UtcNow;
+                    output.order_id = ord_obj.GetProperty("id").GetInt64().ToString();
+                    output.symbol = ord_obj.GetProperty("pair").GetString();
+                    output.market = ins.market;
+                    output.symbol_market = ins.symbol_market;
+                    string str_side = ord_obj.GetProperty("order_type").GetString();
+                    if (str_side == "buy" || str_side == "market_buy")
+                    {
+                        output.side = orderSide.Buy;
+                    }
+                    else if (str_side == "sell" || str_side == "market_sell")
+                    {
+                        output.side = orderSide.Sell;
+                    }
+                    output.order_type = orderType.Limit;
+                    output.order_price = decimal.Parse(ord_obj.GetProperty("rate").GetString());
+                    output.order_quantity = decimal.Parse(ord_obj.GetProperty("amount").GetString());
+                    output.filled_quantity = 0;//Even if an executed order is passed, output 0 executed quantity as the execution will be streamed anyway.
+                    output.average_price = 0;
+                    output.create_time = DateTime.Parse(ord_obj.GetProperty("created_at").GetString(), null, System.Globalization.DateTimeStyles.RoundtripKind);
+                    output.update_time = output.create_time;
+
+                    output.status = orderStatus.Open;
+                    output.fee = 0;
+                    output.fee_asset = "";
+                    output.is_trigger_order = true;
+                    output.last_trade = "";
+                    this.addLog(output.ToString());
+                    this.ord_client.ordUpdateQueue.Enqueue(output);
+                }
+                else
+                {
+                    string msg = JsonSerializer.Serialize(js);
+                    this.addLog(msg);
                 }
             }
             else
@@ -241,7 +304,7 @@ namespace Crypto_Trading
         async public Task<DataSpotOrderUpdate?> placeCancelSpotOrder(Instrument ins, string orderId)
         {
             DataSpotOrderUpdate? output = null;
-            JsonDocument bitbank_obj;
+            JsonDocument js;
             if(this.virtualMode)
             {
                 while (!this.ord_client.ordUpdateStack.TryPop(out output))
@@ -285,10 +348,10 @@ namespace Crypto_Trading
             }
             else if(ins.market == "bitbank")
             {
-                bitbank_obj = await this.bitbank_client.placeCanOrder(ins.symbol, orderId);
-                if (bitbank_obj.RootElement.GetProperty("success").GetUInt16() == 1)
+                js = await this.bitbank_client.placeCanOrder(ins.symbol, orderId);
+                if (js.RootElement.GetProperty("success").GetUInt16() == 1)
                 {
-                    var ord_obj = bitbank_obj.RootElement.GetProperty("data");
+                    var ord_obj = js.RootElement.GetProperty("data");
                     while (!this.ord_client.ordUpdateStack.TryPop(out output))
                     {
                     }
@@ -305,7 +368,32 @@ namespace Crypto_Trading
                 else
                 {
                     this.addLog("Cancel Order Failed");
-                    this.addLog(bitbank_obj.RootElement.GetRawText());
+                    this.addLog(js.RootElement.GetRawText());
+                }
+            }
+            else if (ins.market == "coincheck")
+            {
+                js = await this.coincheck_client.placeCanOrder(orderId);
+                if (js.RootElement.GetProperty("success").GetBoolean())
+                {
+                    var ord_obj = js.RootElement;
+                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    {
+                    }
+                    output.order_id = ord_obj.GetProperty("id").GetInt64().ToString();
+                    output.timestamp = DateTime.UtcNow;
+                    output.order_price = -1;
+                    output.order_quantity = 0;
+                    output.market = ins.market;
+                    output.symbol = ins.symbol;
+                    output.filled_quantity = 0;
+                    output.status = orderStatus.WaitCancel;
+                    this.ord_client.ordUpdateQueue.Enqueue(output);
+                }
+                else
+                {
+                    this.addLog("Cancel Order Failed");
+                    this.addLog(js.RootElement.GetRawText());
                 }
             }
             else

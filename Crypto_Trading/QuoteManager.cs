@@ -83,51 +83,81 @@ namespace Crypto_Trading
                 return false;
             }
         }
-        public bool setBalance(ExchangeWebResult<SharedBalance[]>[] results)
+        public bool setBalance(DataBalance[] results)
         {
             bool output = true;
             string key;
-            foreach (var subResult in results)
+            foreach(var item in results)
             {
-                if(subResult.Success)
+                key = item.asset + "@" + item.market;
+                if (this.balances.ContainsKey(key))
                 {
-                    foreach (var data in subResult.Data)
+                    this.balances[key].balance = item.available;
+                }
+                else
+                {
+                    Balance balance = new Balance();
+                    balance.ccy = item.asset.ToUpper();
+                    balance.market = item.market;
+                    balance.balance = item.available;
+                    this.balances[key] = balance;
+                    foreach (var ins in this.instruments.Values)
                     {
-                        key = data.Asset + "@" + subResult.Exchange;
-                        if(this.balances.ContainsKey(key))
+                        if (ins.market == balance.market)
                         {
-                            this.balances[key].balance = data.Available;
-                        }
-                        else
-                        {
-                            Balance balance = new Balance();
-                            balance.ccy = data.Asset;
-                            balance.market = subResult.Exchange;
-                            balance.balance = data.Available;
-                            this.balances[key] = balance;
-                            foreach(var ins in this.instruments.Values)
+                            if (ins.quoteCcy == balance.ccy)
                             {
-                                if(ins.market == balance.market)
-                                {
-                                    if(ins.quoteCcy == balance.ccy)
-                                    {
-                                        ins.quoteBalance = balance;
-                                    }
-                                    else if(ins.baseCcy == balance.ccy)
-                                    {
-                                        ins.baseBalance = balance;
-                                    }
-                                }
+                                ins.quoteBalance = balance;
+                            }
+                            else if (ins.baseCcy == balance.ccy)
+                            {
+                                ins.baseBalance = balance;
                             }
                         }
                     }
                 }
-                else
-                {
-                    this.addLog("[ERROR]Failed to receive balance information.  Exchange:" + subResult.Exchange);
-                    output = false;
-                }
             }
+            //foreach (var subResult in results)
+            //{
+            //    if(subResult.Success)
+            //    {
+            //        foreach (var data in subResult.Data)
+            //        {
+            //            key = data.Asset + "@" + subResult.Exchange;
+            //            if(this.balances.ContainsKey(key))
+            //            {
+            //                this.balances[key].balance = data.Available;
+            //            }
+            //            else
+            //            {
+            //                Balance balance = new Balance();
+            //                balance.ccy = data.Asset;
+            //                balance.market = subResult.Exchange;
+            //                balance.balance = data.Available;
+            //                this.balances[key] = balance;
+            //                foreach(var ins in this.instruments.Values)
+            //                {
+            //                    if(ins.market == balance.market)
+            //                    {
+            //                        if(ins.quoteCcy == balance.ccy)
+            //                        {
+            //                            ins.quoteBalance = balance;
+            //                        }
+            //                        else if(ins.baseCcy == balance.ccy)
+            //                        {
+            //                            ins.baseBalance = balance;
+            //                        }
+            //                    }
+            //                }
+            //            }
+            //        }
+            //    }
+            //    else
+            //    {
+            //        this.addLog("[ERROR]Failed to receive balance information.  Exchange:" + subResult.Exchange);
+            //        output = false;
+            //    }
+            //}
             return output;
         }
         public bool setFees(ExchangeWebResult<SharedFee>[] results,string master_symbol)

@@ -5,6 +5,7 @@ using CryptoExchange.Net.Objects.Sockets;
 using CryptoExchange.Net.Requests;
 using CryptoExchange.Net.SharedApis;
 using HTX.Net.Enums;
+using PubnubApi;
 using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.Design;
@@ -12,10 +13,11 @@ using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Xml.Linq;
-using PubnubApi;
+using XT.Net.Objects.Models;
 
 
 
@@ -51,6 +53,7 @@ namespace Crypto_Clients
         Thread bitbankOrderUpdateTh;
         Thread bitbankPublicChannelTh;
         Thread coincheckPublicChannelsTh;
+        Thread coincheckPrivateChannelsTh;
 
         public Action<string> addLog;
         public Crypto_Clients()
@@ -116,6 +119,11 @@ namespace Crypto_Clients
             });
             this.coincheckPublicChannelsTh.Start();
             await this.coincheck_client.connectPrivateAsync();
+            this.coincheckPrivateChannelsTh = new Thread(() =>
+            {
+                this.coincheck_client.startListenPrivate(this.onConcheckPrivateMessage);
+            });
+            this.coincheckPrivateChannelsTh.Start();
         }
 
         public void pushToOrderBookStack(DataOrderBook msg)
@@ -160,10 +168,112 @@ namespace Crypto_Clients
         }
 
         //REST API
-        async public Task<ExchangeWebResult<SharedBalance[]>[]> getBalance(IEnumerable<string>? markets)
+        async public Task<DataBalance[]> getBalance(IEnumerable<string>? markets)
         {
             GetBalancesRequest req = new GetBalancesRequest(TradingMode.Spot);
-            return await this._rest_client.GetBalancesAsync(req, markets);
+            List<DataBalance> temp = new List<DataBalance>();
+            JsonDocument js;
+            foreach (var m in markets)
+            {
+                switch(m)
+                {
+                    case "bitbank":
+                        js = await this.bitbank_client.getBalance();
+                        if(js.RootElement.GetProperty("success").GetUInt16() == 1)
+                        {
+                            var assets = js.RootElement.GetProperty("data").GetProperty("assets").EnumerateArray();
+                            foreach(var asset in assets)
+                            {
+                                DataBalance balance = new DataBalance();
+                                balance.market = m;
+                                balance.asset = asset.GetProperty("asset").GetString();
+                                balance.available = Decimal.Parse(asset.GetProperty("free_amount").GetString());
+                                balance.total = Decimal.Parse(asset.GetProperty("onhand_amount").GetString());
+                                temp.Add(balance);
+                            }
+                        }
+                        else
+                        {
+                            this.addLog("Failed to get the balance information. Exchange:" + m);
+                        }
+                        break;
+                    case "coincheck":
+                        js = await this.coincheck_client.getBalance();
+                        if (js.RootElement.GetProperty("success").GetBoolean())
+                        {
+                            Dictionary<string,DataBalance> cc_balance = new Dictionary<string, DataBalance>();
+                            JsonElement js_elem = js.RootElement;
+                            foreach(var elem in js_elem.EnumerateObject())
+                            {
+                                if(elem.Name != "success")
+                                {
+                                    if(elem.Name.Contains("_"))
+                                    {
+                                        if (elem.Name.Split("_")[1] == "reserved")
+                                        {
+                                            string asset_name = elem.Name.Split("_")[0];
+                                            if (cc_balance.ContainsKey(asset_name))
+                                            {
+                                                cc_balance[asset_name].available = cc_balance[asset_name].total - decimal.Parse(elem.Value.GetString());
+                                            }
+                                            else
+                                            {
+                                                DataBalance balance = new DataBalance();
+                                                balance.market = m;
+                                                balance.asset = elem.Name;
+                                                balance.available = - decimal.Parse(elem.Value.GetString());
+                                                cc_balance[balance.asset] = balance;
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if(cc_balance.ContainsKey(elem.Name))
+                                        {
+                                            cc_balance[elem.Name].total = decimal.Parse(elem.Value.GetString());
+                                            cc_balance[elem.Name].available += cc_balance[elem.Name].total;
+                                        }
+                                        else
+                                        {
+                                            DataBalance balance = new DataBalance();
+                                            balance.market = m;
+                                            balance.asset = elem.Name;
+                                            balance.total = decimal.Parse(elem.Value.GetString());
+                                            cc_balance[balance.asset] = balance;
+                                        }
+                                    }
+                                }
+                               
+                            }
+                            temp.AddRange(cc_balance.Values);
+                        }
+                        else
+                        {
+                            this.addLog("Failed to get the balance information. Exchange:" + m);
+                        }
+                        break;
+                    default:
+                        var result = await this._rest_client.GetBalancesAsync(m, req);
+                        if(result.Success)
+                        {
+                            foreach(var d in result.Data)
+                            {
+                                DataBalance balance = new DataBalance();
+                                balance.market = m;
+                                balance.asset = d.Asset;
+                                balance.total = d.Total;
+                                balance.available = d.Available;
+                                temp.Add(balance);
+                            }
+                        }
+                        else
+                        {
+                            this.addLog("Failed to get the balance information. Exchange:" + m);
+                        }
+                        break;
+                }
+            }
+            return temp.ToArray();
         }
         async public Task<ExchangeWebResult<SharedFee>[]> getFees(IEnumerable<string>? markets,string baseCcy,string quoteCcy)
         {
@@ -260,6 +370,8 @@ namespace Crypto_Clients
                         this.bitbankOrderUpdateTh.Start();
                         break;
                     case "coincheck":
+                        await this.coincheck_client.subscribeOrderEvent();
+                        await this.coincheck_client.subscribeExecutionEvent();
                         break;
                     default:
                         var subResult = await this._client.SubscribeToSpotOrderUpdatesAsync(m, request, LogOrderUpdates);
@@ -478,7 +590,6 @@ namespace Crypto_Clients
 
             }
         }
-
         public void onCoincheckMessage(string msg_body)
         {
             //this.addLog(msg_body);
@@ -510,7 +621,55 @@ namespace Crypto_Clients
                 }
             }
         }
+        public void onConcheckPrivateMessage(string msg_body)
+        {
+            this.addLog(msg_body);
+            DataSpotOrderUpdate ord;
+            DataFill fill;
+            JsonElement js = JsonDocument.Parse(msg_body).RootElement;
+            string msg_type = js.GetProperty("channel").GetString();
+            switch(msg_type)
+            {
+                case "order-events":
+                    while (!this.ordUpdateStack.TryPop(out ord))
+                    {
 
+                    }
+                    ord.setCoincheckSpotOrder(js);
+                    this.ordUpdateQueue.Enqueue(ord);
+                    break;
+                case "execution-events":
+                    while (!this.fillStack.TryPop(out fill))
+                    {
+
+                    }
+                    fill.setCoincheckFill(js);
+                    this.fillQueue.Enqueue(fill);
+                    break;
+            }
+        }
+
+    }
+    public class DataBalance
+    {
+        public string asset;
+        public string market;
+        public decimal available;
+        public decimal total;
+        public DataBalance()
+        {
+            this.asset = "";
+            this.market = "";
+            this.available = 0;
+            this.total = 0;
+        }
+        public void init()
+        {
+            this.asset = "";
+            this.market = "";
+            this.available = 0;
+            this.total = 0;
+        }
     }
     public class DataOrderBook
     {
@@ -746,6 +905,54 @@ namespace Crypto_Clients
             this.interest = 0;
         }
 
+        public void setCoincheckFill(JsonElement js)
+        {
+            this.timestamp = DateTime.Now;
+            this.order_id = js.GetProperty("order_id").GetString();
+            this.trade_id = js.GetProperty("id").GetString();
+            this.filled_time = DateTime.Parse(js.GetProperty("event_time").GetString(), null, System.Globalization.DateTimeStyles.RoundtripKind);
+            this.symbol = js.GetProperty("pair").GetString();
+            this.market = "coincheck";
+            this.symbol_market = this.symbol_market + "@" + this.market;
+            string maker_taker = js.GetProperty("liquidity").GetString();
+            if (maker_taker == "M")
+            {
+                this.maker_taker = "maker";
+            }
+            else if(maker_taker == "T")
+            {
+                this.maker_taker = "taker";
+            }
+            this.price = decimal.Parse(js.GetProperty("rate").GetString());
+            string[] assets = this.symbol.Split("_");
+            string fee_ccy = js.GetProperty("fee_currency").GetString();
+            if(fee_ccy == assets[0])
+            {
+                this.fee_base = decimal.Parse(js.GetProperty("fee").GetString());
+                this.fee_quote = 0;
+            }
+            else if(fee_ccy == assets[1])
+            {
+                this.fee_base = 0;
+                this.fee_quote = decimal.Parse(js.GetProperty("fee").GetString());
+            }
+            this.quantity = decimal.Parse(js.GetProperty("funds").GetProperty(assets[0]).GetString());
+            this.quantity += this.fee_base;
+            string side = js.GetProperty("side").GetString();
+            if(side == "buy")
+            {
+                this.side = orderSide.Buy;
+            }
+            else if(side == "sell")
+            {
+                this.side= orderSide.Sell;
+            }
+            else
+            {
+                this.side = orderSide.NONE;
+            }
+        }
+
         public void setBitBankFill(JsonElement js)
         {
             this.timestamp = DateTime.UtcNow;
@@ -883,6 +1090,86 @@ namespace Crypto_Clients
             this.is_trigger_order = false;
         }
 
+        public void setCoincheckSpotOrder(JsonElement js)
+        {
+            this.timestamp = DateTime.UtcNow;
+            this.symbol = js.GetProperty("pair").GetString();
+            this.symbol_market = this.symbol + "@coincheck";
+            this.market = "coincheck";
+            this.order_id = js.GetProperty("id").GetInt64().ToString();
+            string str_status = js.GetProperty("order_event").GetString();
+            switch (str_status)
+            {
+                case "NEW":
+                case "PARTIALLY_FILLED":
+                    this.status = orderStatus.Open;
+                    break;
+                case "FILL":
+                case "PARTIALLY_FILLED_CANCELED":
+                case "PARTIALLY_FILLED_EXPIRED":
+                    this.status = orderStatus.Filled;
+                    break;
+                case "EXPIRY":
+                    this.status = orderStatus.INVALID;
+                    break;
+                case "CANCEL":
+                    this.status = orderStatus.Canceled;
+                    break;
+                default:
+                    this.status = orderStatus.INVALID;
+                    break;
+            }
+            string side = js.GetProperty("order_type").GetString();
+            if (side == "buy")
+            {
+                this.side = orderSide.Buy;
+            }
+            else if (side == "sell")
+            {
+                this.side = orderSide.Sell;
+            }
+            if (js.TryGetProperty("market_" + side + "amount", out JsonElement market_element)
+    && market_element.ValueKind != JsonValueKind.Null
+    && market_element.ValueKind != JsonValueKind.Undefined)
+            {
+                this.order_type = orderType.Market;
+            }
+            else
+            {
+                this.order_type = orderType.Limit;
+            }
+            this.order_price = decimal.Parse(js.GetProperty("rate").GetString());
+            this.order_quantity = decimal.Parse(js.GetProperty("amount").GetString());
+            if (js.TryGetProperty("latest_executed_amount", out JsonElement filled_element)
+    && filled_element.ValueKind != JsonValueKind.Null
+    && filled_element.ValueKind != JsonValueKind.Undefined)
+            {
+                this.filled_quantity = decimal.Parse(js.GetProperty("latest_executed_amount").GetString());
+            }
+            else
+            {
+                this.filled_quantity = 0;
+            }
+
+                this.average_price = -1;
+            string str_tif = js.GetProperty("time_in_force").GetString();
+            switch (str_tif)
+            {
+                case "good_til_cancelled":
+                    this.time_in_force = timeInForce.GoodTillCanceled;
+                    break;
+                default :
+                    this.time_in_force = timeInForce.NONE;
+                    break;
+            }
+            this.client_order_id = "";
+            this.fee_asset = "";
+            this.fee = 0;
+            this.last_trade = "";
+            this.trigger_price = 0;
+            this.is_trigger_order = false;
+            this.update_time = DateTime.Parse(js.GetProperty("event_time").GetString(), null, System.Globalization.DateTimeStyles.RoundtripKind);
+        }
         public void setBitbankSpotOrder(JsonElement js)
         {
             this.timestamp = DateTime.UtcNow;

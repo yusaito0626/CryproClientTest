@@ -9,13 +9,13 @@ using XT.Net.Objects.Models;
 
 namespace Crypto_Clients
 {
-    internal class coincheck_connection
+    public class coincheck_connection
     {
         private string apiName;
         private string secretKey;
 
         private const string publicKey = "sub-c-ecebae8e-dd60-11e6-b6b1-02ee2ddab7fe";
-        private const string URL = "";
+        private const string URL = "https://coincheck.com";
         private const string ws_URL = "wss://ws-api.coincheck.com";
         private const string private_URL = "wss://stream.coincheck.com";
 
@@ -109,9 +109,6 @@ namespace Crypto_Clients
             {
                 this.addLog($"Connection failed: {ex.Message}");
             }
-            //var (channel, token) = await this.GetChannelAndToken();
-            //var pubnub = this.GetPubNubAndAddListener(channel, token);
-            //this.subscribePrivateChannels(pubnub, channel, token);
         }
 
         public async Task subscribeTrades(string baseCcy, string quoteCcy)
@@ -155,6 +152,20 @@ namespace Crypto_Clients
             this.addLog("Check websocket state. State:" +  this.websocket_client.State.ToString());
         }
 
+        public async Task subscribeOrderEvent()
+        {
+            var subscribeJson = "{\"type\":\"subscribe\", \"channels\":[\"order-events\"]}";
+            this.addLog(subscribeJson);
+            var bytes = Encoding.UTF8.GetBytes(subscribeJson);
+            await this.private_client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+        }
+        public async Task subscribeExecutionEvent()
+        {
+            var subscribeJson = "{\"type\":\"subscribe\", \"channels\":[\"execution-events\"]}";
+            this.addLog(subscribeJson);
+            var bytes = Encoding.UTF8.GetBytes(subscribeJson);
+            await this.private_client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+        }
         public async void startListenPrivate(Action<string> onMsg)
         {
             this.addLog("[coincheck_connection]startListenPrivate Called");
@@ -167,7 +178,7 @@ namespace Crypto_Clients
                 {
 
                     var msg = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    this.onMessage(msg);
+                    this.onPrivateMessage(msg);
                 }
                 else if (result.MessageType == WebSocketMessageType.Close)
                 {
@@ -181,15 +192,13 @@ namespace Crypto_Clients
         private async Task<string> getAsync(string endpoint)
         {
             var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            var timeWindow = "5000";
-            var message = $"{nonce}{timeWindow}{endpoint}";
+            var message = $"{nonce}{coincheck_connection.URL}{endpoint}";
 
             using var client = new HttpClient();
             var request = new HttpRequestMessage(HttpMethod.Get, coincheck_connection.URL + endpoint);
 
             request.Headers.Add("ACCESS-KEY", this.apiName);
-            request.Headers.Add("ACCESS-REQUEST-TIME", nonce.ToString());
-            request.Headers.Add("ACCESS-TIME-WINDOW", timeWindow);
+            request.Headers.Add("ACCESS-NONCE", nonce.ToString());
             request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
 
             request.Content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
@@ -202,9 +211,8 @@ namespace Crypto_Clients
 
         private async Task<string> postAsync(string endpoint, string body)
         {
-            var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            var timeWindow = "5000";
-            var message = $"{nonce}{timeWindow}{body}";
+            var nonce = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var message = $"{nonce}{coincheck_connection.URL}{endpoint}{body}";
 
             using var client = new HttpClient();
             var request = new HttpRequestMessage(HttpMethod.Post, coincheck_connection.URL + endpoint);
@@ -212,8 +220,7 @@ namespace Crypto_Clients
             request.Content = new StringContent(body, Encoding.UTF8, "application/json");
 
             request.Headers.Add("ACCESS-KEY", this.apiName);
-            request.Headers.Add("ACCESS-REQUEST-TIME", nonce.ToString());
-            request.Headers.Add("ACCESS-TIME-WINDOW", timeWindow);
+            request.Headers.Add("ACCESS-NONCE", nonce.ToString());
             request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
 
             var response = await client.SendAsync(request);
@@ -222,131 +229,56 @@ namespace Crypto_Clients
             return resString;
         }
 
-        public async Task<JsonDocument> placeNewOrder(string symbol, string ord_type, string side, decimal price = 0, decimal quantity = 0, bool postonly = false)
+        private async Task<string> deleteAsync(string endpoint,string body)
+        {
+            var nonce = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var message = $"{nonce}{coincheck_connection.URL}{endpoint}{body}";
+
+            using var client = new HttpClient();
+            var request = new HttpRequestMessage(HttpMethod.Delete, coincheck_connection.URL + endpoint);
+
+            request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+            request.Headers.Add("ACCESS-KEY", this.apiName);
+            request.Headers.Add("ACCESS-NONCE", nonce.ToString());
+            request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
+
+            var response = await client.SendAsync(request);
+            var resString = await response.Content.ReadAsStringAsync();
+
+            return resString;
+        }
+        public async Task<JsonDocument> getBalance()
+        {
+            var resString = await this.getAsync("/api/accounts/balance");
+            var json = JsonDocument.Parse(resString);
+            return json;
+        }
+        public async Task<JsonDocument> placeNewOrder(string symbol, string side, decimal price = 0, decimal quantity = 0, string tif = "good_til_cancelled")
         {
             var body = new
             {
                 pair = symbol,
                 amount = quantity.ToString(),
-                price = price.ToString(),
-                side = side,
-                type = ord_type,
-                post_only = postonly
+                rate = price.ToString(),
+                order_type = side,
+                time_in_force = tif
             };
+            
 
             var jsonBody = JsonSerializer.Serialize(body);
-            var resString = await this.postAsync("/v1/user/spot/order", jsonBody);
+            var resString = await this.postAsync("/api/exchange/orders", jsonBody);
 
             return JsonDocument.Parse(resString);
         }
-        public async Task<JsonDocument> placeCanOrder(string symbol, string order_id)
+        public async Task<JsonDocument> placeCanOrder(string order_id)
         {
-            var body = new
-            {
-                pair = symbol,
-                order_id = Int64.Parse(order_id)
-            };
-
-            var jsonBody = JsonSerializer.Serialize(body);
-            var resString = await this.postAsync("/v1/user/spot/cancel_order", jsonBody);
+            var resString = await this.deleteAsync("/api/exchange/orders/" + order_id, "");
 
             return JsonDocument.Parse(resString);
         }
 
-        //private async Task<(string channel, string token)> GetChannelAndToken()
-        //{
-        //    var resString = await this.getAsync("/v1/user/subscribe");
-
-        //    var json = JsonDocument.Parse(resString);
-
-        //    var channel = json.RootElement.GetProperty("data").GetProperty("pubnub_channel").GetString();
-        //    var token = json.RootElement.GetProperty("data").GetProperty("pubnub_token").GetString();
-
-        //    return (channel!, token!);
-        //}
-
-        //private Pubnub GetPubNubAndAddListener(string channel, string token)
-        //{
-        //    var config = new PNConfiguration(new UserId(channel))
-        //    {
-        //        SubscribeKey = bitbank_connection.publicKey,
-        //        Secure = true,
-        //    };
-
-        //    var pubnub = new Pubnub(config);
-
-        //    pubnub.AddListener(new SubscribeCallbackExt(
-        //        (pubnubObj, messageResult) =>
-        //        {
-        //            if (messageResult != null && messageResult.Message != null)
-        //            {
-        //                this.addLog("message received: " + messageResult.Message.ToString());
-        //                var json = JsonDocument.Parse(messageResult.Message.ToString());
-        //                if (json.RootElement.TryGetProperty("method", out var method))
-        //                {
-        //                    var methodStr = method.GetString();
-        //                    switch (methodStr)
-        //                    {
-        //                        //Orders
-        //                        case "spot_order_new":
-        //                        case "spot_order":
-        //                            var ord = json.RootElement.GetProperty("params").EnumerateArray();
-        //                            foreach (var d in ord)
-        //                            {
-        //                                this.orderQueue.Enqueue(d);
-        //                            }
-        //                            break;
-        //                        case "spot_trade":
-        //                            var trd = json.RootElement.GetProperty("params").EnumerateArray();
-        //                            foreach (var d in trd)
-        //                            {
-        //                                this.fillQueue.Enqueue(d);
-        //                            }
-        //                            break;
-        //                        case "spot_order_invalidation":
-        //                            break;
-        //                        case "asset_update":
-        //                            break;
-        //                        default:
-        //                            break;
-        //                    }
-        //                }
-        //            }
-        //        },
-        //        (pubnubObj, presenceResult) =>
-        //        {
-        //            this.addLog("presence: " + presenceResult.Event);
-        //        },
-        //        async (pubnubObj, status) =>
-        //        {
-        //            this.addLog("status: " + status.Category);
-
-        //            switch (status.Category)
-        //            {
-        //                case PNStatusCategory.PNConnectedCategory:
-        //                    this.addLog("pubnub connection established");
-        //                    break;
-
-        //                case PNStatusCategory.PNReconnectedCategory:
-        //                    this.addLog("pubnub connection restored");
-        //                    this.subscribePrivateChannels(pubnubObj, channel, token);
-        //                    break;
-
-        //                case PNStatusCategory.PNTimeoutCategory:
-        //                case PNStatusCategory.PNNetworkIssuesCategory:
-        //                case PNStatusCategory.PNAccessDeniedCategory:
-        //                    this.addLog("pubnub reconnecting...");
-        //                    await connectPrivateAsync();
-        //                    break;
-
-        //                default:
-        //                    this.addLog("status default");
-        //                    break;
-        //            }
-        //        }));
-
-        //    return pubnub;
-        //}
+ 
  
         private string ToSha256(string key, string value)
         {
