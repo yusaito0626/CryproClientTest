@@ -24,6 +24,7 @@ namespace Crypto_Trading
         public decimal intervalAfterFill;
         public decimal modThreshold;
 
+        public decimal maxSkew;
         public decimal skewThreshold;
         public decimal oneSideThreshold;
 
@@ -64,6 +65,7 @@ namespace Crypto_Trading
             this.ToBsize = 0;
             this.intervalAfterFill = 0;
             this.modThreshold = 0;
+            this.maxSkew = 0;
             this.skewThreshold = 0;
             this.oneSideThreshold = 0;
             this.abook = true;
@@ -110,6 +112,7 @@ namespace Crypto_Trading
                 this.ToBsize = root.GetProperty("ToBsize").GetDecimal();
                 this.intervalAfterFill = root.GetProperty("intervalAfterFill").GetDecimal();
                 this.modThreshold = root.GetProperty("modThreshold").GetDecimal();
+                this.maxSkew = root.GetProperty("max_skew").GetDecimal();
                 this.skewThreshold = root.GetProperty("skewThreshold").GetDecimal();
                 this.oneSideThreshold = root.GetProperty("oneSideThreshold").GetDecimal();
                 this.taker_symbol_market = root.GetProperty("taker_symbol_market").ToString();
@@ -161,6 +164,15 @@ namespace Crypto_Trading
                 bid_price = Math.Floor(bid_price / this.maker.price_unit) * this.maker.price_unit;
                 ask_price = Math.Ceiling(ask_price / this.maker.price_unit) * this.maker.price_unit;
 
+                if(this.ToBsize * (1 + this.taker.taker_fee) > this.taker.baseBalance.balance)
+                {
+                    bid_price = 0;
+                }
+                if (this.taker.adjusted_bestask.Item1 * this.ToBsize * (1 + this.taker.taker_fee) > this.taker.quoteBalance.balance)
+                {
+                    ask_price = 0;
+                }
+
                 bool isPriceChanged = this.checkPriceChange();
 
                 if (isPriceChanged)
@@ -175,7 +187,7 @@ namespace Crypto_Trading
                 }
                 if (this.live_buyorder != null)
                 {
-                    if (this.maker.baseBalance.balance > this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200))
+                    if (bid_price == 0 || (this.maker.baseBalance.balance > this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200)))
                     {
                         this.live_buyorder = await this.oManager.placeCancelSpotOrder(this.maker, this.live_buyorder.order_id);
                         this.live_bidprice = 0;
@@ -193,7 +205,7 @@ namespace Crypto_Trading
                     {
                         //Do nothing
                     }
-                    else if (this.last_filled_time == null || (decimal)(DateTime.UtcNow - this.last_filled_time).Value.TotalSeconds > this.intervalAfterFill)
+                    else if (bid_price > 0 && (this.last_filled_time == null || (decimal)(DateTime.UtcNow - this.last_filled_time).Value.TotalSeconds > this.intervalAfterFill))
                     {
                         this.live_buyorder = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, this.ToBsize, bid_price);
                         this.live_bidprice = bid_price;
@@ -202,7 +214,7 @@ namespace Crypto_Trading
 
                 if (this.live_sellorder != null)
                 {
-                    if (this.maker.baseBalance.balance < this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200))
+                    if (ask_price == 0 || (this.maker.baseBalance.balance < this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200)))
                     {
                         this.live_sellorder = await this.oManager.placeCancelSpotOrder(this.maker, this.live_sellorder.order_id);
                         this.live_askprice = 0;
@@ -220,7 +232,7 @@ namespace Crypto_Trading
                     {
                         //Do nothing
                     }
-                    else if (this.last_filled_time == null || (decimal)(DateTime.UtcNow - this.last_filled_time).Value.TotalSeconds > this.intervalAfterFill)
+                    else if (ask_price > 0 && (this.last_filled_time == null || (decimal)(DateTime.UtcNow - this.last_filled_time).Value.TotalSeconds > this.intervalAfterFill))
                     {
                         this.live_sellorder = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, this.ToBsize * (1 - this.maker.maker_fee), ask_price);
                         this.live_askprice = ask_price;
@@ -241,19 +253,19 @@ namespace Crypto_Trading
             decimal skew_point = 0;
             if(this.maker.baseBalance.balance > this.baseCcyQuantity * ((decimal)0.5 + this.skewThreshold / 200))
             {
-                skew_point = - this.markup * (this.maker.baseBalance.balance - this.baseCcyQuantity * ((decimal)0.5 + this.skewThreshold / 200)) / (this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200) - this.baseCcyQuantity * ((decimal)0.5 + this.skewThreshold / 200));
-                //if(skew_point < - this.markup)
-                //{
-                //    skew_point = - this.markup;
-                //}
+                skew_point = - this.maxSkew * (this.maker.baseBalance.balance - this.baseCcyQuantity * ((decimal)0.5 + this.skewThreshold / 200)) / (this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200) - this.baseCcyQuantity * ((decimal)0.5 + this.skewThreshold / 200));
+                if (skew_point < -this.maxSkew)
+                {
+                    skew_point = -this.maxSkew;
+                }
             }
             else if(this.maker.baseBalance.balance < this.baseCcyQuantity * ((decimal)0.5 - this.skewThreshold / 200))
             {
-                skew_point = this.markup * (this.baseCcyQuantity * ((decimal)0.5 - this.skewThreshold / 200) - this.maker.baseBalance.balance) / (this.baseCcyQuantity * ((decimal)0.5 - this.skewThreshold / 200) - this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200));
-                //if (skew_point > this.markup)
-                //{
-                //    skew_point = this.markup;
-                //}
+                skew_point = this.maxSkew * (this.baseCcyQuantity * ((decimal)0.5 - this.skewThreshold / 200) - this.maker.baseBalance.balance) / (this.baseCcyQuantity * ((decimal)0.5 - this.skewThreshold / 200) - this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200));
+                if (skew_point > this.maxSkew)
+                {
+                    skew_point = this.maxSkew;
+                }
             }
             return skew_point;
         }

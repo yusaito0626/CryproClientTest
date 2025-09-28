@@ -13,12 +13,13 @@ namespace Crypto_GUI
 {
     public partial class Form1 : Form
     {
-        string configPath = AppContext.BaseDirectory + "\\config.json";
+        string configPath = "C:\\Users\\yusai\\Crypto_Project\\configs\\config.json";
         string logPath = AppContext.BaseDirectory + "\\crypto.log";
         string outputPath = AppContext.BaseDirectory;
-        string APIsPath;
-        string masterFile;
-        string strategyFile;
+        string APIsPath = "";
+        string masterFile = "";
+        string virtualBalanceFile = "";
+        string strategyFile = "";
 
         Crypto_Clients.Crypto_Clients cl = new Crypto_Clients.Crypto_Clients();
         QuoteManager qManager = QuoteManager.GetInstance();
@@ -46,12 +47,15 @@ namespace Crypto_GUI
         private bool threadsStarted;
         private bool aborting;
 
-        private decimal multiplier = 1000;
+        private decimal multiplier = 1;
 
         public Form1()
         {
             this.aborting = false;
             this.threadsStarted = false;
+
+            this.logQueue = new ConcurrentQueue<string>();
+            this.filledOrderQueue = new ConcurrentQueue<string>();
 
             InitializeComponent();
             
@@ -69,8 +73,6 @@ namespace Crypto_GUI
                 return;
             }
 
-            this.logQueue = new ConcurrentQueue<string>();
-            this.filledOrderQueue = new ConcurrentQueue<string>();
 
             this.logFile = new StreamWriter(new FileStream(this.logPath, FileMode.Create));
 
@@ -93,6 +95,8 @@ namespace Crypto_GUI
 
             this.stg.maker = this.qManager.instruments[this.stg.maker_symbol_market];
             this.stg.taker = this.qManager.instruments[this.stg.taker_symbol_market];
+            this.stg.maker.ToBsize = this.stg.ToBsize;
+            this.stg.taker.ToBsize = this.stg.ToBsize;
 
             this.qManager.stg = this.stg;
             this.oManager.stg = this.stg;
@@ -182,6 +186,15 @@ namespace Crypto_GUI
                 {
                     this.addLog("[WARNING] strategyFile is not configured.");
                     this.addLog("[WARNING] Any strategies won't be run.");
+                }
+                if (root.TryGetProperty("balanceFile", out elem))
+                {
+                    this.virtualBalanceFile = elem.GetString();
+                }
+                else
+                {
+                    this.addLog("[WARNING] Balance file is not configured.");
+                    this.addLog("[WARNING] The virtual balance will be all 0.");
                 }
                 return true;
             }
@@ -411,7 +424,14 @@ namespace Crypto_GUI
         {
             await this.cl.connectAsync(this.qManager.markets);
 
-            this.qManager.setBalance(await this.cl.getBalance(this.qManager.markets));
+            if(this.oManager.getVirtualMode())
+            {
+                this.qManager.setVirtualBalance(this.virtualBalanceFile);
+            }
+            else
+            {
+                this.qManager.setBalance(await this.cl.getBalance(this.qManager.markets));
+            }
             //this.qManager.setFees(await this.cl.getFees([Exchange.Bybit, Exchange.Coinbase], this.stg.baseCcy, this.stg.quoteCcy),this.stg.baseCcy + this.stg.quoteCcy);
 
             foreach (var ins in this.qManager.instruments.Values)

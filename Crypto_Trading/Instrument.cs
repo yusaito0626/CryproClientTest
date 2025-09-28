@@ -173,6 +173,8 @@ namespace Crypto_Trading
                     {
                         this.bids[item.Key] = item.Value;
                     }
+
+                    this.updateBeskAskBid(this.ToBsize);
                     Volatile.Write(ref this.quotes_lock, 0);
                     break;
                 case CryptoExchange.Net.Objects.SocketUpdateType.Update:
@@ -203,10 +205,10 @@ namespace Crypto_Trading
                             this.bids[item.Key] = item.Value;
                         }
                     }
+                    this.updateBeskAskBid(this.ToBsize);
                     Volatile.Write(ref this.quotes_lock, 0);
                     break;
             }
-            this.updateBeskAskBid(this.ToBsize);
         }
         public void updateTrade(DataTrade update)
         {
@@ -240,13 +242,13 @@ namespace Crypto_Trading
                     }
                     else
                     {
-                        cumQuantity += (quantity - cumQuantity);
                         weightedPrice += (quantity - cumQuantity) * item.Key;
+                        cumQuantity += (quantity - cumQuantity);
                         break;
                     }
                 }
                 weightedPrice /= cumQuantity;
-                this.adjusted_bestask.Item1 = weightedPrice;
+                this.adjusted_bestask.Item1 = weightedPrice * (1 + this.taker_fee);
                 this.adjusted_bestask.Item2 = cumQuantity;
 
                 cumQuantity = 0;
@@ -260,13 +262,13 @@ namespace Crypto_Trading
                     }
                     else
                     {
-                        cumQuantity += (quantity - cumQuantity);
                         weightedPrice += (quantity - cumQuantity) * item.Key;
+                        cumQuantity += (quantity - cumQuantity);
                         break;
                     }
                 }
                 weightedPrice /= cumQuantity;
-                this.adjusted_bestbid.Item1 = weightedPrice;
+                this.adjusted_bestbid.Item1 = weightedPrice * (1 - this.taker_fee);
                 this.adjusted_bestbid.Item2 = cumQuantity;
             }
             else

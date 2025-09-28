@@ -86,6 +86,59 @@ namespace Crypto_Trading
                 return false;
             }
         }
+        public bool setVirtualBalance(string balanceFile)
+        {
+            if (File.Exists(balanceFile))
+            {
+                int i = 0;
+                foreach (string line in File.ReadLines(balanceFile))
+                {
+                    if (i == 0)
+                    {
+                        ++i;
+                    }
+                    else
+                    {
+                        string[] items = line.Split(",");
+
+                        string key = items[1] + "@" + items[0];
+                        if (this.balances.ContainsKey(key))
+                        {
+                            this.balances[key].balance = decimal.Parse(items[2]);
+                        }
+                        else
+                        {
+                            Balance balance = new Balance();
+                            balance.ccy = items[1];
+                            balance.market = items[0];
+                            balance.balance = decimal.Parse(items[2]);
+                            this.balances[key] = balance;
+                            foreach (var ins in this.instruments.Values)
+                            {
+                                if (ins.market == balance.market)
+                                {
+                                    if (ins.quoteCcy == balance.ccy)
+                                    {
+                                        ins.quoteBalance = balance;
+                                    }
+                                    else if (ins.baseCcy == balance.ccy)
+                                    {
+                                        ins.baseBalance = balance;
+                                    }
+                                }
+                            }
+                        }
+
+                    }
+                }
+                return true;
+            }
+            else
+            {
+                this.addLog("ERROR", "The balance file doesn't exist. Filename:" + balanceFile);
+                return false;
+            }
+        }
         public bool setBalance(DataBalance[] results)
         {
             bool output = true;

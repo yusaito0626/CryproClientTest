@@ -144,12 +144,12 @@ namespace Crypto_Trading
                     switch (side)
                     {
                         case orderSide.Buy:
-                            output.average_price = ins.bestask.Item1;
+                            output.average_price = ins.adjusted_bestask.Item1;
                             output.fee = ins.taker_fee * output.filled_quantity * output.average_price;
                             output.fee_asset = ins.quoteCcy;
                             break;
                         case orderSide.Sell:
-                            output.average_price = ins.bestbid.Item1;
+                            output.average_price = ins.adjusted_bestbid.Item1;
                             output.fee = ins.taker_fee * output.filled_quantity;
                             output.fee_asset = ins.baseCcy;
                             break;
