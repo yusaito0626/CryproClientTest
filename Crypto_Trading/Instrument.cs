@@ -19,6 +19,7 @@ namespace Crypto_Trading
         public DateTime? last_traded_time;
 
         public volatile int quotes_lock;
+        public long quoteSeqNo;
         public SortedDictionary<decimal, decimal> asks;
         public SortedDictionary<decimal, decimal> bids;
 
@@ -69,6 +70,7 @@ namespace Crypto_Trading
 
             this.last_quote_updated_time = null;
             this.quotes_lock = 0;
+            this.quoteSeqNo = 0;
             this.asks = new SortedDictionary<decimal, decimal>();
             this.bids = new SortedDictionary<decimal, decimal>();
 
@@ -163,6 +165,7 @@ namespace Crypto_Trading
                     {
 
                     }
+                    this.quoteSeqNo = update.seqNo;
                     this.asks.Clear();
                     foreach(var item in update.asks)
                     {
@@ -178,11 +181,16 @@ namespace Crypto_Trading
                     Volatile.Write(ref this.quotes_lock, 0);
                     break;
                 case CryptoExchange.Net.Objects.SocketUpdateType.Update:
-
                     while (Interlocked.CompareExchange(ref this.quotes_lock, 1, 0) != 0)
                     {
 
                     }
+
+                    if (this.quoteSeqNo > 0 && update.seqNo <= this.quoteSeqNo)
+                    {
+                        break;
+                    }
+                    this.quoteSeqNo = update.seqNo;
                     foreach (var item in update.asks)
                     {
                         if (item.Value == 0)

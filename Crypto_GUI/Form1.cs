@@ -464,7 +464,7 @@ namespace Crypto_GUI
             this.button_startTrading.Enabled = true;
         }
 
-        private async void button2_Click(object sender, EventArgs e)
+        private async void test_Click(object sender, EventArgs e)
         {
             await this.cl.connectAsync(this.qManager.markets);
             await this.cl.subscribeOrderBook(["bittrade"], "eth", "jpy");

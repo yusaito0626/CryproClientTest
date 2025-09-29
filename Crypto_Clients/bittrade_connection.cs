@@ -1,10 +1,13 @@
-﻿using PubnubApi;
+﻿using ProtoBuf.WellKnownTypes;
+using PubnubApi;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.WebSockets;
+using System.Reflection.Metadata;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -17,10 +20,10 @@ namespace Crypto_Clients
         private string apiName;
         private string secretKey;
 
-        private const string publicKey = "sub-c-ecebae8e-dd60-11e6-b6b1-02ee2ddab7fe";
         private const string URL = "https://api-cloud.bittrade.co.jp";
         private const string ws_URL = "wss://api-cloud.bittrade.co.jp/ws";
-        private const string private_URL = "wss://api-cloud.bittrade.co.jp/ws/v2";
+        private const string private_URL = "wss://api-cloud.bittrade.co.jp";
+        private const string private_Path = "/ws/v2";
 
         public ConcurrentQueue<JsonElement> orderQueue;
         public ConcurrentQueue<JsonElement> fillQueue;
@@ -71,35 +74,87 @@ namespace Crypto_Clients
         public async Task connectPrivateAsync()
         {
             this.addLog("INFO", "Connecting to private channel of bitTrade");
-            var nonce = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var uri = new Uri(bittrade_connection.private_URL);
-            string msg = nonce.ToString() + bittrade_connection.private_URL;
-            var body = new
-            {
-                type = "login",
-                access_key = this.apiName,
-                access_nonce = nonce.ToString(),
-                access_signature = this.ToSha256(this.secretKey, msg)
+            var _timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss");
+            var uri = new Uri(bittrade_connection.private_URL + bittrade_connection.private_Path);
 
+            var authParams = new NameValueCollection();
+            authParams["accessKey"] = this.apiName;
+            authParams["signatureMethod"] = "HmacSHA256";
+            authParams["signatureVersion"] = "2.1";
+            authParams["timestamp"] = _timestamp;
+
+            string query = string.Join("&", Array.ConvertAll(authParams.AllKeys, key =>
+                $"{key}={Uri.EscapeDataString(authParams[key])}"
+            ));
+
+            string s = $"GET\n{bittrade_connection.private_URL.Replace("wss://","")}\n{bittrade_connection.private_Path}\n{query}";
+
+            string signature = this.ToHmacSha256Base64(s, this.secretKey);
+
+            //var auth = new AuthJson
+            //{
+            //    action = "req",
+            //    ch = "auth",
+            //    Params = new AuthParams
+            //    {
+            //        AuthType = "api",
+            //        AccessKey = this.apiName,
+            //        SignatureMethod = "HmacSHA256",
+            //        SignatureVersion = "2.1",
+            //        Timestamp = _timestamp,
+            //        Signature = signature
+            //    }
+            //};
+
+            var Params = new AuthParams
+            {
+                authType = "api",
+                accessKey = this.apiName,
+                signatureMethod = "HmacSHA256",
+                signatureVersion = "2.1",
+                timestamp = _timestamp,
+                signature = signature
             };
-            var jsonBody = JsonSerializer.Serialize(body);
+
+            string jsonBody = "{\"action\":\"req\",\"ch\":\"auth\",\"params\":" + JsonSerializer.Serialize(Params) + "}";
+
+            //var jsonBody = JsonSerializer.Serialize(auth);
+            this.addLog("INFO", jsonBody);
             var bytes = Encoding.UTF8.GetBytes(jsonBody);
             try
             {
                 await this.private_client.ConnectAsync(uri, CancellationToken.None);
                 await this.private_client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                WebSocketReceiveResult res;
                 var buffer = new byte[16384];
-                var res = await this.private_client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                using var ms = new MemoryStream();
+                do
+                {
+                    res = await this.private_client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                    ms.Write(buffer, 0, res.Count);
+
+                } while (!res.EndOfMessage);
+                //var res = await this.private_client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
                 if (res.MessageType == WebSocketMessageType.Text)
                 {
                     var msg_body = Encoding.UTF8.GetString(buffer, 0, res.Count);
                     JsonElement js = JsonDocument.Parse(msg_body).RootElement;
-                    if (js.GetProperty("success").GetBoolean() == false)
+                    if (js.GetProperty("code").GetInt32() != 200)
                     {
                         this.addLog("ERROR", "Failed to login to the private channel.");
                         this.addLog("ERROR", msg_body);
                         await this.private_client.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
                     }
+                }
+                else if (res.MessageType == WebSocketMessageType.Binary)
+                {
+                    ms.Position = 0;
+                    using var gzipStream = new GZipStream(ms, CompressionMode.Decompress);
+                    using var resultStream = new MemoryStream();
+                    gzipStream.CopyTo(resultStream);
+                    var msg = Encoding.UTF8.GetString(resultStream.ToArray());
+                    this.addLog("ERROR", "Failed to login to the private channel.");
+                    this.addLog("ERROR", msg);
                 }
             }
             catch (WebSocketException wse)
@@ -111,23 +166,49 @@ namespace Crypto_Clients
                 this.addLog("ERROR", $"Connection failed: {ex.Message}");
             }
         }
-        public async Task sendPing()
+        public async Task sendPing(bool isPrivate = false)
         {
-            var subscribeJson = "{\"ping\":" + DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString() + "}";
-            var bytes = Encoding.UTF8.GetBytes(subscribeJson);
-            if (this.websocket_client.State == WebSocketState.Open)
+            if(isPrivate)
             {
-                await this.websocket_client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                if (this.private_client.State == WebSocketState.Open)
+                {
+                    var subscribeJson = "{\"action\":\"ping\",\"data\":{\"ts\":" + DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString() + "}}";
+                    var bytes = Encoding.UTF8.GetBytes(subscribeJson);
+                    await this.private_client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                }
             }
+            else
+            {
+                var subscribeJson = "{\"ping\":" + DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString() + "}";
+                var bytes = Encoding.UTF8.GetBytes(subscribeJson);
+                if (this.websocket_client.State == WebSocketState.Open)
+                {
+                    await this.websocket_client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                }
+            }
+            
         }
-        public async Task sendPong(Int64 num)
+        public async Task sendPong(Int64 num,bool isPrivate = false)
         {
-            var subscribeJson = "{\"pong\":" + num.ToString() + "}";
-            var bytes = Encoding.UTF8.GetBytes(subscribeJson);
-            if (this.websocket_client.State == WebSocketState.Open)
+            if(isPrivate)
             {
-                await this.websocket_client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                var subscribeJson = "{\"action\":\"pong\",\"data\":{\"ts\":" + num.ToString() + "}}";
+                var bytes = Encoding.UTF8.GetBytes(subscribeJson);
+                if (this.private_client.State == WebSocketState.Open)
+                {
+                    await this.private_client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                }
             }
+            else
+            {
+                var subscribeJson = "{\"pong\":" + num.ToString() + "}";
+                var bytes = Encoding.UTF8.GetBytes(subscribeJson);
+                if (this.websocket_client.State == WebSocketState.Open)
+                {
+                    await this.websocket_client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                }
+            }
+
         }
         public async Task subscribeTrades(string baseCcy, string quoteCcy)
         {
@@ -191,9 +272,9 @@ namespace Crypto_Clients
             this.addLog("INFO", "Check websocket state. State:" + this.websocket_client.State.ToString());
         }
 
-        public async Task subscribeOrderEvent()
+        public async Task subscribeOrderEvent(string baseCcy, string quoteCcy)
         {
-            var subscribeJson = "{\"type\":\"subscribe\", \"channels\":[\"order-events\"]}";
+            var subscribeJson = "{\"action\":\"sub\", \"ch\":\"orders#" + baseCcy + quoteCcy + "\"}";
             var bytes = Encoding.UTF8.GetBytes(subscribeJson);
             if(this.private_client.State == WebSocketState.Open)
             {
@@ -215,12 +296,28 @@ namespace Crypto_Clients
             var buffer = new byte[16384];
             while (this.private_client.State == WebSocketState.Open)
             {
-                var result = await this.private_client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                WebSocketReceiveResult result;
+                using var ms = new MemoryStream();
+                do
+                {
+                    result = await this.private_client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                    ms.Write(buffer, 0, result.Count);
+
+                } while (!result.EndOfMessage);
                 if (result.MessageType == WebSocketMessageType.Text)
                 {
 
                     var msg = Encoding.UTF8.GetString(buffer, 0, result.Count);
                     this.onPrivateMessage(msg);
+                }
+                else if (result.MessageType == WebSocketMessageType.Binary)
+                {
+                    ms.Position = 0;
+                    using var gzipStream = new GZipStream(ms, CompressionMode.Decompress);
+                    using var resultStream = new MemoryStream();
+                    gzipStream.CopyTo(resultStream);
+                    var msg = Encoding.UTF8.GetString(resultStream.ToArray());
+                    this.onMessage(msg);
                 }
                 else if (result.MessageType == WebSocketMessageType.Close)
                 {
@@ -328,6 +425,14 @@ namespace Crypto_Clients
             var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(value));
             return BitConverter.ToString(hash).Replace("-", "").ToLower();
         }
+        private string ToHmacSha256Base64(string message, string secret)
+        {
+            using (var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret)))
+            {
+                var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(message));
+                return Convert.ToBase64String(hash); 
+            }
+        }
         public void addLog(string logtype, string line)
         {
             this._addLog("[" + logtype + ":bittrade_connection]" + line);
@@ -347,5 +452,21 @@ namespace Crypto_Clients
                 return _instance;
             }
         }
+    }
+    public class AuthJson
+    {
+        public string action { get; set; }
+        public string ch { get; set; }
+        public AuthParams Params { get; set; }
+    }
+
+    public class AuthParams
+    {
+        public string authType { get; set; }
+        public string accessKey { get; set; }
+        public string signatureMethod { get; set; }
+        public string signatureVersion { get; set; }
+        public string timestamp { get; set; }
+        public string signature { get; set; }
     }
 }

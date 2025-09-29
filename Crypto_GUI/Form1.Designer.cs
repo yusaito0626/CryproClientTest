@@ -293,7 +293,7 @@
             button_orderTest.TabIndex = 2;
             button_orderTest.Text = "Test Order";
             button_orderTest.UseVisualStyleBackColor = true;
-            button_orderTest.Click += button2_Click;
+            button_orderTest.Click += test_Click;
             // 
             // tabPage3
             // 

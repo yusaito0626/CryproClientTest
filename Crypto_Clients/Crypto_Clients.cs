@@ -56,6 +56,7 @@ namespace Crypto_Clients
         Thread coincheckPublicChannelsTh;
         Thread coincheckPrivateChannelsTh;
         Thread bittradePublicChannelTh;
+        Thread bittradePrivateChannelTh;
 
         public Action<string> _addLog;
         public Crypto_Clients()
@@ -142,6 +143,13 @@ namespace Crypto_Clients
                             this.bittrade_client.startListen(this.onBitTradeMessage);
                         });
                         this.bittradePublicChannelTh.Start();
+
+                        await this.bittrade_client.connectPrivateAsync();
+                        this.bittradePrivateChannelTh = new Thread(() =>
+                        {
+                            this.bittrade_client.startListenPrivate(this.onBitTradePrivateMessage);
+                        });
+                        this.bittradePrivateChannelTh.Start();
                         break;
                 }
             }
@@ -211,6 +219,9 @@ namespace Crypto_Clients
                     break;
                 case "coincheck":
                     this.coincheck_client.SetApiCredentials(root.GetProperty("name").ToString(), root.GetProperty("privateKey").ToString());
+                    break;
+                case "bittrade":
+                    this.bittrade_client.SetApiCredentials(root.GetProperty("name").ToString(), root.GetProperty("privateKey").ToString());
                     break;
             }
             this._rest_client.SetApiCredentials(this.creds);
@@ -750,7 +761,53 @@ namespace Crypto_Clients
             }
             else if (js.TryGetProperty("ping", out subElement))
             {
+                //this.addLog("INFO", msg_body);
                 this.bittrade_client.sendPong(subElement.GetInt64());
+            }
+        }
+
+        public void onBitTradePrivateMessage(string msg_body)
+        {
+            this.addLog("INFO", msg_body);
+            JsonElement js = JsonDocument.Parse(msg_body).RootElement;
+            JsonElement subElement;
+            DataSpotOrderUpdate ord;
+            if (js.TryGetProperty("action", out subElement))
+            {
+                string act = subElement.GetString();
+                switch (act)
+                {
+                    case "ping":
+                        var data = js.GetProperty("data");
+                        this.bittrade_client.sendPong(data.GetProperty("ts").GetInt64(),true);
+                        break;
+                    case "push":
+                        //while (!this.ordUpdateStack.TryPop(out ord))
+                        //{
+
+                        //}
+                        //var obj = js.GetProperty("data");
+                        //ord.setBitTradeOrder(obj);
+                        //this.ordUpdateQueue.Enqueue(ord);
+                        break;
+                    default:
+                        this.addLog("INFO", msg_body);
+                        break;
+
+                }
+                
+            }
+            else
+            {
+                //string ch = js.GetProperty("ch").GetString();
+                //var data = js.GetProperty("data");
+                //while (!this.ordUpdateStack.TryPop(out ord))
+                //{
+
+                //}
+                //var obj = js.GetProperty("data");
+                //ord.setBitTradeTrade(obj);
+                //this.ordUpdateQueue.Enqueue(ord);
             }
         }
 
@@ -1380,6 +1437,232 @@ namespace Crypto_Clients
             this.is_trigger_order = false;
         }
 
+        public void setBitTradeOrder(JsonElement js)
+        {
+            string _type;
+            string str_status;
+            this.timestamp = DateTime.UtcNow;
+            this.symbol = js.GetProperty("symbol").GetString();
+            this.symbol_market = this.symbol + "@bittrade";
+            this.market = "bittrade";
+            this.order_id = js.GetProperty("order_id").GetInt64().ToString();
+            string eventType = js.GetProperty("eventType").GetString();
+            switch (eventType)
+            {
+                case "creation":
+                    _type = js.GetProperty("type").GetString();
+                    switch (_type)
+                    {
+                        case "sell_limit":
+                        case "sell_limit_maker":
+                            this.order_type = orderType.Limit;
+                            this.side = orderSide.Sell;
+                            this.order_price = decimal.Parse(js.GetProperty("orderPrice").GetString());
+                            break;
+                        case "buy_limit":
+                        case "buy_limit_maker":
+                            this.order_type = orderType.Limit;
+                            this.side = orderSide.Buy;
+                            this.order_price = decimal.Parse(js.GetProperty("orderPrice").GetString());
+                            break;
+                        case "sell_market":
+                            this.order_type = orderType.Market;
+                            this.side = orderSide.Sell;
+                            this.order_price = 0;
+                            break;
+                        case "buy_market":
+                            this.order_type = orderType.Market;
+                            this.side = orderSide.Buy;
+                            this.order_price = 0;
+                            break;
+                        case "sell_ioc":
+                        case "buy_ioc":
+                        default:
+                            this.order_type = orderType.Other;
+                            break;
+                    }
+                    str_status = js.GetProperty("orderStatus").GetString();
+                    switch (str_status)
+                    {
+                        case "created":
+                            this.status = orderStatus.WaitOpen;
+                            this.update_time = DateTimeOffset.FromUnixTimeMilliseconds(js.GetProperty("orderCreateTime").GetInt64()).UtcDateTime;
+                            this.create_time = DateTimeOffset.FromUnixTimeMilliseconds(js.GetProperty("orderCreateTime").GetInt64()).UtcDateTime;
+                            break;
+                        case "submitted":
+                            this.status = orderStatus.Open;
+                            this.update_time = DateTimeOffset.FromUnixTimeMilliseconds(js.GetProperty("orderCreateTime").GetInt64()).UtcDateTime;
+                            this.create_time = DateTimeOffset.FromUnixTimeMilliseconds(js.GetProperty("orderCreateTime").GetInt64()).UtcDateTime;
+                            break;
+                        case "partial-filled":
+                        case "partial-canceled":
+                            this.status = orderStatus.Open;
+                            break;
+                        case "filled":
+                            this.status = orderStatus.Filled;
+                            break;
+                        case "canceling":
+                            this.status = orderStatus.WaitCancel;
+                            break;
+                        case "canceled":
+                            this.status = orderStatus.Canceled;
+                            break;
+                        default:
+                            this.status = orderStatus.INVALID;
+                            break;
+                    }
+                    this.order_quantity = decimal.Parse(js.GetProperty("orderSize").GetString());
+                    break;
+                case "deletion":
+                    string side = js.GetProperty("orderSide").GetString();
+                    if (side == "buy")
+                    {
+                        this.side = orderSide.Buy;
+                    }
+                    else if (side == "sell")
+                    {
+                        this.side = orderSide.Sell;
+                    }
+                    this.update_time = DateTimeOffset.FromUnixTimeMilliseconds(js.GetProperty("lastActTime").GetInt64()).UtcDateTime;
+                    str_status = js.GetProperty("orderStatus").GetString();
+                    switch (str_status)
+                    {
+                        case "created":
+                            this.status = orderStatus.WaitOpen;
+                            break;
+                        case "submitted":
+                            this.status = orderStatus.Open;
+                            break;
+                        case "partial-filled":
+                        case "partial-canceled":
+                            this.status = orderStatus.Open;
+                            break;
+                        case "filled":
+                            this.status = orderStatus.Filled;
+                            break;
+                        case "canceling":
+                            this.status = orderStatus.WaitCancel;
+                            break;
+                        case "canceled":
+                            this.status = orderStatus.Canceled;
+                            break;
+                        default:
+                            this.status = orderStatus.INVALID;
+                            break;
+                    }
+                    break;
+            }
+            this.filled_quantity = 0;
+            this.average_price = 0;
+            this.client_order_id = js.GetProperty("clientOrderId").GetString();
+            this.fee_asset = "";
+            this.fee = 0;
+            this.last_trade = "";
+            this.trigger_price = 0;
+            this.is_trigger_order = false;
+        }
+        public void setBitTradeTrade(JsonElement js)
+        {
+            this.timestamp = DateTime.UtcNow;
+            this.symbol = js.GetProperty("symbol").GetString();
+            this.symbol_market = this.symbol + "@bittrade";
+            this.market = "bittrade";
+            this.order_id = js.GetProperty("order_id").GetInt64().ToString();
+
+            this.average_price = decimal.Parse(js.GetProperty("tradePrice").GetString());
+            this.filled_quantity = decimal.Parse(js.GetProperty("tradeVolume").GetString());
+            string side = js.GetProperty("orderSide").GetString();
+            if (side == "buy")
+            {
+                this.side = orderSide.Buy;
+            }
+            else if (side == "sell")
+            {
+                this.side = orderSide.Sell;
+            }
+
+            string _type = js.GetProperty("orderType").GetString();
+            switch (_type)
+            {
+                case "sell_limit":
+                case "sell_limit_maker":
+                    this.order_type = orderType.Limit;
+                    this.order_price = decimal.Parse(js.GetProperty("orderPrice").GetString());
+                    this.order_quantity = decimal.Parse(js.GetProperty("orderSize").GetString());
+                    break;
+                case "buy_limit":
+                case "buy_limit_maker":
+                    this.order_type = orderType.Limit;
+                    this.order_price = decimal.Parse(js.GetProperty("orderPrice").GetString());
+                    this.order_quantity = decimal.Parse(js.GetProperty("orderSize").GetString());
+                    break;
+                case "sell_market":
+                    this.order_type = orderType.Market;
+                    this.order_price = 0;
+                    this.order_quantity = decimal.Parse(js.GetProperty("orderSize").GetString());
+                    break;
+                case "buy_market":
+                    this.order_type = orderType.Market;
+                    this.order_price = 0;
+                    this.order_quantity = this.filled_quantity;
+                    break;
+                case "sell_ioc":
+                case "buy_ioc":
+                default:
+                    this.order_type = orderType.Other;
+                    break;
+            }
+
+            string str_status = js.GetProperty("orderStatus").GetString();
+            switch (str_status)
+            {
+                case "created":
+                    this.status = orderStatus.WaitOpen;
+                    break;
+                case "submitted":
+                case "partial-filled":
+                case "partial-canceled":
+                    this.status = orderStatus.Open;
+                    break;
+                case "filled":
+                    this.status = orderStatus.Filled;
+                    break;
+                case "canceling":
+                    this.status = orderStatus.WaitCancel;
+                    break;
+                case "canceled":
+                    this.status = orderStatus.Canceled;
+                    break;
+                default:
+                    this.status = orderStatus.INVALID;
+                    break;
+            }
+
+
+            string eventType = js.GetProperty("eventType").GetString();
+            switch (eventType)
+            {
+                case "trade":
+                    this.update_time = DateTimeOffset.FromUnixTimeMilliseconds(js.GetProperty("tradeTime").GetInt64()).UtcDateTime;
+                    this.fee = decimal.Parse(js.GetProperty("transactFee").GetString());
+                    this.fee_asset = js.GetProperty("feeCurrency").GetString().ToUpper();
+                    this.fee -= decimal.Parse(js.GetProperty("feeDeduct").GetString());
+                    break;
+                case "cancellation":
+                    this.fee = 0;
+                    this.fee_asset = "";
+                    break;
+            }
+
+            this.client_order_id = js.GetProperty("clientOrderId").GetString();
+            this.create_time = DateTimeOffset.FromUnixTimeMilliseconds(js.GetProperty("orderCreateTime").GetInt64()).UtcDateTime;
+
+           
+            this.last_trade = "";
+            this.trigger_price = 0;
+            this.is_trigger_order = false;
+        }
+
         public void setSharedSpotOrder(SharedSpotOrder update, string market,DateTime? timestamp)
         {
             this.timestamp = DateTime.UtcNow;
@@ -1478,7 +1761,7 @@ namespace Crypto_Clients
                 this.average_price = 0;
             }
             this.client_order_id = update.ClientOrderId;
-            this.fee_asset = update.FeeAsset;
+            this.fee_asset = update.FeeAsset.ToUpper();
             if(update.Fee != null)
             {
                 this.fee = (decimal)update.Fee;
