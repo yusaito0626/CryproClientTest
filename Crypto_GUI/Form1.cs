@@ -1,24 +1,33 @@
 using Crypto_Clients;
 using Crypto_Trading;
 using CryptoClients.Net.Enums;
+using Discord;
+using Discord.WebSocket;
+using PubnubApi.EventEngine.Subscribe.Common;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Net;
 using System.Net.WebSockets;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading;
 using System.Windows.Forms;
+using Utils;
+
+
 
 namespace Crypto_GUI
 {
     public partial class Form1 : Form
     {
         string configPath = "C:\\Users\\yusai\\Crypto_Project\\configs\\config.json";
+        string defaultConfigPath = AppContext.BaseDirectory + "\\config.json";
         string logPath = AppContext.BaseDirectory + "\\crypto.log";
         string outputPath = AppContext.BaseDirectory;
         string APIsPath = "";
+        string discordTokenFile = "";
         string masterFile = "";
         string virtualBalanceFile = "";
         string strategyFile = "";
@@ -27,6 +36,7 @@ namespace Crypto_GUI
         QuoteManager qManager = QuoteManager.GetInstance();
         OrderManager oManager = OrderManager.GetInstance();
         ThreadManager thManager = ThreadManager.GetInstance();
+        MessageDeliverer MsgDeliverer = MessageDeliverer.GetInstance(); 
 
         Strategy stg;
 
@@ -48,9 +58,11 @@ namespace Crypto_GUI
         Font font_gridView_Bold;
 
         private bool threadsStarted;
+        private int stopTradingCalled;
         private bool aborting;
 
         private decimal multiplier = 1;
+
 
         public Form1()
         {
@@ -101,6 +113,8 @@ namespace Crypto_GUI
             this.stg.maker.ToBsize = this.stg.ToBsize;
             this.stg.taker.ToBsize = this.stg.ToBsize;
 
+            this.stg._addLog = this.addLog;
+
             this.qManager.stg = this.stg;
             this.oManager.stg = this.stg;
 
@@ -139,74 +153,87 @@ namespace Crypto_GUI
             this.updatingTh = new Thread(update);
             this.updatingTh.Start();
 
+            this.stopTradingCalled = 0;
             this.button_receiveFeed.Enabled = true;
             this.timer_statusCheck.Start();
         }
         private bool readConfig()
         {
+            string fileContent;
             if (File.Exists(this.configPath))
             {
-                string fileContent = File.ReadAllText(this.configPath);
-
-                using JsonDocument doc = JsonDocument.Parse(fileContent);
-                var root = doc.RootElement;
-                JsonElement elem;
-                if (root.TryGetProperty("APIsPath", out elem))
-                {
-                    this.APIsPath = elem.GetString();
-                }
-                else
-                {
-                    this.addLog("API path is not configured.", Enums.logType.ERROR);
-                    return false;
-                }
-                if (root.TryGetProperty("masterFile", out elem))
-                {
-                    this.masterFile = elem.GetString();
-                }
-                else
-                {
-                    this.addLog("Master file path is not configured.", Enums.logType.ERROR);
-                    return false;
-                }
-                if (root.TryGetProperty("outputPath", out elem))
-                {
-                    this.outputPath = elem.GetString();
-                }
-                else
-                {
-                    this.addLog("Output path is not configured.", Enums.logType.WARNING);
-                    this.addLog("The output files will be exported to the current path.", Enums.logType.WARNING);
-                }
-                if (root.TryGetProperty("logFile", out elem))
-                {
-                    this.logPath = elem.GetString();
-                }
-                if (root.TryGetProperty("strategyFile", out elem))
-                {
-                    this.strategyFile = elem.GetString();
-                }
-                else
-                {
-                    this.addLog("strategyFile is not configured.", Enums.logType.WARNING);
-                    this.addLog("Any strategies won't be run.", Enums.logType.WARNING);
-                }
-                if (root.TryGetProperty("balanceFile", out elem))
-                {
-                    this.virtualBalanceFile = elem.GetString();
-                }
-                else
-                {
-                    this.addLog("Balance file is not configured.", Enums.logType.WARNING);
-                    this.addLog("The virtual balance will be all 0.", Enums.logType.WARNING);
-                }
-                return true;
+                fileContent = File.ReadAllText(this.configPath);
+            }
+            else if(File.Exists(this.defaultConfigPath))
+            {
+                fileContent = File.ReadAllText(this.defaultConfigPath);
             }
             else
             {
                 this.addLog("Config file doesn't exist. path:" + this.configPath, Enums.logType.ERROR);
                 return false;
             }
+            using JsonDocument doc = JsonDocument.Parse(fileContent);
+            var root = doc.RootElement;
+            JsonElement elem;
+            if (root.TryGetProperty("APIsPath", out elem))
+            {
+                this.APIsPath = elem.GetString();
+            }
+            else
+            {
+                this.addLog("API path is not configured.", Enums.logType.ERROR);
+                return false;
+            }
+            if (root.TryGetProperty("masterFile", out elem))
+            {
+                this.masterFile = elem.GetString();
+            }
+            else
+            {
+                this.addLog("Master file path is not configured.", Enums.logType.ERROR);
+                return false;
+            }
+            if (root.TryGetProperty("discordTokenFile", out elem))
+            {
+                this.discordTokenFile = elem.GetString();
+            }
+            else
+            {
+                this.addLog("Message destination is not configured.", Enums.logType.WARNING);
+            }
+            if (root.TryGetProperty("outputPath", out elem))
+            {
+                this.outputPath = elem.GetString();
+            }
+            else
+            {
+                this.addLog("Output path is not configured.", Enums.logType.WARNING);
+                this.addLog("The output files will be exported to the current path.", Enums.logType.WARNING);
+            }
+            if (root.TryGetProperty("logFile", out elem))
+            {
+                this.logPath = elem.GetString();
+            }
+            if (root.TryGetProperty("strategyFile", out elem))
+            {
+                this.strategyFile = elem.GetString();
+            }
+            else
+            {
+                this.addLog("strategyFile is not configured.", Enums.logType.WARNING);
+                this.addLog("Any strategies won't be run.", Enums.logType.WARNING);
+            }
+            if (root.TryGetProperty("balanceFile", out elem))
+            {
+                this.virtualBalanceFile = elem.GetString();
+            }
+            else
+            {
+                this.addLog("Balance file is not configured.", Enums.logType.WARNING);
+                this.addLog("The virtual balance will be all 0.", Enums.logType.WARNING);
+            }
+            return true;
 
         }
         private void readAPIFiles(string path)
@@ -223,10 +250,25 @@ namespace Crypto_GUI
                 }
             }
         }
-
-        private void addLog(string line, Enums.logType logtype = Enums.logType.INFO)
+        private void addLog(string body, Enums.logType logtype = Enums.logType.INFO)
         {
-            this.logQueue.Enqueue(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   [" + logtype.ToString() + "]" + line + "\n");
+            string messageline = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   [" + logtype.ToString() + "]" + body + "\n";
+            switch (logtype)
+            {
+                case Enums.logType.ERROR:
+                case Enums.logType.FATAL:
+                    this.MsgDeliverer.sendMessage(messageline);
+                    this.onError();
+                    break;
+                default:
+                    break;
+
+            }
+            this.logQueue.Enqueue(messageline);
+        }
+        private void onError()
+        {
+            this.stopTrading();
         }
         private void updateLog()
         {
@@ -234,6 +276,7 @@ namespace Crypto_GUI
             while (this.logQueue.TryDequeue(out line))
             {
                 this.textBoxMainLog.Text += line;
+                
                 if (this.logFile != null)
                 {
                     this.logFile.WriteLine(line);
@@ -241,9 +284,12 @@ namespace Crypto_GUI
                 }
             }
         }
-
-        private void update()
+        private async void update()
         {
+            if(!await this.MsgDeliverer.setDiscordToken(this.discordTokenFile))
+            {
+                this.addLog("Message configuration not found",Enums.logType.WARNING);
+            }
             Thread.Sleep(1000);
             this.updating = false;
             while (!this.aborting)
@@ -257,7 +303,6 @@ namespace Crypto_GUI
             }
             this.BeginInvoke(this.updateLog);
         }
-
         private void _update()
         {
             switch (this.tabControl.SelectedTab.Text)
@@ -289,7 +334,7 @@ namespace Crypto_GUI
                 volume = this.stg.maker.my_buy_notional + this.stg.maker.my_sell_notional;
                 tradingPL = (this.stg.taker.my_sell_notional - this.stg.taker.my_sell_quantity * this.stg.taker.mid) + (this.stg.taker.my_buy_quantity * this.stg.taker.mid - this.stg.taker.my_buy_notional);
                 tradingPL += (this.stg.maker.my_sell_notional - this.stg.maker.my_sell_quantity * this.stg.taker.mid) + (this.stg.maker.my_buy_quantity * this.stg.taker.mid - this.stg.maker.my_buy_notional);
-                fee = this.stg.taker.base_fee * this.stg.taker.mid + this.stg.taker.quote_fee + this.stg.maker.base_fee * this.stg.taker.mid  + this.stg.maker.quote_fee;
+                fee = this.stg.taker.base_fee * this.stg.taker.mid + this.stg.taker.quote_fee + this.stg.maker.base_fee * this.stg.taker.mid + this.stg.maker.quote_fee;
                 volume *= this.multiplier;
                 tradingPL *= this.multiplier;
                 fee *= this.multiplier;
@@ -316,9 +361,9 @@ namespace Crypto_GUI
                 this.lbl_buyQuantity.Text = this.selected_ins.my_buy_quantity.ToString("N" + this.selected_ins.quantity_scale);
                 this.lbl_sellNotional.Text = this.selected_ins.my_sell_notional.ToString("N2");
                 this.lbl_buyNotional.Text = this.selected_ins.my_buy_notional.ToString("N2");
-                if(this.selected_ins.my_sell_quantity > 0)
+                if (this.selected_ins.my_sell_quantity > 0)
                 {
-                    this.lbl_sellAvgPrice.Text = (this.selected_ins.my_sell_notional / this.selected_ins.my_sell_quantity).ToString("N" +this.selected_ins.price_scale);
+                    this.lbl_sellAvgPrice.Text = (this.selected_ins.my_sell_notional / this.selected_ins.my_sell_quantity).ToString("N" + this.selected_ins.price_scale);
                 }
                 else
                 {
@@ -335,9 +380,28 @@ namespace Crypto_GUI
                 this.lbl_baseFee.Text = this.selected_ins.base_fee.ToString("N" + this.selected_ins.quantity_scale);
                 this.lbl_quoteFee.Text = this.selected_ins.quote_fee.ToString("N" + this.selected_ins.quantity_scale);
                 this.updateQuotesView(this.gridView_Ins, this.selected_ins);
+
+                while (Interlocked.CompareExchange(ref this.selected_ins.orders_lock, 1, 0) != 0)
+                {
+
+                }
+                this.gridView_insOrders.Rows.Clear();
+                foreach (var item in this.selected_ins.live_orders)
+                {
+                    DataSpotOrderUpdate ord = item.Value;
+                    this.gridView_insOrders.Rows.Insert(0);
+                    this.gridView_insOrders.Rows[0].Cells[0].Value = ((DateTime)ord.timestamp).ToString("HH:mm:ss.fff");
+                    this.gridView_insOrders.Rows[0].Cells[1].Value = ord.market;
+                    this.gridView_insOrders.Rows[0].Cells[2].Value = ord.symbol;
+                    this.gridView_insOrders.Rows[0].Cells[3].Value = ord.side.ToString();
+                    this.gridView_insOrders.Rows[0].Cells[4].Value = ord.order_price.ToString("N" + this.selected_ins.price_scale);
+                    this.gridView_insOrders.Rows[0].Cells[5].Value = ord.order_quantity.ToString("N" + this.selected_ins.quantity_scale);
+                    this.gridView_insOrders.Rows[0].Cells[6].Value = ord.filled_quantity.ToString("N" + this.selected_ins.quantity_scale);
+                    this.gridView_insOrders.Rows[0].Cells[7].Value = ord.status.ToString();
+                }
+                Volatile.Write(ref this.selected_ins.orders_lock, 0);
             }
         }
-
         private void update_strategy()
         {
             if (this.stg.taker != null)
@@ -389,7 +453,6 @@ namespace Crypto_GUI
                 }
             }
         }
-
         private void updateQuotesView(DataGridView view, Instrument ins)
         {
             int i = 0;
@@ -435,7 +498,6 @@ namespace Crypto_GUI
                 ++i;
             }
         }
-
         private void comboSymbols_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (this.qManager.instruments.ContainsKey(this.comboSymbols.Text))
@@ -448,67 +510,135 @@ namespace Crypto_GUI
             }
         }
 
-        private async void receiveFeed_clicked(object sender, EventArgs e)
+        private async Task<bool> tradePreparation(bool liveTrading)
         {
-            foreach (var mkt in this.qManager._markets)
+            try
             {
-                await this.qManager.connectPublicChannel(mkt.Key);
-                await this.oManager.connectPrivateChannel(mkt.Key);
-            }
+                this.oManager.setVirtualMode(!liveTrading);
 
-            if (this.oManager.getVirtualMode())
-            {
-                this.qManager.setVirtualBalance(this.virtualBalanceFile);
-            }
-            else
-            {
-                this.qManager.setBalance(await this.crypto_client.getBalance(this.qManager._markets.Keys));
-            }
-            //this.qManager.setBalance(await this.crypto_client.getBalance(this.qManager._markets.Keys));
-            //this.qManager.setFees(await this.cl.getFees([Exchange.Bybit, Exchange.Coinbase], this.stg.baseCcy, this.stg.quoteCcy),this.stg.baseCcy + this.stg.quoteCcy);
-
-            foreach (var ins in this.qManager.instruments.Values)
-            {
-                string[] markets = [ins.market];
-                if (ins.market == Exchange.Bybit)
+                foreach (var mkt in this.qManager._markets)
                 {
-                    await crypto_client.subscribeBybitOrderBook(ins.baseCcy, ins.quoteCcy);
+                    await this.qManager.connectPublicChannel(mkt.Key);
+                    await this.oManager.connectPrivateChannel(mkt.Key);
                 }
-                else if (ins.market == Exchange.Coinbase)
+
+                foreach (var ins in this.qManager.instruments.Values)
                 {
-                    await crypto_client.subscribeCoinbaseOrderBook(ins.baseCcy, ins.quoteCcy);
+                    string[] markets = [ins.market];
+                    if (ins.market == Exchange.Bybit)
+                    {
+                        await crypto_client.subscribeBybitOrderBook(ins.baseCcy, ins.quoteCcy);
+                    }
+                    else if (ins.market == Exchange.Coinbase)
+                    {
+                        await crypto_client.subscribeCoinbaseOrderBook(ins.baseCcy, ins.quoteCcy);
+                    }
+                    else
+                    {
+                        await crypto_client.subscribeOrderBook(markets, ins.baseCcy, ins.quoteCcy);
+                    }
+                    await crypto_client.subscribeTrades(markets, ins.baseCcy, ins.quoteCcy);
+                }
+
+                if (this.oManager.getVirtualMode())
+                {
+                    if (!this.qManager.setVirtualBalance(this.virtualBalanceFile))
+                    {
+                        return false;
+                    }
                 }
                 else
                 {
-                    await crypto_client.subscribeOrderBook(markets, ins.baseCcy, ins.quoteCcy);
+                    if (!this.qManager.setBalance(await this.crypto_client.getBalance(this.qManager._markets.Keys)))
+                    {
+                        return false;
+                    }
                 }
-                await crypto_client.subscribeTrades(markets, ins.baseCcy, ins.quoteCcy);
+                this.qManager.ready = true;
+
+                await crypto_client.subscribeSpotOrderUpdates(this.qManager._markets.Keys);
+                if(this.qManager._markets.ContainsKey("bitbank"))
+                {
+                    this.thManager.addThread("bitbankSpotOrderUpdates", this.crypto_client.onBitbankOrderUpdates);
+                }
+
+                this.oManager.ready = true;
+
+                this.thManager.addThread("updateQuotes", this.qManager._updateQuotes);
+                this.thManager.addThread("updateTrades", this.qManager._updateTrades);
+                this.thManager.addThread("updateOrders", this.oManager._updateOrders);
+                this.thManager.addThread("orderLogging", this.oManager._orderLogging, this.oManager.onLoggingStopped);
+                this.threadsStarted = true;
+            }
+            catch (Exception ex)
+            {
+                this.addLog("An error occured while initializing the platforms.", Enums.logType.ERROR);
+                this.addLog(ex.Message, Enums.logType.ERROR);
+                return false;
             }
 
-            await crypto_client.subscribeSpotOrderUpdates(this.qManager._markets.Keys);
 
-            this.thManager.addThread("updateQuotes", this.qManager._updateQuotes);
-            this.thManager.addThread("updateTrades", this.qManager._updateTrades);
-            this.thManager.addThread("updateOrders", this.oManager._updateOrders);
-            this.thManager.addThread("orderLogging", this.oManager._orderLogging, this.oManager.onLoggingStopped);
-            this.threadsStarted = true;
-            this.button_startTrading.Enabled = true;
+            return true;
         }
+        private async Task<bool> startTrading()
+        {
+            this.stg.enabled = true;
+            this.addLog("Trading started.");
+            return true;
+        }
+        private async Task<bool> stopTrading()
+        {
+            if (Interlocked.CompareExchange(ref this.stopTradingCalled, 1, 0) == 0)
+            {
+                this.addLog("Error received. Now stopping the trading. Check the exchange to make sure all the orders are cancelled.", Enums.logType.ERROR);
+                this.addLog("Stopping trading process started");
+                if (this.oManager.ready)
+                {
+                    await this.oManager.cancelAllOrders();
+                    Thread.Sleep(1000);
 
+                    foreach (var th in this.thManager.threads)
+                    {
+                        th.Value.isRunning = false;
+                    }
+                }
+            }
+            return true;
+        }
+        private async void receiveFeed_clicked(object sender, EventArgs e)
+        {
+            if (await this.tradePreparation(false))
+            {
+
+                this.button_receiveFeed.Enabled = false;
+                this.button_startTrading.Enabled = true;
+            }
+        }
+        private async void startTrading_clicked(object sender, EventArgs e)
+        {
+            if (await this.startTrading())
+            {
+                this.button_startTrading.Enabled = false;
+                this.button_orderTest.Enabled = false;
+            }
+        }
+        private async void button_stopTrading_Click(object sender, EventArgs e)
+        {
+            await this.stopTrading();
+        }
         private async void test_Click(object sender, EventArgs e)
         {
-            foreach(var mkt in this.qManager._markets)
-            {
-                await this.crypto_client.getActiveOrders(mkt.Key);
-            }
+            await onErrorCheck();
+        }
+        private async Task onErrorCheck()
+        {
+            await this.crypto_client.bitbank_client.disconnectPublic();
+        }
+
+        private async Task tradeTest(Instrument ins,bool fillcheck)
+        {
             DataSpotOrderUpdate ord;
-            Instrument ins = this.qManager.instruments["ethjpy@bittrade"];
-
             this.oManager.setVirtualMode(false);
-
-            bittrade_connection cn = bittrade_connection.GetInstance();
-
-            this.addLog("batchCancel test");
 
             this.addLog("Testing orderManager");
             Thread.Sleep(3000);
@@ -570,7 +700,7 @@ namespace Crypto_GUI
 
             this.addLog("Market Order");
             ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Market, (decimal)0.001, 670000);
-            if(ord != null)
+            if (ord != null)
             {
                 this.addLog(ord.ToString());
             }
@@ -580,16 +710,8 @@ namespace Crypto_GUI
             }
             Thread.Sleep(1000);
             this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
-
         }
-
-        private void startTrading_clicked(object sender, EventArgs e)
-        {
-            this.addLog("[INFO] Strategy enabled");
-            this.stg.enabled = true;
-        }
-
-        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        private async void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
             //Stop strategy -> cancel all orders -> update all orders -> stop threads
             this.stg.enabled = false;
@@ -597,13 +719,14 @@ namespace Crypto_GUI
             Thread.Sleep(1000);
             if (this.threadsStarted)
             {
-                this.oManager.cancelAllOrders();
+                await this.oManager.cancelAllOrders();
                 Thread.Sleep(1000);
 
                 foreach (var th in this.thManager.threads)
                 {
                     th.Value.isRunning = false;
                 }
+                
                 Thread.Sleep(1000);
 
             }
@@ -615,18 +738,17 @@ namespace Crypto_GUI
                 this.updatingTh.Join(2000);
             }
         }
-
         private void timer_statusCheck_Tick(object sender, EventArgs e)
         {
             //Connection
             this.qManager.checkConnections();
             this.oManager.checkConnections();
-            foreach(var mkt in this.qManager._markets)
+            foreach (var mkt in this.qManager._markets)
             {
                 bool found = false;
-                foreach(DataGridViewRow row in this.gridView_Connection.Rows)
+                foreach (DataGridViewRow row in this.gridView_Connection.Rows)
                 {
-                    if(row.IsNewRow)
+                    if (row.IsNewRow)
                     {
                         continue;
                     }
@@ -637,13 +759,13 @@ namespace Crypto_GUI
                         break;
                     }
                 }
-                if(!found)
+                if (!found)
                 {
-                    this.gridView_Connection.Rows.Add(mkt.Key, mkt.Value.ToString(),WebSocketState.None.ToString());
+                    this.gridView_Connection.Rows.Add(mkt.Key, mkt.Value.ToString(), WebSocketState.None.ToString());
                 }
             }
 
-            foreach(var mkt in this.oManager.connections)
+            foreach (var mkt in this.oManager.connections)
             {
                 bool found = false;
                 foreach (DataGridViewRow row in this.gridView_Connection.Rows)
@@ -686,7 +808,7 @@ namespace Crypto_GUI
                     }
                     if (row.Cells[0] != null && row.Cells[0].Value.ToString() == th.Key)
                     {
-                        
+
                         row.Cells[1].Value = st;
                         found = true;
                         break;
@@ -698,7 +820,10 @@ namespace Crypto_GUI
                 }
             }
 
-
+            if(this.oManager.live_orders.Count > 2)
+            {
+                this.addLog("Checking live order count  " + this.oManager.live_orders.Count.ToString());
+            }
         }
     }
 }

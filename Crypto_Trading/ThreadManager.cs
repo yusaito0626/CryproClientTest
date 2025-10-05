@@ -151,6 +151,7 @@ namespace Crypto_Trading
                 {
                     if(!await this.action())
                     {
+                        this.addLog("Thread is being closed by unexpected error. name:" + this.name, logType.ERROR);
                         this.isRunning=false;
                     }
                     if (!this.isRunning)

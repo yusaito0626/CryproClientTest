@@ -131,8 +131,8 @@ namespace Crypto_Clients
             }
             else
             {
-                await this.websocket_client.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
                 this.closeSent = true;
+                await this.websocket_client.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
             }
         }
 

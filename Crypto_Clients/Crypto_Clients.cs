@@ -52,12 +52,7 @@ namespace Crypto_Clients
 
         public ConcurrentQueue<string> strQueue;
 
-        Thread bitbankOrderUpdateTh;
-        Thread bitbankPublicChannelTh;
-        Thread coincheckPublicChannelsTh;
-        Thread coincheckPrivateChannelsTh;
-        Thread bittradePublicChannelTh;
-        Thread bittradePrivateChannelTh;
+        public Thread bitbankOrderUpdateTh;
 
         public Action<string,Enums.logType> _addLog;
         private Crypto_Clients()
@@ -627,8 +622,9 @@ namespace Crypto_Clients
                 {
                     case "bitbank":
                         //await this.bitbank_client.connectPrivateAsync();
-                        this.bitbankOrderUpdateTh = new Thread(this.bitbankOrderUpdates);
-                        this.bitbankOrderUpdateTh.Start();
+                        this.addLog("For bitbank spot order updates, please subscribe separately and register it on the thread manager.", Enums.logType.WARNING);
+                        //this.bitbankOrderUpdateTh = new Thread(this.bitbankOrderUpdates);
+                        //this.bitbankOrderUpdateTh.Start();
                         break;
                     case "coincheck":
                         await this.coincheck_client.subscribeOrderEvent();
@@ -698,6 +694,33 @@ namespace Crypto_Clients
                 }
             }
         }
+
+        public async Task<bool> onBitbankOrderUpdates()
+        {
+            JsonElement js;
+            DataSpotOrderUpdate ord;
+            DataFill fill;
+            if (this.bitbank_client.orderQueue.TryDequeue(out js))
+            {
+                while (!this.ordUpdateStack.TryPop(out ord))
+                {
+
+                }
+                ord.setBitbankSpotOrder(js);
+                this.ordUpdateQueue.Enqueue(ord);
+            }
+            else if (this.bitbank_client.fillQueue.TryDequeue(out js))
+            {
+                while (!this.fillStack.TryPop(out fill))
+                {
+
+                }
+                fill.setBitBankFill(js);
+                this.fillQueue.Enqueue(fill);
+            }
+            return true;
+        }
+
         async public Task subscribeTrades(IEnumerable<string>? markets, string baseCcy, string quoteCcy)
         {
             var symbol = new SharedSymbol(TradingMode.Spot, baseCcy, quoteCcy);

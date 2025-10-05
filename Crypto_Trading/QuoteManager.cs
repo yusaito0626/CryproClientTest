@@ -39,6 +39,7 @@ namespace Crypto_Trading
 
         public const int NUM_OF_QUOTES = 5;
 
+        public bool ready;
         public bool aborting;
         QuoteManager() 
         {
@@ -47,6 +48,7 @@ namespace Crypto_Trading
             this.balances = new Dictionary<string, Balance>();
             this._markets = new Dictionary<string, WebSocketState>();
             this.oManager = OrderManager.GetInstance();
+            this.ready = false;
             //this._addLog = Console.WriteLine;
             this.aborting = false;
         }
@@ -64,7 +66,11 @@ namespace Crypto_Trading
                     {
                         return await this.crypto_client.bitbank_client.onListen(this.crypto_client.onBitbankMessage);
                     };
-                    thManager.addThread(market + "Public", onMsg);
+                    onClosing = async () =>
+                    {
+                        await this.crypto_client.bitbank_client.disconnectPublic();
+                    };
+                    thManager.addThread(market + "Public", onMsg,onClosing);
                     this._markets[market] = this.crypto_client.bitbank_client.GetSocketStatePublic();
                     break;
                 case "coincheck":
@@ -73,7 +79,11 @@ namespace Crypto_Trading
                     {
                         return await this.crypto_client.coincheck_client.onListen(this.crypto_client.onCoincheckMessage);
                     };
-                    thManager.addThread(market + "Public", onMsg);
+                    onClosing = async () =>
+                    {
+                        await this.crypto_client.coincheck_client.disconnectPublic();
+                    };
+                    thManager.addThread(market + "Public", onMsg,onClosing);
                     this._markets[market] = this.crypto_client.coincheck_client.GetSocketStatePublic();
                     break;
                 case "bittrade":
@@ -82,7 +92,11 @@ namespace Crypto_Trading
                     {
                         return await this.crypto_client.bittrade_client.onListen(this.crypto_client.onBitTradeMessage);
                     };
-                    thManager.addThread(market + "Public", onMsg);
+                    onClosing = async () =>
+                    {
+                        await this.crypto_client.bittrade_client.disconnectPublic();
+                    };
+                    thManager.addThread(market + "Public", onMsg,onClosing);
                     this._markets[market] = this.crypto_client.bittrade_client.GetSocketStatePublic();
                     break;
             }

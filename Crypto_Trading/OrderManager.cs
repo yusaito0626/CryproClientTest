@@ -58,6 +58,7 @@ namespace Crypto_Trading
 
         public Action<string, Enums.logType> _addLog;
 
+        public bool ready;
         public bool aborting;
         public bool updateOrderStopped;
 
@@ -89,7 +90,7 @@ namespace Crypto_Trading
             }
 
             //this._addLog = Console.WriteLine;
-            
+            this.ready = false;
         }
 
         public async Task connectPrivateChannel(string market)
@@ -109,7 +110,11 @@ namespace Crypto_Trading
                     {
                         return await this.ord_client.coincheck_client.onListenPrivate(this.ord_client.onConcheckPrivateMessage);
                     };
-                    thManager.addThread(market + "Private", onMsg);
+                    onClosing = async () =>
+                    {
+                        await this.ord_client.coincheck_client.disconnectPrivate();
+                    };
+                    thManager.addThread(market + "Private", onMsg,onClosing);
                     this.connections[market] = this.ord_client.coincheck_client.GetSocketStatePrivate();
                     break;
                 case "bittrade":
@@ -118,7 +123,11 @@ namespace Crypto_Trading
                     {
                         return await this.ord_client.bittrade_client.onListenPrivate(this.ord_client.onBitTradePrivateMessage);
                     };
-                    thManager.addThread(market + "Private", onMsg);
+                    onClosing = async () =>
+                    {
+                        await this.ord_client.bittrade_client.disconnectPrivate();
+                    };
+                    thManager.addThread(market + "Private", onMsg,onClosing);
                     this.connections[market] = this.ord_client.bittrade_client.GetSocketStatePrivate();
                     break;
             }
@@ -585,13 +594,14 @@ namespace Crypto_Trading
         }
 
 
-        public void cancelAllOrders()
+        public async Task cancelAllOrders()
         {
+            this.addLog("Cancelling all orders...");
             Instrument ins;
             foreach(var ord in this.live_orders.Values)
             {
                 ins = this.Instruments[ord.symbol_market];
-                this.placeCancelSpotOrder(ins, ord.order_id);
+                await this.placeCancelSpotOrder(ins, ord.order_id);
             }
         }
 
@@ -743,11 +753,19 @@ namespace Crypto_Trading
             DataSpotOrderUpdate ord;
             DataSpotOrderUpdate prevord;
             DataFill fill;
-            Instrument ins;
+            Instrument ins = null;
             modifingOrd mod;
             if (this.ord_client.ordUpdateQueue.TryDequeue(out ord))
             {
                 this.ordLogQueue.Enqueue(ord.ToString());
+                if(this.Instruments.ContainsKey(ord.symbol_market))
+                {
+                    ins = this.Instruments[ord.symbol_market];
+                    while (Interlocked.CompareExchange(ref ins.orders_lock, 1, 0) != 0)
+                    {
+
+                    }
+                }
                 if (ord.status == orderStatus.WaitOpen)
                 {
                     if (!this.orders.ContainsKey(ord.order_id))
@@ -793,13 +811,25 @@ namespace Crypto_Trading
                     {
                         prevord = this.orders[ord.order_id];
                         this.orders[ord.order_id] = ord;
+                        if(ins != null)
+                        {
+                            ins.orders[ord.order_id] = ord;
+                        }
                         if (ord.status == orderStatus.Open)
                         {
                             this.live_orders[ord.order_id] = ord;
+                            if (ins != null)
+                            {
+                                ins.live_orders[ord.order_id] = ord;
+                            }
                         }
                         else if (this.live_orders.ContainsKey(ord.order_id))
                         {
                             this.live_orders.Remove(ord.order_id);
+                            if (ins != null && ins.live_orders.ContainsKey(ord.order_id))
+                            {
+                                ins.live_orders.Remove(ord.order_id);
+                            }
                         }
                         if (this.modifingOrders.ContainsKey(ord.order_id))
                         {
@@ -837,6 +867,10 @@ namespace Crypto_Trading
                         if (ord.status == orderStatus.Open)
                         {
                             this.live_orders[ord.order_id] = ord;
+                            if (ins != null)
+                            {
+                                ins.live_orders[ord.order_id] = ord;
+                            }
                         }
                         if (ord.filled_quantity > 0)
                         {
@@ -846,6 +880,10 @@ namespace Crypto_Trading
                         }
                         this.stg.on_Message(ord, ord);
                     }
+                }
+                if(ins != null)
+                {
+                    Volatile.Write(ref ins.orders_lock, 0);
                 }
             }
             else if (this.ord_client.fillQueue.TryDequeue(out fill))

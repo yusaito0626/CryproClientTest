@@ -56,6 +56,8 @@ namespace Crypto_Trading
         public decimal maker_last_updated_mid;
 
         public DateTime? last_filled_time;
+
+        public Action<string, Enums.logType> _addLog;
         public Strategy() 
         {
             this.enabled = false;
@@ -128,7 +130,7 @@ namespace Crypto_Trading
                 int expected = 0;
 
                 this.skew_point = this.skew();
-                decimal bid_price = this.taker.adjusted_bestbid.Item1 * (1 - (this.markup + this.skew_point) / 1000000);
+                decimal bid_price = this.taker.adjusted_bestbid.Item1 * (1 + (- this.markup + this.skew_point) / 1000000);
                 decimal ask_price = this.taker.adjusted_bestask.Item1 * (1 + (this.markup + this.skew_point) / 1000000);
 
                 decimal min_markup_bid = this.taker.adjusted_bestbid.Item1 * (1 - this.min_markup / 1000000);
@@ -177,13 +179,33 @@ namespace Crypto_Trading
 
                 if (isPriceChanged)
                 {
-                    this.taker_last_updated_mid = this.taker.mid;
-                    this.maker_last_updated_mid = this.maker.mid;
+                    this.taker_last_updated_mid = this.taker.adj_mid;
+                    this.maker_last_updated_mid = this.maker.adj_mid;
                 }
 
                 while (Interlocked.CompareExchange(ref this.order_lock, 1, 0) != 0)
                 {
 
+                }
+                if(this.prev_buyorder != null && this.prev_buyorder.status == orderStatus.Open)
+                {
+                    this.addLog("Previous buy order is still active", Enums.logType.WARNING);
+                    this.addLog(this.prev_buyorder.ToString(), Enums.logType.WARNING);
+                    await this.oManager.placeCancelSpotOrder(this.maker, this.prev_buyorder.order_id);
+                    if (this.live_buyorder != null)
+                    {
+                        this.addLog(this.live_buyorder.ToString(), Enums.logType.WARNING);
+                    }
+                }
+                if (this.prev_sellorder != null && this.prev_sellorder.status == orderStatus.Open)
+                {
+                    this.addLog("Previous sell order is still active", Enums.logType.WARNING);
+                    this.addLog(this.prev_sellorder.ToString(), Enums.logType.WARNING);
+                    if (this.live_sellorder != null)
+                    {
+                        this.addLog(this.live_sellorder.ToString(), Enums.logType.WARNING);
+                    }
+                    await this.oManager.placeCancelSpotOrder(this.maker, this.prev_sellorder.order_id);
                 }
                 if (this.live_buyorder != null)
                 {
@@ -277,6 +299,10 @@ namespace Crypto_Trading
                 if (filled_quantity == 0)
                 {
                     filled_quantity = new_ord.filled_quantity;
+                    if(new_ord.status == orderStatus.Filled && filled_quantity == 0)
+                    {
+                        bool stup = true;
+                    }
                 }
                 orderSide side;
 
@@ -358,6 +384,10 @@ namespace Crypto_Trading
                 }
                 Volatile.Write(ref this.order_lock, 0);
             }
+        }
+        public void addLog(string line, Enums.logType logtype = Enums.logType.INFO)
+        {
+            this._addLog("[Strategy]" + line, logtype);
         }
     }
 }

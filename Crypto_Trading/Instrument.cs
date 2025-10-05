@@ -29,9 +29,15 @@ namespace Crypto_Trading
         public ValueTuple<decimal, decimal> adjusted_bestask;
         public ValueTuple<decimal, decimal> adjusted_bestbid;
 
+        public volatile int orders_lock;
+        public Dictionary<string, DataSpotOrderUpdate> orders;
+        public Dictionary<string, DataSpotOrderUpdate> live_orders;
+
         public decimal last_price;
         public decimal mid;
         public decimal prev_mid;
+        public decimal adj_mid;
+        public decimal adj_prev;
 
         public decimal sell_quantity;
         public decimal buy_quantity;
@@ -80,6 +86,14 @@ namespace Crypto_Trading
             //Amount Weighted Best Ask/Bid +/- fee
             this.adjusted_bestask = new ValueTuple<decimal, decimal>(0,0);
             this.adjusted_bestbid = new ValueTuple<decimal, decimal>(0,0);
+
+            this.orders = new Dictionary<string, DataSpotOrderUpdate>();
+            this.live_orders = new Dictionary<string, DataSpotOrderUpdate>();
+
+            this.mid = -1;
+            this.prev_mid = -1;
+            this.adj_mid = -1;
+            this.adj_prev = -1;
 
             this.last_price = 0;
             this.sell_quantity = 0;
@@ -321,8 +335,27 @@ namespace Crypto_Trading
                 this.bestbid.Item1 = this.bids.Last().Key;
                 this.bestbid.Item2 = this.bids.Last().Value;
             }
+            if (this.adjusted_bestask.Item1 > 0 && this.adjusted_bestbid.Item1 > 0)
+            {
+                this.adj_prev= this.adj_mid;
+                this.adj_mid = (this.adjusted_bestask.Item1 + this.adjusted_bestbid.Item1) / 2;
+            }
+            else if (this.bestask.Item1 > 0)
+            {
+                this.adj_prev = this.adj_mid;
+                this.adj_mid = this.adjusted_bestask.Item1;
+            }
+            else if (this.bestbid.Item1 > 0)
+            {
+                this.adj_prev = this.adj_mid;
+                this.adj_mid = this.adjusted_bestbid.Item1;
+            }
+            else
+            {
+                this.adj_mid = 0;
+            }
 
-            if(this.bestask.Item1 > 0 && this.bestbid.Item1 > 0)
+            if (this.bestask.Item1 > 0 && this.bestbid.Item1 > 0)
             {
                 this.prev_mid = this.mid;
                 this.mid = (this.bestask.Item1 + this.bestbid.Item1) / 2;
