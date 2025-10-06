@@ -28,9 +28,11 @@ namespace Crypto_Trading
 
         Crypto_Clients.Crypto_Clients ord_client = Crypto_Clients.Crypto_Clients.GetInstance();
 
+        public volatile int order_lock;
         public Dictionary<string, DataSpotOrderUpdate> orders;
         public Dictionary<string, DataSpotOrderUpdate> live_orders;
 
+        public volatile int virtual_order_lock;
         public Dictionary<string, DataSpotOrderUpdate> virtual_liveorders;
 
         public Dictionary<string, modifingOrd> modifingOrders;
@@ -62,13 +64,16 @@ namespace Crypto_Trading
         public bool aborting;
         public bool updateOrderStopped;
 
+
         private OrderManager() 
         {
             this.aborting = false;
             this.updateOrderStopped = false;
             this.virtualMode = true;
+            this.order_lock = 0;
             this.orders = new Dictionary<string, DataSpotOrderUpdate>();
             this.live_orders = new Dictionary<string, DataSpotOrderUpdate>();
+            this.virtual_order_lock = 0;
             this.virtual_liveorders = new Dictionary<string, DataSpotOrderUpdate>();
 
             this.connections = new Dictionary<string, WebSocketState>();
@@ -228,7 +233,12 @@ namespace Crypto_Trading
                     output.average_price = 0;
                     output.fee = 0;
                     output.fee_asset = "";
+                    //while (Interlocked.CompareExchange(ref this.virtual_order_lock, 1, 0) != 0)
+                    //{
+
+                    //}
                     this.virtual_liveorders[output.order_id] = output;
+                    //Volatile.Write(ref this.virtual_order_lock, 0);
                     this.ord_client.ordUpdateQueue.Enqueue(output);
                     Thread.Sleep(100);
                 }
@@ -465,12 +475,23 @@ namespace Crypto_Trading
                 output.timestamp = DateTime.UtcNow;
                 output.trigger_price = prev.trigger_price;
                 output.update_time = DateTime.UtcNow;
-                if(this.virtual_liveorders.ContainsKey(prev.order_id))
+                Thread.Sleep(100);
+                while (Interlocked.CompareExchange(ref this.virtual_order_lock, 1, 0) != 0)
+                {
+
+                }
+                if (this.virtual_liveorders.ContainsKey(prev.order_id))
                 {
                     this.virtual_liveorders.Remove(prev.order_id);
+                    this.ord_client.ordUpdateQueue.Enqueue(output);
                 }
-                this.ord_client.ordUpdateQueue.Enqueue(output);
-                Thread.Sleep(100);
+                else
+                {
+                    output.init();
+                    this.ord_client.ordUpdateStack.Push(output);
+                    output = null;
+                }
+                Volatile.Write(ref this.virtual_order_lock, 0);
             }
             else if(ins.market == "bitbank")
             {
@@ -547,12 +568,13 @@ namespace Crypto_Trading
         {
             DataSpotOrderUpdate ord;
             modifingOrd mod;
-            DataSpotOrderUpdate? output;
+            DataSpotOrderUpdate? output = null;
+            
             if (waitCancel)
             {
-                if (this.live_orders.ContainsKey(orderId))
+                if (this.orders.ContainsKey(orderId))
                 {
-                    ord = this.live_orders[orderId];
+                    ord = this.orders[orderId];
                     while (!this.modifingOrdStack.TryPop(out mod))
                     {
 
@@ -576,14 +598,19 @@ namespace Crypto_Trading
             }
             else
             {
-                if (this.live_orders.ContainsKey(orderId))
+                if (this.orders.ContainsKey(orderId))
                 {
-                    ord = this.live_orders[orderId];
+                    ord = this.orders[orderId];
                     orderSide side = ord.side;
                     orderType type = ord.order_type;
                     timeInForce tif = ord.time_in_force;
                     this.placeCancelSpotOrder(ins, orderId);
                     output = await this.placeNewSpotOrder(ins, side, type, quantity, price, tif);
+                    if(output != null)
+                    {
+                        output.comment += "ModOrder from " + orderId + " ";
+                    }
+                    
                     return output;
                 }
                 else
@@ -598,11 +625,16 @@ namespace Crypto_Trading
         {
             this.addLog("Cancelling all orders...");
             Instrument ins;
-            foreach(var ord in this.live_orders.Values)
+            while (Interlocked.CompareExchange(ref this.order_lock, 1, 0) != 0)
+            {
+
+            }
+            foreach (var ord in this.live_orders.Values)
             {
                 ins = this.Instruments[ord.symbol_market];
                 await this.placeCancelSpotOrder(ins, ord.order_id);
             }
+            Volatile.Write(ref this.order_lock, 0);
         }
 
         public void updateOrders()
@@ -758,13 +790,10 @@ namespace Crypto_Trading
             if (this.ord_client.ordUpdateQueue.TryDequeue(out ord))
             {
                 this.ordLogQueue.Enqueue(ord.ToString());
-                if(this.Instruments.ContainsKey(ord.symbol_market))
+                
+                if (this.Instruments.ContainsKey(ord.symbol_market))
                 {
                     ins = this.Instruments[ord.symbol_market];
-                    while (Interlocked.CompareExchange(ref ins.orders_lock, 1, 0) != 0)
-                    {
-
-                    }
                 }
                 if (ord.status == orderStatus.WaitOpen)
                 {
@@ -825,11 +854,23 @@ namespace Crypto_Trading
                         }
                         else if (this.live_orders.ContainsKey(ord.order_id))
                         {
-                            this.live_orders.Remove(ord.order_id);
-                            if (ins != null && ins.live_orders.ContainsKey(ord.order_id))
+                            while (Interlocked.CompareExchange(ref this.order_lock, 1, 0) != 0)
                             {
-                                ins.live_orders.Remove(ord.order_id);
                             }
+                            this.live_orders.Remove(ord.order_id);
+                            Volatile.Write(ref this.order_lock, 0);
+                            if(ins != null)
+                            {
+                                while (Interlocked.CompareExchange(ref ins.orders_lock, 1, 0) != 0)
+                                {
+                                }
+                                if (ins.live_orders.ContainsKey(ord.order_id))
+                                {
+                                    ins.live_orders.Remove(ord.order_id);
+                                }
+                                Volatile.Write(ref ins.orders_lock, 0);
+                            }
+                            
                         }
                         if (this.modifingOrders.ContainsKey(ord.order_id))
                         {
@@ -850,9 +891,9 @@ namespace Crypto_Trading
                             }
                         }
                         decimal filledQuantity = ord.filled_quantity - prevord.filled_quantity;
-                        if (filledQuantity > 0)
+                        if (ins != null && filledQuantity > 0)
                         {
-                            ins = this.Instruments[ord.symbol_market];
+                            //ins = this.Instruments[ord.symbol_market];
                             ins.updateFills(prevord, ord);
                             this.filledOrderQueue.Enqueue(ord.order_id);
                         }
@@ -872,9 +913,9 @@ namespace Crypto_Trading
                                 ins.live_orders[ord.order_id] = ord;
                             }
                         }
-                        if (ord.filled_quantity > 0)
+                        if (ins != null && ord.filled_quantity > 0)
                         {
-                            ins = this.Instruments[ord.symbol_market];
+                            //ins = this.Instruments[ord.symbol_market];
                             ins.updateFills(ord, ord);
                             this.filledOrderQueue.Enqueue(ord.order_id);
                         }
@@ -903,8 +944,18 @@ namespace Crypto_Trading
         public void checkVirtualOrders(Instrument ins,DataTrade? last_trade = null)
         {
             List<string> removing = new List<string>();
-            foreach (DataSpotOrderUpdate ord in this.virtual_liveorders.Values)
+            while (Interlocked.CompareExchange(ref this.virtual_order_lock, 1, 0) != 0)
             {
+
+            }
+            foreach (var item in this.virtual_liveorders)
+            {
+                string key = item.Key;
+                DataSpotOrderUpdate ord = item.Value;
+                if(key != ord.order_id)
+                {
+                    this.addLog("The key and the order id didn't match while checking virtual orders.", Enums.logType.ERROR);
+                }
                 if (ord.symbol_market == ins.symbol_market)
                 {
                     switch (ord.side)
@@ -939,7 +990,7 @@ namespace Crypto_Trading
                                 output.trigger_price = ord.trigger_price;
                                 output.update_time = DateTime.UtcNow;
                                 this.ord_client.ordUpdateQueue.Enqueue(output);
-                                removing.Add(output.order_id);
+                                removing.Add(key);
                             }
                             break;
                         case orderSide.Sell:
@@ -972,7 +1023,7 @@ namespace Crypto_Trading
                                 output.trigger_price = ord.trigger_price;
                                 output.update_time = DateTime.UtcNow;
                                 this.ord_client.ordUpdateQueue.Enqueue(output);
-                                removing.Add(output.order_id);
+                                removing.Add(key);
                             }
                             break;
                     }
@@ -982,6 +1033,7 @@ namespace Crypto_Trading
             {
                 this.virtual_liveorders.Remove(key);
             }
+            Volatile.Write(ref this.virtual_order_lock, 0);
         }
 
         public void setOrdLogPath(string logPath)

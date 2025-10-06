@@ -48,6 +48,12 @@ namespace Crypto_Trading
         public DataSpotOrderUpdate? prev_sellorder;
         public DataSpotOrderUpdate? prev_buyorder;
 
+        public string live_sellorder_id;
+        public string live_buyorder_id;
+        public string prev_sellorder_id;
+        public string prev_buyorder_id;
+        public Dictionary<string,DataSpotOrderUpdate> stg_orders;
+
         public decimal live_askprice;
         public decimal live_bidprice;
         public decimal skew_point;
@@ -87,6 +93,12 @@ namespace Crypto_Trading
             this.live_buyorder = null;
             this.prev_sellorder = null;
             this.prev_buyorder = null;
+
+            this.live_sellorder_id = "";
+            this.live_buyorder_id = "";
+            this.prev_sellorder_id = "";
+            this.prev_buyorder_id = "";
+            this.stg_orders = new Dictionary<string, DataSpotOrderUpdate>();
 
             this.live_askprice = 0;
             this.live_bidprice = 0;
@@ -130,8 +142,23 @@ namespace Crypto_Trading
                 int expected = 0;
 
                 this.skew_point = this.skew();
-                decimal bid_price = this.taker.adjusted_bestbid.Item1 * (1 + (- this.markup + this.skew_point) / 1000000);
-                decimal ask_price = this.taker.adjusted_bestask.Item1 * (1 + (this.markup + this.skew_point) / 1000000);
+                decimal bid_price;
+                decimal ask_price;
+                if (this.skew_point > 0)
+                {
+                    bid_price = this.taker.adjusted_bestbid.Item1 * (1 + (-this.markup + this.skew_point) / 1000000);
+                    ask_price = this.taker.adjusted_bestask.Item1 * (1 + (this.markup + (decimal)1.05 * this.skew_point) / 1000000);
+                }
+                else if (this.skew_point < 0)
+                {
+                    bid_price = this.taker.adjusted_bestbid.Item1 * (1 + (-this.markup + (decimal)1.05 * this.skew_point) / 1000000);
+                    ask_price = this.taker.adjusted_bestask.Item1 * (1 + (this.markup + this.skew_point) / 1000000);
+                }
+                else
+                {
+                    bid_price = this.taker.adjusted_bestbid.Item1 * (1 + (-this.markup) / 1000000);
+                    ask_price = this.taker.adjusted_bestask.Item1 * (1 + (this.markup) / 1000000);
+                }
 
                 decimal min_markup_bid = this.taker.adjusted_bestbid.Item1 * (1 - this.min_markup / 1000000);
                 decimal min_markup_ask = this.taker.adjusted_bestask.Item1 * (1 + this.min_markup / 1000000);
@@ -187,38 +214,114 @@ namespace Crypto_Trading
                 {
 
                 }
-                if(this.prev_buyorder != null && this.prev_buyorder.status == orderStatus.Open)
+                if(this.live_buyorder_id != "")
                 {
-                    this.addLog("Previous buy order is still active", Enums.logType.WARNING);
-                    this.addLog(this.prev_buyorder.ToString(), Enums.logType.WARNING);
-                    await this.oManager.placeCancelSpotOrder(this.maker, this.prev_buyorder.order_id);
-                    if (this.live_buyorder != null)
+                    this.live_buyorder = this.oManager.orders[this.live_buyorder_id];
+                    this.stg_orders[this.live_buyorder_id] = this.live_buyorder;
+                    switch (this.live_buyorder.status)
                     {
-                        this.addLog(this.live_buyorder.ToString(), Enums.logType.WARNING);
+                        case orderStatus.NONE:
+                        case orderStatus.Filled:
+                        case orderStatus.Canceled:
+                        case orderStatus.WaitCancel:
+                        case orderStatus.INVALID:
+                            this.live_buyorder = null;
+                            break;
                     }
                 }
-                if (this.prev_sellorder != null && this.prev_sellorder.status == orderStatus.Open)
+                else
                 {
-                    this.addLog("Previous sell order is still active", Enums.logType.WARNING);
-                    this.addLog(this.prev_sellorder.ToString(), Enums.logType.WARNING);
-                    if (this.live_sellorder != null)
-                    {
-                        this.addLog(this.live_sellorder.ToString(), Enums.logType.WARNING);
-                    }
-                    await this.oManager.placeCancelSpotOrder(this.maker, this.prev_sellorder.order_id);
+                    this.live_buyorder = null;
                 }
+                if (this.live_sellorder_id != "")
+                {
+                    this.live_sellorder = this.oManager.orders[this.live_sellorder_id];
+                    this.stg_orders[this.live_sellorder_id] = this.live_sellorder;
+                    switch (this.live_sellorder.status)
+                    {
+                        case orderStatus.NONE:
+                        case orderStatus.Filled:
+                        case orderStatus.Canceled:
+                        case orderStatus.WaitCancel:
+                        case orderStatus.INVALID:
+                            this.live_sellorder = null;
+                            break;
+                    }
+                }
+                else
+                {
+                    this.live_sellorder = null;
+                }
+                if (this.prev_buyorder_id != "")
+                {
+                    this.prev_buyorder = this.oManager.orders[this.prev_buyorder_id];
+                }
+                else
+                {
+                    this.prev_buyorder = null;
+                }
+                if (this.prev_sellorder_id != "")
+                {
+                    this.prev_sellorder = this.oManager.orders[this.prev_sellorder_id];
+                }
+                else
+                {
+                    this.prev_sellorder = null;
+                }
+                if (this.prev_buyorder != null)
+                {
+                    if (this.prev_buyorder.status == orderStatus.Open)
+                    {
+                        this.addLog("Previous buy order is still active", Enums.logType.WARNING);
+                        this.addLog(this.prev_buyorder.ToString(), Enums.logType.WARNING);
+                        if (this.live_buyorder != null)
+                        {
+                            this.addLog(this.live_buyorder.ToString(), Enums.logType.WARNING);
+                        }
+                    }
+                }
+                if (this.prev_sellorder != null)
+                {
+                    if (this.prev_sellorder.status == orderStatus.Open)
+                    {
+                        this.addLog("Previous sell order is still active", Enums.logType.WARNING);
+                        this.addLog(this.prev_sellorder.ToString(), Enums.logType.WARNING);
+                        if (this.live_sellorder != null)
+                        {
+                            this.addLog(this.live_sellorder.ToString(), Enums.logType.WARNING);
+                        }
+                    }
+                }
+
                 if (this.live_buyorder != null)
                 {
+                    //this.live_buyorder = this.oManager.orders[this.live_buyorder.order_id];
                     if (bid_price == 0 || (this.maker.baseBalance.balance > this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200)))
                     {
                         this.live_buyorder = await this.oManager.placeCancelSpotOrder(this.maker, this.live_buyorder.order_id);
+                        if(this.live_buyorder != null)
+                        {
+                            this.stg_orders[this.live_buyorder.order_id] = this.live_buyorder;
+                        }
+                        this.live_buyorder_id = "";
                         this.live_bidprice = 0;
                     }
                     else if (isPriceChanged && this.live_buyorder.status == orderStatus.Open && this.live_buyorder.order_price != bid_price)
                     {
                         this.prev_buyorder = this.live_buyorder;
+                        this.prev_buyorder_id = this.prev_buyorder.order_id;
                         this.live_buyorder = await this.oManager.placeModSpotOrder(this.maker, this.live_buyorder.order_id, this.ToBsize, bid_price, false);
-                        this.live_bidprice = bid_price;
+                        if(this.live_buyorder !=null)
+                        {
+                            this.live_buyorder_id = this.live_buyorder.order_id;
+                            this.stg_orders[this.live_buyorder_id] = this.live_buyorder;
+                            this.live_bidprice = bid_price;
+                        }
+                        else
+                        {
+                            this.live_buyorder_id = "";
+                            this.live_bidprice = 0;
+                        }
                     }
                 }
                 else
@@ -230,22 +333,48 @@ namespace Crypto_Trading
                     else if (bid_price > 0 && (this.last_filled_time == null || (decimal)(DateTime.UtcNow - this.last_filled_time).Value.TotalSeconds > this.intervalAfterFill))
                     {
                         this.live_buyorder = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, this.ToBsize, bid_price);
-                        this.live_bidprice = bid_price;
+                        if(this.live_buyorder != null)
+                        {
+                            this.live_buyorder_id = this.live_buyorder.order_id;
+                            this.stg_orders[this.live_buyorder_id] = this.live_buyorder;
+                            this.live_bidprice = bid_price;
+                        }
+                        else
+                        {
+                            this.live_buyorder_id = "";
+                            this.live_bidprice = 0;
+                        }
                     }
                 }
 
                 if (this.live_sellorder != null)
                 {
+                    //this.live_sellorder = this.oManager.orders[this.live_sellorder.order_id];
                     if (ask_price == 0 || (this.maker.baseBalance.balance < this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200)))
                     {
                         this.live_sellorder = await this.oManager.placeCancelSpotOrder(this.maker, this.live_sellorder.order_id);
+                        if(this.live_sellorder != null)
+                        {
+                            this.stg_orders[this.live_sellorder.order_id] = this.live_sellorder;
+                        }
+                        this.live_sellorder_id = "";
                         this.live_askprice = 0;
                     }
                     else if (isPriceChanged && this.live_sellorder.status == orderStatus.Open && this.live_sellorder.order_price != ask_price)
                     {
                         this.prev_sellorder = this.live_sellorder;
                         this.live_sellorder = await this.oManager.placeModSpotOrder(this.maker, this.live_sellorder.order_id, this.ToBsize, ask_price, false);
-                        this.live_askprice = ask_price;
+                        if(this.live_sellorder != null)
+                        {
+                            this.live_sellorder_id = this.live_sellorder.order_id;
+                            this.stg_orders[this.live_sellorder_id] = this.live_sellorder;
+                            this.live_askprice = ask_price;
+                        }
+                        else
+                        {
+                            this.live_sellorder_id = "";
+                            this.live_askprice = 0;
+                        }
                     }
                 }
                 else
@@ -257,9 +386,54 @@ namespace Crypto_Trading
                     else if (ask_price > 0 && (this.last_filled_time == null || (decimal)(DateTime.UtcNow - this.last_filled_time).Value.TotalSeconds > this.intervalAfterFill))
                     {
                         this.live_sellorder = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, this.ToBsize, ask_price);
-                        this.live_askprice = ask_price;
+                        if(this.live_sellorder != null)
+                        {
+                            this.live_sellorder_id = this.live_sellorder.order_id;
+                            this.stg_orders[this.live_sellorder_id] = this.live_sellorder;
+                            this.live_askprice = ask_price;
+                        }
+                        else
+                        {
+                            this.live_sellorder_id = "";
+                            this.live_askprice = 0;
+                        }
                     }
                 }
+                if(this.live_sellorder != null)
+                {
+                    switch (this.live_sellorder.status)
+                    {
+                        case orderStatus.Filled:
+                        case orderStatus.Canceled:
+                        case orderStatus.WaitCancel:
+                        case orderStatus.NONE:
+                        case orderStatus.INVALID:
+                            this.prev_sellorder = this.live_sellorder;
+                            this.prev_sellorder_id = this.prev_sellorder.order_id;
+                            this.live_sellorder = null;
+                            this.live_sellorder_id = "";
+                            this.live_askprice = 0;
+                            break;
+                    }
+                }
+                if(this.live_buyorder != null)
+                {
+                    switch (this.live_buyorder.status)
+                    {
+                        case orderStatus.Filled:
+                        case orderStatus.Canceled:
+                        case orderStatus.WaitCancel:
+                        case orderStatus.NONE:
+                        case orderStatus.INVALID:
+                            this.prev_buyorder = this.live_buyorder;
+                            this.prev_buyorder_id = this.prev_buyorder.order_id;
+                            this.live_buyorder = null;
+                            this.live_buyorder_id = "";
+                            this.live_bidprice = 0;
+                            break;
+                    }
+                }
+                
                 Volatile.Write(ref this.order_lock, 0);
             }
         }
@@ -299,90 +473,214 @@ namespace Crypto_Trading
                 if (filled_quantity == 0)
                 {
                     filled_quantity = new_ord.filled_quantity;
-                    if(new_ord.status == orderStatus.Filled && filled_quantity == 0)
-                    {
-                        bool stup = true;
-                    }
                 }
                 orderSide side;
 
-                if (new_ord.status == orderStatus.WaitOpen || new_ord.status == orderStatus.WaitMod || new_ord.status == orderStatus.WaitCancel)
+                if (this.stg_orders.ContainsKey(new_ord.order_id) == false || new_ord.status == orderStatus.WaitOpen || new_ord.status == orderStatus.WaitMod || new_ord.status == orderStatus.WaitCancel)
                 {
                     return;
                 }
 
-                while (Interlocked.CompareExchange(ref this.order_lock, 1, 0) != 0)
-                {
-
-                }
                 switch (new_ord.side)
                 {
                     case orderSide.Buy:
-                        if (this.live_buyorder != null && new_ord.order_id == this.live_buyorder.order_id)
+                        if (filled_quantity > 0)
                         {
-                            if (filled_quantity > 0)
-                            {
-                                side = orderSide.Sell;
-                                //filled_quantity = filled_quantity / (1 - this.taker.taker_fee);
-                                filled_quantity = Math.Round(filled_quantity / this.taker.quantity_unit) * this.taker.quantity_unit;
-                                this.oManager.placeNewSpotOrder(this.taker, side, orderType.Market, filled_quantity, 0);
-                            }
-
+                            side = orderSide.Sell;
+                            //filled_quantity = filled_quantity / (1 - this.taker.taker_fee);
+                            filled_quantity = Math.Round(filled_quantity / this.taker.quantity_unit) * this.taker.quantity_unit;
+                            this.oManager.placeNewSpotOrder(this.taker, side, orderType.Market, filled_quantity, 0);
+                        }
+                        if (this.live_buyorder != null && this.live_buyorder.order_id == new_ord.order_id)
+                        {
                             this.live_buyorder = new_ord;
-
-                            if (new_ord.status == orderStatus.Filled)
+                            switch (new_ord.status)
                             {
-                                this.prev_buyorder = this.live_buyorder;
-                                this.live_buyorder = null;
-                                this.live_bidprice = 0;
-                                this.last_filled_time = DateTime.UtcNow;
+                                case orderStatus.Filled:
+                                    this.last_filled_time = DateTime.UtcNow;
+                                    this.prev_buyorder = this.live_buyorder;
+                                    this.prev_buyorder_id = this.prev_buyorder.order_id;
+                                    this.live_buyorder = null;
+                                    this.live_buyorder_id = "";
+                                    this.live_bidprice = 0;
+                                    break;
+                                case orderStatus.Canceled:
+                                case orderStatus.WaitCancel:
+                                case orderStatus.NONE:
+                                case orderStatus.INVALID:
+                                    this.prev_buyorder = this.live_buyorder;
+                                    this.prev_buyorder_id = this.prev_buyorder.order_id;
+                                    this.live_buyorder = null;
+                                    this.live_buyorder_id = "";
+                                    this.live_bidprice = 0;
+                                    break;
                             }
                         }
-                        else if (this.prev_buyorder != null && new_ord.order_id == this.prev_buyorder.order_id)
+                        else if (this.prev_buyorder != null && this.prev_buyorder.order_id == new_ord.order_id)
                         {
-                            if (filled_quantity > 0)
-                            {
-                                side = orderSide.Sell;
-                                //filled_quantity = filled_quantity / (1 - this.taker.taker_fee);
-                                filled_quantity = Math.Round(filled_quantity / this.taker.quantity_unit) * this.taker.quantity_unit;
-                                this.oManager.placeNewSpotOrder(this.taker, side, orderType.Market, filled_quantity, 0);
-                            }
                             this.prev_buyorder = new_ord;
+                            if (this.prev_buyorder.status == orderStatus.Open && filled_quantity == 0)
+                            {
+                                this.addLog("Received an open order for prev order", Enums.logType.WARNING);
+                                this.addLog(this.prev_buyorder.ToString(), Enums.logType.WARNING);
+                            }
                         }
+
+                        //if (/*this.live_buyorder != null && */this.stg_orders.ContainsKey(new_ord.order_id))
+                        //{
+                        //    if (filled_quantity > 0)
+                        //    {
+                        //        side = orderSide.Sell;
+                        //        //filled_quantity = filled_quantity / (1 - this.taker.taker_fee);
+                        //        filled_quantity = Math.Round(filled_quantity / this.taker.quantity_unit) * this.taker.quantity_unit;
+                        //        this.oManager.placeNewSpotOrder(this.taker, side, orderType.Market, filled_quantity, 0);
+                        //    }
+
+                        //    if(this.live_buyorder != null && this.live_buyorder.order_id == new_ord.order_id)
+                        //    {
+                        //        this.live_buyorder = new_ord;
+                        //        switch (new_ord.status)
+                        //        {
+                        //            case orderStatus.Filled:
+                        //                this.last_filled_time = DateTime.UtcNow;
+                        //                this.prev_buyorder = this.live_buyorder;
+                        //                this.prev_buyorder_id = this.prev_buyorder.order_id;
+                        //                this.live_buyorder = null;
+                        //                this.live_buyorder_id = "";
+                        //                this.live_bidprice = 0;
+                        //                break;
+                        //            case orderStatus.Canceled:
+                        //            case orderStatus.WaitCancel:
+                        //            case orderStatus.NONE:
+                        //            case orderStatus.INVALID:
+                        //                this.prev_buyorder = this.live_buyorder;
+                        //                this.prev_buyorder_id = this.prev_buyorder.order_id;
+                        //                this.live_buyorder = null;
+                        //                this.live_buyorder_id = "";
+                        //                this.live_bidprice = 0;
+                        //                break;
+                        //        }
+                        //    }
+                        //    else if(this.prev_buyorder != null && this.prev_buyorder.order_id == new_ord.order_id)
+                        //    {
+                        //        this.prev_buyorder = new_ord;
+                        //        if (this.prev_buyorder.status == orderStatus.Open && filled_quantity == 0)
+                        //        {
+                        //            this.addLog("Received an open order for prev order", Enums.logType.WARNING);
+                        //            this.addLog(this.prev_buyorder.ToString(), Enums.logType.WARNING);
+                        //        }
+                        //    }  
+                        //}
+                        //else if (this.prev_buyorder != null && new_ord.order_id == this.prev_buyorder.order_id)
+                        //{
+                        //    if (filled_quantity > 0)
+                        //    {
+                        //        side = orderSide.Sell;
+                        //        //filled_quantity = filled_quantity / (1 - this.taker.taker_fee);
+                        //        filled_quantity = Math.Round(filled_quantity / this.taker.quantity_unit) * this.taker.quantity_unit;
+                        //        this.oManager.placeNewSpotOrder(this.taker, side, orderType.Market, filled_quantity, 0);
+                        //    }
+                        //    this.prev_buyorder = new_ord;
+                        //    if(this.prev_buyorder.status == orderStatus.Open && filled_quantity == 0)
+                        //    {
+                        //        this.addLog("Received an open order for prev order", Enums.logType.WARNING);
+                        //        this.addLog(this.prev_buyorder.ToString(), Enums.logType.WARNING);
+                        //    }
+                        //}
                         break;
                     case orderSide.Sell:
-                        if (this.live_sellorder != null && new_ord.order_id == this.live_sellorder.order_id)
+                        if (filled_quantity > 0)
                         {
-                            if (filled_quantity > 0)
-                            {
-                                side = orderSide.Buy;
-                                filled_quantity = Math.Round(filled_quantity / this.taker.quantity_unit) * this.taker.quantity_unit;
-                                this.oManager.placeNewSpotOrder(this.taker, side, orderType.Market, filled_quantity, 0);
-                            }
-
+                            side = orderSide.Buy;
+                            filled_quantity = Math.Round(filled_quantity / this.taker.quantity_unit) * this.taker.quantity_unit;
+                            this.oManager.placeNewSpotOrder(this.taker, side, orderType.Market, filled_quantity, 0);
+                        }
+                        if (this.live_sellorder != null && this.live_sellorder.order_id == new_ord.order_id)
+                        {
                             this.live_sellorder = new_ord;
-
-                            if (new_ord.status == orderStatus.Filled)
+                            switch (new_ord.status)
                             {
-                                this.prev_sellorder = this.live_sellorder;
-                                this.live_sellorder = null;
-                                this.live_askprice = 0;
-                                this.last_filled_time = DateTime.UtcNow;
+                                case orderStatus.Filled:
+                                    this.last_filled_time = DateTime.UtcNow;
+                                    this.prev_sellorder = this.live_sellorder;
+                                    this.prev_sellorder_id = this.prev_sellorder.order_id;
+                                    this.live_sellorder = null;
+                                    this.live_sellorder_id = "";
+                                    this.live_askprice = 0;
+                                    break;
+                                case orderStatus.Canceled:
+                                case orderStatus.WaitCancel:
+                                case orderStatus.NONE:
+                                case orderStatus.INVALID:
+                                    this.prev_sellorder = this.live_sellorder;
+                                    this.prev_sellorder_id = this.prev_sellorder.order_id;
+                                    this.live_sellorder = null;
+                                    this.live_sellorder_id = "";
+                                    this.live_askprice = 0;
+                                    break;
                             }
                         }
-                        else if (this.prev_sellorder != null && new_ord.order_id == this.prev_sellorder.order_id)
+                        else if (this.prev_sellorder != null && this.prev_sellorder.order_id == new_ord.order_id)
                         {
-                            if (filled_quantity > 0)
-                            {
-                                side = orderSide.Buy;
-                                filled_quantity = Math.Round(filled_quantity / this.taker.quantity_unit) * this.taker.quantity_unit;
-                                this.oManager.placeNewSpotOrder(this.taker, side, orderType.Market, filled_quantity, 0);
-                            }
                             this.prev_sellorder = new_ord;
+                            if (this.prev_sellorder.status == orderStatus.Open && filled_quantity == 0)
+                            {
+                                this.addLog("Received an open order for prev order", Enums.logType.WARNING);
+                                this.addLog(this.prev_sellorder.ToString(), Enums.logType.WARNING);
+                            }
                         }
+                        //if (this.live_sellorder != null && new_ord.order_id == this.live_sellorder.order_id)
+                        //{
+                        //    if (filled_quantity > 0)
+                        //    {
+                        //        side = orderSide.Buy;
+                        //        filled_quantity = Math.Round(filled_quantity / this.taker.quantity_unit) * this.taker.quantity_unit;
+                        //        this.oManager.placeNewSpotOrder(this.taker, side, orderType.Market, filled_quantity, 0);
+                        //    }
+
+                        //    this.live_sellorder = new_ord;
+                        //    switch (new_ord.status)
+                        //    {
+                        //        case orderStatus.Filled:
+                        //            this.last_filled_time = DateTime.UtcNow;
+                        //            this.prev_sellorder = this.live_sellorder;
+                        //            this.live_sellorder = null;
+                        //            this.live_askprice = 0;
+                        //            break;
+                        //        case orderStatus.Canceled:
+                        //        case orderStatus.WaitCancel:
+                        //        case orderStatus.NONE:
+                        //        case orderStatus.INVALID:
+                        //            this.prev_sellorder = this.live_sellorder;
+                        //            this.live_sellorder = null;
+                        //            this.live_askprice = 0;
+                        //            break;
+                        //    }
+                        //    //if (new_ord.status == orderStatus.Filled)
+                        //    //{
+                        //    //    this.prev_sellorder = this.live_sellorder;
+                        //    //    this.live_sellorder = null;
+                        //    //    this.live_askprice = 0;
+                        //    //    this.last_filled_time = DateTime.UtcNow;
+                        //    //}
+                        //}
+                        //else if (this.prev_sellorder != null && new_ord.order_id == this.prev_sellorder.order_id)
+                        //{
+                        //    if (filled_quantity > 0)
+                        //    {
+                        //        side = orderSide.Buy;
+                        //        filled_quantity = Math.Round(filled_quantity / this.taker.quantity_unit) * this.taker.quantity_unit;
+                        //        this.oManager.placeNewSpotOrder(this.taker, side, orderType.Market, filled_quantity, 0);
+                        //    }
+                        //    this.prev_sellorder = new_ord;
+                        //    if (this.prev_sellorder.status == orderStatus.Open && filled_quantity == 0)
+                        //    {
+                        //        this.addLog("Received an open order for prev order", Enums.logType.WARNING);
+                        //        this.addLog(this.prev_sellorder.ToString(), Enums.logType.WARNING);
+                        //    }
+                        //}
                         break;
                 }
-                Volatile.Write(ref this.order_lock, 0);
             }
         }
         public void addLog(string line, Enums.logType logtype = Enums.logType.INFO)

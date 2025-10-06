@@ -1586,6 +1586,7 @@ namespace Crypto_Clients
         public bool is_trigger_order;
 
         public bool isVirtual;
+        public string comment;
 
         public DataSpotOrderUpdate()
         {
@@ -1612,7 +1613,8 @@ namespace Crypto_Clients
             this.last_trade = "";
             this.trigger_price = 0;
             this.is_trigger_order = false;
-            this.isVirtual = false; 
+            this.isVirtual = false;
+            this.comment = "";
         }
 
         public void setCoincheckSpotOrder(JsonElement js)
@@ -2228,6 +2230,7 @@ namespace Crypto_Clients
             this.trigger_price = 0;
             this.is_trigger_order = false;
             this.isVirtual = false;
+            this.comment = "";
         }
         public string ToString()
         {
@@ -2257,7 +2260,7 @@ namespace Crypto_Clients
             {
                 line += ",";
             }
-            line += "," + this.last_trade + "," + this.trigger_price.ToString() + "," + this.is_trigger_order.ToString();
+            line += "," + this.last_trade + "," + this.trigger_price.ToString() + "," + this.is_trigger_order.ToString() + "," + this.comment;
 
             return line;
         }
