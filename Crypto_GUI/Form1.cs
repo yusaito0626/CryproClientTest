@@ -272,7 +272,7 @@ namespace Crypto_GUI
         }
         private void addLog(string body, Enums.logType logtype = Enums.logType.INFO)
         {
-            string messageline = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   [" + logtype.ToString() + "]" + body + "\n";
+            string messageline = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   [" + logtype.ToString() + "]" + body + "\n";
             switch (logtype)
             {
                 case Enums.logType.ERROR:
