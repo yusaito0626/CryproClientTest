@@ -42,6 +42,8 @@ namespace Crypto_Clients
         private bool closeSentPrivate;
         private List<string> subscribingChannels;
 
+        private Int64 lastnonce;
+
         private coincheck_connection()
         {
             this.apiName = "";
@@ -57,6 +59,7 @@ namespace Crypto_Clients
             this.closeSentPrivate = false;
             this.subscribingChannels = new List<string>();
 
+            this.lastnonce = 0;
             //this._addLog = Console.WriteLine;
         }
         public void SetApiCredentials(string name, string key)
@@ -87,7 +90,12 @@ namespace Crypto_Clients
         public async Task connectPrivateAsync()
         {
             this.addLog("Connecting to private channel of coincheck");
-            var nonce = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            if(nonce <= this.lastnonce)
+            {
+                ++nonce;
+            }
+            this.lastnonce = nonce;
             var uri = new Uri(coincheck_connection.private_URL);
             string msg = nonce.ToString() + coincheck_connection.private_URL + "/private"; 
             var body = new
@@ -365,7 +373,12 @@ namespace Crypto_Clients
 
         private async Task<string> getAsync(string endpoint,string body = "")
         {
-            var nonce = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            if (nonce <= this.lastnonce)
+            {
+                ++nonce;
+            }
+            this.lastnonce = nonce;
             var message = $"{nonce}{coincheck_connection.URL}{endpoint}";
 
             using var client = new HttpClient();
@@ -393,7 +406,12 @@ namespace Crypto_Clients
 
         private async Task<string> postAsync(string endpoint, string body)
         {
-            var nonce = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            if (nonce <= this.lastnonce)
+            {
+                ++nonce;
+            }
+            this.lastnonce = nonce;
             var message = $"{nonce}{coincheck_connection.URL}{endpoint}{body}";
 
             using var client = new HttpClient();
@@ -413,7 +431,12 @@ namespace Crypto_Clients
 
         private async Task<string> deleteAsync(string endpoint,string body)
         {
-            var nonce = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            if (nonce <= this.lastnonce)
+            {
+                ++nonce;
+            }
+            this.lastnonce = nonce;
             var message = $"{nonce}{coincheck_connection.URL}{endpoint}{body}";
 
             using var client = new HttpClient();

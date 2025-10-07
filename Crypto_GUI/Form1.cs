@@ -652,7 +652,7 @@ namespace Crypto_GUI
         }
         private async void receiveFeed_clicked(object sender, EventArgs e)
         {
-            if (await this.tradePreparation(false))
+            if (await this.tradePreparation(this.live))
             {
 
                 this.button_receiveFeed.Enabled = false;
@@ -673,7 +673,7 @@ namespace Crypto_GUI
         }
         private async void test_Click(object sender, EventArgs e)
         {
-            await onErrorCheck();
+            await tradeTest(this.qManager.instruments["eth_jpy@coincheck"],false);
         }
         private async Task onErrorCheck()
         {
@@ -737,24 +737,28 @@ namespace Crypto_GUI
             Thread.Sleep(1000);
             this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
 
-            this.addLog("Fill Check");
-            //ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.001, 620000);
-            this.addLog(ord.ToString());
-            Thread.Sleep(1000);
-            this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
-
-            this.addLog("Market Order");
-            ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Market, (decimal)0.001, 670000);
-            if (ord != null)
+            if(fillcheck)
             {
+                this.addLog("Fill Check");
+                //ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.001, 620000);
                 this.addLog(ord.ToString());
+                Thread.Sleep(1000);
+                this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
+
+                this.addLog("Market Order");
+                ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Market, (decimal)0.001, 670000);
+                if (ord != null)
+                {
+                    this.addLog(ord.ToString());
+                }
+                else
+                {
+                    this.addLog("Market order failed.");
+                }
+                Thread.Sleep(1000);
+                this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
             }
-            else
-            {
-                this.addLog("Market order failed.");
-            }
-            Thread.Sleep(1000);
-            this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
+
         }
         private async void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
