@@ -10,6 +10,15 @@ namespace Crypto_GUI
         {
             // To customize application configuration such as set high DPI settings or default font,
             // see https://aka.ms/applicationconfiguration.
+            //try
+            //{
+            //    ApplicationConfiguration.Initialize();
+            //    Application.Run(new Form1());
+            //}
+            //catch (Exception ex)
+            //{
+            //    File.WriteAllText("error.log", ex.ToString());
+            //}
             ApplicationConfiguration.Initialize();
             Application.Run(new Form1());
         }

@@ -1370,13 +1370,13 @@ namespace Crypto_Clients
 
         public void setCoincheckFill(JsonElement js)
         {
-            this.timestamp = DateTime.Now;
-            this.order_id = js.GetProperty("order_id").GetString();
-            this.trade_id = js.GetProperty("id").GetString();
+            this.timestamp = DateTime.UtcNow;
+            this.order_id = js.GetProperty("order_id").GetUInt64().ToString();
+            this.trade_id = js.GetProperty("id").GetUInt64().ToString();
             this.filled_time = DateTime.Parse(js.GetProperty("event_time").GetString(), null, System.Globalization.DateTimeStyles.RoundtripKind);
             this.symbol = js.GetProperty("pair").GetString();
             this.market = "coincheck";
-            this.symbol_market = this.symbol_market + "@" + this.market;
+            this.symbol_market = this.symbol + "@" + this.market;
             string maker_taker = js.GetProperty("liquidity").GetString();
             if (maker_taker == "M")
             {
@@ -1404,21 +1404,24 @@ namespace Crypto_Clients
                 this.fee_base = 0;
                 this.fee_unknown = decimal.Parse(js.GetProperty("fee").GetString());
             }
-                this.quantity = decimal.Parse(js.GetProperty("funds").GetProperty(assets[0]).GetString());
-            this.quantity += this.fee_base;
             string side = js.GetProperty("side").GetString();
-            if(side == "buy")
+            decimal temp_qt = decimal.Parse(js.GetProperty("funds").GetProperty(assets[0]).GetString());
+            if (side == "buy")
             {
                 this.side = orderSide.Buy;
             }
             else if(side == "sell")
             {
                 this.side= orderSide.Sell;
+                temp_qt *= -1;
             }
             else
             {
                 this.side = orderSide.NONE;
             }
+
+            this.quantity = temp_qt;
+            this.quantity += this.fee_base;
         }
 
         public void setBitBankFill(JsonElement js)
@@ -1432,7 +1435,7 @@ namespace Crypto_Clients
             this.order_id = js.GetProperty("order_id").GetInt64().ToString();
             this.symbol = js.GetProperty("pair").GetString();
             this.market = "bitbank";
-            this.symbol_market = this.symbol_market + "@" + this.market;
+            this.symbol_market = this.symbol + "@" + this.market;
             this.price = decimal.Parse(js.GetProperty("price").GetString());
             string side = js.GetProperty("side").GetString();
             if(side == "buy")
@@ -1672,6 +1675,7 @@ namespace Crypto_Clients
     && filled_element.ValueKind != JsonValueKind.Undefined)
             {
                 this.filled_quantity = decimal.Parse(js.GetProperty("latest_executed_amount").GetString());
+                this.average_price = this.order_price;
             }
             else
             {

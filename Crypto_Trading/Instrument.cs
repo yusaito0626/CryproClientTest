@@ -414,6 +414,12 @@ namespace Crypto_Trading
 
                     }
                 }
+                else if (new_ord.market == "coincheck")
+                {
+                    filledQuantity = 0;
+                    fee = 0;
+                    filledPrice = 0;
+                }
                 else
                 {
                     if(new_ord == prev_ord)
@@ -431,36 +437,22 @@ namespace Crypto_Trading
             }
             else
             {
-                if (new_ord == prev_ord)
-                {
-                    filledQuantity = new_ord.filled_quantity;
-                    filledPrice = new_ord.average_price;
-                    fee = new_ord.fee;
-                }
-                else
-                {
-                    filledPrice = (new_ord.filled_quantity * new_ord.average_price - prev_ord.filled_quantity * prev_ord.average_price) / filledQuantity;
-                    fee = new_ord.fee - prev_ord.fee;
-                }
+                filledQuantity = 0;
+                fee = 0;
+                filledPrice = 0;
+                //if (new_ord == prev_ord)
+                //{
+                //    filledQuantity = new_ord.filled_quantity;
+                //    filledPrice = new_ord.average_price;
+                //    fee = new_ord.fee;
+                //}
+                //else
+                //{
+                //    filledPrice = (new_ord.filled_quantity * new_ord.average_price - prev_ord.filled_quantity * prev_ord.average_price) / filledQuantity;
+                //    fee = new_ord.fee - prev_ord.fee;
+                //}
             }
 
-            //if (new_ord.isVirtual == false && new_ord.market == "bitbank")//Update fill with fill object.
-            //{
-            //    filledQuantity = 0;
-            //    fee = 0;
-            //    filledPrice = 0;
-            //}
-            //else if (filledQuantity == 0)
-            //{
-            //    filledQuantity = new_ord.filled_quantity;
-            //    filledPrice = new_ord.average_price;
-            //    fee = new_ord.fee;
-            //}
-            //else
-            //{
-            //    filledPrice = (new_ord.filled_quantity * new_ord.average_price - prev_ord.filled_quantity * prev_ord.average_price) / filledQuantity;
-            //    fee = new_ord.fee - prev_ord.fee;
-            //}
 
             if (new_ord.side == orderSide.Sell)
             {

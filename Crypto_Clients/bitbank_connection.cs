@@ -39,6 +39,8 @@ namespace Crypto_Clients
         MemoryStream ws_memory = new MemoryStream();
         MemoryStream result_memory = new MemoryStream();
 
+        public StreamWriter logFile;
+
         bool closeSent;
 
         private List<string> subscribingChannels;
@@ -60,7 +62,16 @@ namespace Crypto_Clients
 
             //this._addLog = Console.WriteLine;
             this.onMessage = Console.WriteLine;
+
+            
         }
+
+        public void setLogFile(string path)
+        {
+            FileStream fs = new FileStream(path + "bitbank_log" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + ".txt", FileMode.Append, FileAccess.Write, FileShare.Read);
+            this.logFile = new StreamWriter(fs);
+        }
+
         public void SetApiCredentials(string name, string key)
         {
             this.apiName = name;
@@ -485,6 +496,8 @@ namespace Crypto_Clients
                                     break;
                             }
                         }
+                        this.logFile.WriteLine(DateTime.UtcNow.ToString() + "   " + messageResult.Message.ToString());
+                        this.logFile.Flush();
                     }
                 },
                 (pubnubObj, presenceResult) =>
@@ -508,6 +521,8 @@ namespace Crypto_Clients
 
                         case PNStatusCategory.PNTimeoutCategory:
                         case PNStatusCategory.PNNetworkIssuesCategory:
+                        case PNStatusCategory.PNDisconnectedCategory:
+                        case PNStatusCategory.PNUnexpectedDisconnectCategory:
                         case PNStatusCategory.PNAccessDeniedCategory:
                             this.pubnub_state = WebSocketState.Closed;
                             this.addLog("pubnub reconnecting...");
@@ -515,7 +530,12 @@ namespace Crypto_Clients
                             break;
 
                         default:
-                            this.addLog("status default");
+                            string? additional = status.AdditonalData.ToString();
+                            this.addLog("Unexpected status:" + status.Category.ToString(),Enums.logType.ERROR);
+                            if(additional != null)
+                            {
+                                this.addLog(additional, Enums.logType.ERROR);
+                            }
                             this.pubnub_state = WebSocketState.None;
                             break;
                     }

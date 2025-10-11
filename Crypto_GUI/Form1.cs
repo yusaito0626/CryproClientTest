@@ -22,6 +22,9 @@ namespace Crypto_GUI
 {
     public partial class Form1 : Form
     {
+        const string ver_major = "0";
+        const string ver_minor = "1";
+        const string ver_patch = "1";
         string configPath = "C:\\Users\\yusai\\Crypto_Project\\configs\\config.json";
         string defaultConfigPath = AppContext.BaseDirectory + "\\config.json";
         string logPath = AppContext.BaseDirectory + "\\crypto.log";
@@ -41,7 +44,7 @@ namespace Crypto_GUI
         Strategy stg;
 
         ConcurrentQueue<string> logQueue;
-        ConcurrentQueue<string> filledOrderQueue;
+        ConcurrentQueue<DataFill> filledOrderQueue;
 
         Instrument selected_ins;
 
@@ -65,6 +68,7 @@ namespace Crypto_GUI
 
         private bool autoStart;
         private bool live;
+        private bool privateConnect;
 
         public Form1()
         {
@@ -72,12 +76,15 @@ namespace Crypto_GUI
             this.threadsStarted = false;
             this.autoStart = false;
             this.live = false;
+            this.privateConnect = true;
 
             this.logQueue = new ConcurrentQueue<string>();
-            this.filledOrderQueue = new ConcurrentQueue<string>();
+            this.filledOrderQueue = new ConcurrentQueue<DataFill>();
 
             InitializeComponent();
 
+            this.lbl_version.Text = Form1.ver_major + ":" + Form1.ver_minor + ":" + Form1.ver_patch;
+            this.Text += "   Ver." +  this.lbl_version.Text;
             this.lbl_multiplier.Text = this.multiplier.ToString("N0");
 
             this.button_receiveFeed.Enabled = false;
@@ -198,6 +205,17 @@ namespace Crypto_GUI
             else
             {
                 this.live = false;
+            }
+            if (root.TryGetProperty("privateConnect", out elem))
+            {
+                if(!this.live)
+                {
+                    this.privateConnect = elem.GetBoolean();
+                }
+            }
+            else
+            {
+                this.privateConnect = true;
             }
             if (root.TryGetProperty("APIsPath", out elem))
             {
@@ -448,31 +466,30 @@ namespace Crypto_GUI
                 this.lbl_bidprice.Text = this.stg.live_bidprice.ToString("N" + this.stg.maker.price_scale);
                 this.lbl_skewpoint.Text = this.stg.skew_point.ToString("N");
             }
-            string ord_id;
-            DataSpotOrderUpdate ord;
+            DataFill fill;
+            //DataSpotOrderUpdate ord;
             while (this.filledOrderQueue.Count > 0)
             {
-                if (this.filledOrderQueue.TryDequeue(out ord_id))
+                if (this.filledOrderQueue.TryDequeue(out fill))
                 {
-                    ord = this.oManager.orders[ord_id];
+                    //ord = this.oManager.orders[ord_id];
                     this.gridView_orders.Rows.Insert(0);
-                    this.gridView_orders.Rows[0].Cells[0].Value = ((DateTime)ord.timestamp).ToString("HH:mm:ss.fff");
-                    this.gridView_orders.Rows[0].Cells[1].Value = ord.market;
-                    this.gridView_orders.Rows[0].Cells[2].Value = ord.symbol;
-                    this.gridView_orders.Rows[0].Cells[3].Value = ord.side.ToString();
-                    if (ord.symbol_market == this.stg.maker_symbol_market)
+                    this.gridView_orders.Rows[0].Cells[0].Value = ((DateTime)fill.timestamp).ToString("HH:mm:ss.fff");
+                    this.gridView_orders.Rows[0].Cells[1].Value = fill.market;
+                    this.gridView_orders.Rows[0].Cells[2].Value = fill.symbol;
+                    this.gridView_orders.Rows[0].Cells[3].Value = fill.side.ToString();
+                    if (fill.symbol_market == this.stg.maker_symbol_market)
                     {
-                        this.gridView_orders.Rows[0].Cells[4].Value = ord.average_price.ToString("N" + this.stg.maker.price_scale);
-                        this.gridView_orders.Rows[0].Cells[5].Value = ord.filled_quantity.ToString("N" + this.stg.maker.quantity_scale);
+                        this.gridView_orders.Rows[0].Cells[4].Value = fill.price.ToString("N" + this.stg.maker.price_scale);
+                        this.gridView_orders.Rows[0].Cells[5].Value = fill.quantity.ToString("N" + this.stg.maker.quantity_scale);
                     }
                     else
                     {
-                        this.gridView_orders.Rows[0].Cells[4].Value = ord.average_price.ToString("N" + this.stg.taker.price_scale);
-                        this.gridView_orders.Rows[0].Cells[5].Value = ord.filled_quantity.ToString("N" + this.stg.taker.quantity_scale);
+                        this.gridView_orders.Rows[0].Cells[4].Value = fill.price.ToString("N" + this.stg.taker.price_scale);
+                        this.gridView_orders.Rows[0].Cells[5].Value = fill.quantity.ToString("N" + this.stg.taker.quantity_scale);
                     }
-                    this.gridView_orders.Rows[0].Cells[6].Value = ord.fee_asset;
-                    this.gridView_orders.Rows[0].Cells[7].Value = ord.fee;
-
+                    this.gridView_orders.Rows[0].Cells[7].Value = fill.fee_quote + fill.fee_base * fill.price;
+                    this.oManager.pushbackFill(fill);
                 }
             }
         }
@@ -542,7 +559,7 @@ namespace Crypto_GUI
                 foreach (var mkt in this.qManager._markets)
                 {
                     await this.qManager.connectPublicChannel(mkt.Key);
-                    if (liveTrading)
+                    if (liveTrading || this.privateConnect)
                     {
                         await this.oManager.connectPrivateChannel(mkt.Key);
                     }
@@ -582,7 +599,7 @@ namespace Crypto_GUI
                 }
                 this.qManager.ready = true;
 
-                if (liveTrading)
+                if (liveTrading || this.privateConnect)
                 {
                     await crypto_client.subscribeSpotOrderUpdates(this.qManager._markets.Keys);
                     if (this.qManager._markets.ContainsKey("bitbank"))
@@ -673,7 +690,7 @@ namespace Crypto_GUI
         }
         private async void test_Click(object sender, EventArgs e)
         {
-            await tradeTest(this.qManager.instruments["eth_jpy@coincheck"],false);
+            await tradeTest(this.qManager.instruments["eth_jpy@coincheck"],true);
         }
         private async Task onErrorCheck()
         {
@@ -740,13 +757,13 @@ namespace Crypto_GUI
             if(fillcheck)
             {
                 this.addLog("Fill Check");
-                //ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.001, 620000);
+                ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.01, 700000);
                 this.addLog(ord.ToString());
                 Thread.Sleep(1000);
                 this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
 
                 this.addLog("Market Order");
-                ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Market, (decimal)0.001, 670000);
+                ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Market, (decimal)0.01, 700000);
                 if (ord != null)
                 {
                     this.addLog(ord.ToString());

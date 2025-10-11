@@ -151,6 +151,8 @@
             label1 = new Label();
             comboSymbols = new ComboBox();
             tabPage4 = new TabPage();
+            lbl_version = new Label();
+            label37 = new Label();
             groupBox1 = new GroupBox();
             lbl_stgSymbol = new Label();
             label34 = new Label();
@@ -1343,6 +1345,8 @@
             // 
             // tabPage4
             // 
+            tabPage4.Controls.Add(lbl_version);
+            tabPage4.Controls.Add(label37);
             tabPage4.Controls.Add(groupBox1);
             tabPage4.Location = new Point(4, 29);
             tabPage4.Margin = new Padding(2);
@@ -1352,6 +1356,28 @@
             tabPage4.TabIndex = 3;
             tabPage4.Text = "Setting";
             tabPage4.UseVisualStyleBackColor = true;
+            // 
+            // lbl_version
+            // 
+            lbl_version.AutoSize = true;
+            lbl_version.Font = new Font("Yu Gothic UI Semilight", 12F, FontStyle.Italic, GraphicsUnit.Point, 128);
+            lbl_version.Location = new Point(121, 28);
+            lbl_version.Margin = new Padding(2, 0, 2, 0);
+            lbl_version.Name = "lbl_version";
+            lbl_version.Size = new Size(56, 28);
+            lbl_version.TabIndex = 27;
+            lbl_version.Text = "value";
+            // 
+            // label37
+            // 
+            label37.AutoSize = true;
+            label37.Font = new Font("Yu Gothic UI", 12F, FontStyle.Regular, GraphicsUnit.Point, 128);
+            label37.Location = new Point(37, 28);
+            label37.Margin = new Padding(2, 0, 2, 0);
+            label37.Name = "label37";
+            label37.Size = new Size(80, 28);
+            label37.TabIndex = 27;
+            label37.Text = "Version:";
             // 
             // groupBox1
             // 
@@ -1375,7 +1401,7 @@
             groupBox1.Controls.Add(label13);
             groupBox1.Controls.Add(label11);
             groupBox1.Controls.Add(label8);
-            groupBox1.Location = new Point(9, 22);
+            groupBox1.Location = new Point(9, 67);
             groupBox1.Margin = new Padding(2);
             groupBox1.Name = "groupBox1";
             groupBox1.Padding = new Padding(2);
@@ -1714,7 +1740,7 @@
             Controls.Add(tabControl);
             Margin = new Padding(2);
             Name = "Form1";
-            Text = "Form1";
+            Text = "Crypto_MM";
             FormClosing += Form1_FormClosing;
             Shown += Form1_Shown;
             tabControl.ResumeLayout(false);
@@ -1735,6 +1761,7 @@
             groupBox2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)gridView_Ins).EndInit();
             tabPage4.ResumeLayout(false);
+            tabPage4.PerformLayout();
             groupBox1.ResumeLayout(false);
             groupBox1.PerformLayout();
             tabPage5.ResumeLayout(false);
@@ -1883,5 +1910,7 @@
         private Label lbl_stgSymbol;
         private Label label34;
         private System.Windows.Forms.Timer timer_PeriodicMsg;
+        private Label label37;
+        private Label lbl_version;
     }
 }
