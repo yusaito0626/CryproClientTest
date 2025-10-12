@@ -83,6 +83,8 @@ namespace Crypto_Clients
         public async Task connectPublicAsync()
         {
             this.addLog("Connecting to coincehck");
+            this.ws_memory.SetLength(0);
+            this.ws_memory.Position = 0;
             this.websocket_client = new ClientWebSocket();
             var uri = new Uri(coincheck_connection.ws_URL);
             try
@@ -104,6 +106,8 @@ namespace Crypto_Clients
         public async Task connectPrivateAsync()
         {
             this.addLog("Connecting to private channel of coincheck");
+            this.pv_memory.SetLength(0);
+            this.pv_memory.Position = 0;
             this.private_client = new ClientWebSocket();
             var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             if(nonce <= this.lastnonce)
@@ -296,6 +300,8 @@ namespace Crypto_Clients
                 this.logFilePublic.Flush();
             }
 
+            this.ws_memory.SetLength(0);
+            this.ws_memory.Position = 0;
             this.websocket_client.Dispose();
         }
         public async Task<bool> onListen(Action<string> onMsg)
@@ -306,8 +312,6 @@ namespace Crypto_Clients
             switch (this.websocket_client.State)
             {
                 case WebSocketState.Open:
-                    this.ws_memory.SetLength(0);
-                    this.ws_memory.Position = 0;
                     do
                     {
                         result = await this.websocket_client.ReceiveAsync(new ArraySegment<byte>(this.ws_buffer), CancellationToken.None);
@@ -340,6 +344,8 @@ namespace Crypto_Clients
                     }
                     this.logFilePublic.WriteLine(DateTime.UtcNow.ToString() + "   " + msg);
                     this.logFilePublic.Flush();
+                    this.ws_memory.SetLength(0);
+                    this.ws_memory.Position = 0;
                     break;
                 case WebSocketState.None:
                 case WebSocketState.Connecting:
@@ -547,6 +553,8 @@ namespace Crypto_Clients
                 this.logFilePrivate.Flush();
             }
 
+            this.pv_memory.SetLength(0);
+            this.pv_memory.Position = 0;
             this.private_client.Dispose();
         }
         public async Task<bool> onListenPrivate(Action<string> onMsg)
@@ -557,6 +565,7 @@ namespace Crypto_Clients
             switch(this.private_client.State)
             {
                 case WebSocketState.Open:
+
                     do
                     {
                         result = await this.private_client.ReceiveAsync(new ArraySegment<byte>(this.pv_buffer), CancellationToken.None);
@@ -589,6 +598,8 @@ namespace Crypto_Clients
                     }
                     this.logFilePrivate.WriteLine(DateTime.UtcNow.ToString() + "   " + msg);
                     this.logFilePrivate.Flush();
+                    this.pv_memory.SetLength(0);
+                    this.pv_memory.Position = 0;
                     break;
                 case WebSocketState.None:
                 case WebSocketState.Connecting:

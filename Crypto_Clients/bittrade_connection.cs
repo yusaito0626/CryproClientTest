@@ -96,6 +96,9 @@ namespace Crypto_Clients
         public async Task connectPublicAsync()
         {
             this.addLog("Connecting to bitTrade");
+
+            this.ws_memory.SetLength(0);
+            this.ws_memory.Position = 0;
             this.websocket_client = new ClientWebSocket();
             var uri = new Uri(bittrade_connection.ws_URL);
             try
@@ -117,6 +120,9 @@ namespace Crypto_Clients
         public async Task connectPrivateAsync()
         {
             this.addLog("Connecting to private channel of bitTrade");
+
+            this.pv_memory.SetLength(0);
+            this.pv_memory.Position = 0;
             this.private_client = new ClientWebSocket();
             var acc = await this.getAccount();
 
@@ -437,6 +443,8 @@ namespace Crypto_Clients
                 this.logFilePublic.Flush();
             }
 
+            this.ws_memory.SetLength(0);
+            this.ws_memory.Position = 0;
             this.websocket_client.Dispose();
         }
 
@@ -448,8 +456,6 @@ namespace Crypto_Clients
             switch (this.websocket_client.State)
             {
                 case WebSocketState.Open:
-                    this.ws_memory.SetLength(0);
-                    this.ws_memory.Position = 0;
                     do
                     {
                         result = await this.websocket_client.ReceiveAsync(new ArraySegment<byte>(this.ws_buffer), CancellationToken.None);
@@ -483,6 +489,8 @@ namespace Crypto_Clients
                     }
                     this.logFilePublic.WriteLine(DateTime.UtcNow.ToString() + "   " + msg);
                     this.logFilePublic.Flush();
+                    this.ws_memory.SetLength(0);
+                    this.ws_memory.Position = 0;
                     break;
                 case WebSocketState.None:
                 case WebSocketState.Connecting:
@@ -679,7 +687,8 @@ namespace Crypto_Clients
                 this.logFilePrivate.WriteLine(DateTime.UtcNow.ToString() + "   " + msg);
                 this.logFilePrivate.Flush();
             }
-
+            this.pv_memory.SetLength(0);
+            this.pv_memory.Position = 0;
             this.private_client.Dispose();
         }
 
@@ -723,6 +732,8 @@ namespace Crypto_Clients
                     }
                     this.logFilePrivate.WriteLine(DateTime.UtcNow.ToString() + "   " + msg);
                     this.logFilePrivate.Flush();
+                    this.pv_memory.SetLength(0);
+                    this.pv_memory.Position = 0;
                     break;
                 case WebSocketState.None:
                 case WebSocketState.Connecting:
