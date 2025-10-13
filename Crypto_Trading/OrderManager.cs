@@ -626,11 +626,6 @@ namespace Crypto_Trading
                     output.status = orderStatus.WaitCancel;
                     this.ord_client.ordUpdateQueue.Enqueue(output);
                 }
-                else
-                {
-                    string msg = JsonSerializer.Serialize(js);
-                    this.addLog(msg, Enums.logType.ERROR);
-                }
             }
             else if (ins.market == "bittrade")
             {

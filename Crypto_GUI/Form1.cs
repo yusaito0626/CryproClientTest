@@ -25,7 +25,7 @@ namespace Crypto_GUI
     {
         const string ver_major = "0";
         const string ver_minor = "3";
-        const string ver_patch = "3";
+        const string ver_patch = "4";
         string configPath = "C:\\Users\\yusai\\Crypto_Project\\configs\\config.json";
         string defaultConfigPath = AppContext.BaseDirectory + "\\config.json";
         string logPath = AppContext.BaseDirectory + "\\crypto.log";
@@ -1045,6 +1045,10 @@ namespace Crypto_GUI
             if(this.qManager.ordBookQueue.Count() > 1000)
             {
                 this.addLog("The order book queue count exceeds 1000.", Enums.logType.WARNING);
+                if (this.qManager.ordBookQueue.Count() > 10000)
+                {
+
+                }
             }
             if (this.crypto_client.ordUpdateQueue.Count() > 1000)
             {
