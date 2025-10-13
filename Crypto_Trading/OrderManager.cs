@@ -12,6 +12,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Net;
 using System.Net.WebSockets;
 using System.Security.Cryptography;
 using System.Text;
@@ -739,11 +740,37 @@ namespace Crypto_Trading
             this.ord_client.fillStack.Push(fill);
         }
 
+        public async Task<bool> _updateFill()
+        {
+            DataFill fill;
+            Instrument ins = null;
+            if (this.ord_client.fillQueue.TryDequeue(out fill))
+            {
+                this.ordLogQueue.Enqueue(fill.ToString());
+                if (this.Instruments.ContainsKey(fill.symbol_market))
+                {
+                    if (fill.market == "coincheck")
+                    {
+                        if (this.orders.ContainsKey(fill.order_id))
+                        {
+                            DataSpotOrderUpdate filled = this.orders[fill.order_id];
+                            filled.average_price = fill.price;//For viewing purpose
+                        }
+                    }
+                    this.stg.on_Message(fill);
+                    ins = this.Instruments[fill.symbol_market];
+                    ins.updateFills(fill);
+                }
+                this.filledOrderQueue.Enqueue(fill);
+            }
+            return true;
+        }
+
         public async Task<bool> _updateOrders()
         {
             DataSpotOrderUpdate ord;
             DataSpotOrderUpdate prevord;
-            DataFill fill;
+            //DataFill fill;
             Instrument ins = null;
             modifingOrd mod;
             if (this.ord_client.ordUpdateQueue.TryDequeue(out ord))
@@ -884,27 +911,29 @@ namespace Crypto_Trading
                     Volatile.Write(ref ins.orders_lock, 0);
                 }
             }
-            if (this.ord_client.fillQueue.TryDequeue(out fill))
-            {
-                this.ordLogQueue.Enqueue(fill.ToString());
-                if (this.Instruments.ContainsKey(fill.symbol_market))
-                {
-                    if(fill.market == "coincheck")
-                    {
-                        if(this.orders.ContainsKey(fill.order_id))
-                        {
-                            DataSpotOrderUpdate filled = this.orders[fill.order_id];
-                            filled.average_price = fill.price;//For viewing purpose
-                        }
-                    }
-                    this.stg.on_Message(fill);
-                    ins = this.Instruments[fill.symbol_market];
-                    ins.updateFills(fill);
-                }
-                this.filledOrderQueue.Enqueue(fill);
-            }
+            //if (this.ord_client.fillQueue.TryDequeue(out fill))
+            //{
+            //    this.ordLogQueue.Enqueue(fill.ToString());
+            //    if (this.Instruments.ContainsKey(fill.symbol_market))
+            //    {
+            //        if(fill.market == "coincheck")
+            //        {
+            //            if(this.orders.ContainsKey(fill.order_id))
+            //            {
+            //                DataSpotOrderUpdate filled = this.orders[fill.order_id];
+            //                filled.average_price = fill.price;//For viewing purpose
+            //            }
+            //        }
+            //        this.stg.on_Message(fill);
+            //        ins = this.Instruments[fill.symbol_market];
+            //        ins.updateFills(fill);
+            //    }
+            //    this.filledOrderQueue.Enqueue(fill);
+            //}
             return true;
         }
+
+
 
         public void checkVirtualOrders(Instrument ins,DataTrade? last_trade = null)
         {

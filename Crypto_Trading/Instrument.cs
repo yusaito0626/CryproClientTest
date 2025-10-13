@@ -465,17 +465,17 @@ namespace Crypto_Trading
                 this.my_buy_quantity += filledQuantity;
                 this.my_buy_notional += filledQuantity * filledPrice;
             }
-            this.baseBalance.balance += filledQuantity;
-            this.quoteBalance.balance -= filledQuantity * filledPrice;
+            this.baseBalance.total += filledQuantity;
+            this.quoteBalance.total -= filledQuantity * filledPrice;
 
             if(new_ord.fee_asset.ToUpper() == this.baseCcy)
             {
-                this.baseBalance.balance -= fee;
+                this.baseBalance.total -= fee;
                 this.base_fee += fee;
             }
             else if(new_ord.fee_asset.ToUpper() == this.quoteCcy)
             {
-                this.quoteBalance.balance -= fee;
+                this.quoteBalance.total -= fee;
                 this.quote_fee += fee;
             }
             else
@@ -490,19 +490,19 @@ namespace Crypto_Trading
             {
                 this.my_buy_quantity += fill.quantity;
                 this.my_buy_notional += fill.quantity * fill.price;
-                this.baseBalance.balance += fill.quantity;
-                this.quoteBalance.balance -= fill.quantity * fill.price;
+                this.baseBalance.total += fill.quantity;
+                this.quoteBalance.total -= fill.quantity * fill.price;
             }
             else if(fill.side == orderSide.Sell)
             {
 
                 this.my_sell_quantity += fill.quantity;
                 this.my_sell_notional += fill.quantity * fill.price;
-                this.baseBalance.balance -= fill.quantity;
-                this.quoteBalance.balance += fill.quantity * fill.price;
+                this.baseBalance.total -= fill.quantity;
+                this.quoteBalance.total += fill.quantity * fill.price;
             }
-            this.baseBalance.balance -= fill.fee_base;
-            this.quoteBalance.balance -= fill.fee_quote;
+            this.baseBalance.total -= fill.fee_base;
+            this.quoteBalance.total -= fill.fee_quote;
             this.quote_fee += fill.fee_quote;
             this.base_fee += fill.fee_base;
             this.unknown_fee += fill.fee_unknown;

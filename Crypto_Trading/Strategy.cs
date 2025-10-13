@@ -187,11 +187,11 @@ namespace Crypto_Trading
                 bid_price = Math.Floor(bid_price / this.maker.price_unit) * this.maker.price_unit;
                 ask_price = Math.Ceiling(ask_price / this.maker.price_unit) * this.maker.price_unit;
 
-                if (this.ToBsize * (1 + this.taker.taker_fee) > this.taker.baseBalance.balance)
+                if (this.ToBsize * (1 + this.taker.taker_fee) > this.taker.baseBalance.total)
                 {
                     bid_price = 0;
                 }
-                if (this.taker.adjusted_bestask.Item1 * this.ToBsize * (1 + this.taker.taker_fee) > this.taker.quoteBalance.balance)
+                if (this.taker.adjusted_bestask.Item1 * this.ToBsize * (1 + this.taker.taker_fee) > this.taker.quoteBalance.total)
                 {
                     ask_price = 0;
                 }
@@ -281,7 +281,7 @@ namespace Crypto_Trading
 
                 if (this.live_buyorder != null)
                 {
-                    if (bid_price == 0 || (this.maker.baseBalance.balance > this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200)))
+                    if (bid_price == 0 || (this.maker.baseBalance.total > this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200)))
                     {
                         this.live_buyorder = await this.oManager.placeCancelSpotOrder(this.maker, this.live_buyorder.order_id);
                         if (this.live_buyorder != null)
@@ -309,7 +309,7 @@ namespace Crypto_Trading
                 }
                 else
                 {
-                    if (this.maker.baseBalance.balance > this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200))
+                    if (this.maker.baseBalance.total > this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200))
                     {
                         //Do nothing
                     }
@@ -333,7 +333,7 @@ namespace Crypto_Trading
                 if (this.live_sellorder != null)
                 {
                     //this.live_sellorder = this.oManager.orders[this.live_sellorder.order_id];
-                    if (ask_price == 0 || (this.maker.baseBalance.balance < this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200)))
+                    if (ask_price == 0 || (this.maker.baseBalance.total < this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200)))
                     {
                         this.live_sellorder = await this.oManager.placeCancelSpotOrder(this.maker, this.live_sellorder.order_id);
                         if (this.live_sellorder != null)
@@ -361,7 +361,7 @@ namespace Crypto_Trading
                 }
                 else
                 {
-                    if (this.maker.baseBalance.balance < this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200))
+                    if (this.maker.baseBalance.total < this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200))
                     {
                         //Do nothing
                     }
@@ -450,17 +450,17 @@ namespace Crypto_Trading
         public decimal skew()
         {
             decimal skew_point = 0;
-            if(this.maker.baseBalance.balance > this.baseCcyQuantity * ((decimal)0.5 + this.skewThreshold / 200))
+            if(this.maker.baseBalance.total > this.baseCcyQuantity * ((decimal)0.5 + this.skewThreshold / 200))
             {
-                skew_point = - this.maxSkew * (this.maker.baseBalance.balance - this.baseCcyQuantity * ((decimal)0.5 + this.skewThreshold / 200)) / (this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200) - this.baseCcyQuantity * ((decimal)0.5 + this.skewThreshold / 200));
+                skew_point = - this.maxSkew * (this.maker.baseBalance.total - this.baseCcyQuantity * ((decimal)0.5 + this.skewThreshold / 200)) / (this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200) - this.baseCcyQuantity * ((decimal)0.5 + this.skewThreshold / 200));
                 if (skew_point < -this.maxSkew)
                 {
                     skew_point = -this.maxSkew;
                 }
             }
-            else if(this.maker.baseBalance.balance < this.baseCcyQuantity * ((decimal)0.5 - this.skewThreshold / 200))
+            else if(this.maker.baseBalance.total < this.baseCcyQuantity * ((decimal)0.5 - this.skewThreshold / 200))
             {
-                skew_point = this.maxSkew * (this.baseCcyQuantity * ((decimal)0.5 - this.skewThreshold / 200) - this.maker.baseBalance.balance) / (this.baseCcyQuantity * ((decimal)0.5 - this.skewThreshold / 200) - this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200));
+                skew_point = this.maxSkew * (this.baseCcyQuantity * ((decimal)0.5 - this.skewThreshold / 200) - this.maker.baseBalance.total) / (this.baseCcyQuantity * ((decimal)0.5 - this.skewThreshold / 200) - this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200));
                 if (skew_point > this.maxSkew)
                 {
                     skew_point = this.maxSkew;

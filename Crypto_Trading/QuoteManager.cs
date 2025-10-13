@@ -179,14 +179,14 @@ namespace Crypto_Trading
                         string key = items[1] + "@" + items[0];
                         if (this.balances.ContainsKey(key))
                         {
-                            this.balances[key].balance = decimal.Parse(items[2]);
+                            this.balances[key].total = decimal.Parse(items[2]);
                         }
                         else
                         {
                             Balance balance = new Balance();
                             balance.ccy = items[1];
                             balance.market = items[0];
-                            balance.balance = decimal.Parse(items[2]);
+                            balance.total = decimal.Parse(items[2]);
                             this.balances[key] = balance;
                             foreach (var ins in this.instruments.Values)
                             {
@@ -223,14 +223,14 @@ namespace Crypto_Trading
                 key = item.asset + "@" + item.market;
                 if (this.balances.ContainsKey(key))
                 {
-                    this.balances[key].balance = item.available;
+                    this.balances[key].total = item.available;
                 }
                 else
                 {
                     Balance balance = new Balance();
                     balance.ccy = item.asset.ToUpper();
                     balance.market = item.market;
-                    balance.balance = item.available;
+                    balance.total = item.available;
                     this.balances[key] = balance;
                     foreach (var ins in this.instruments.Values)
                     {

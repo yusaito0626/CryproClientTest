@@ -11,12 +11,16 @@ namespace Crypto_Trading
         public string ccy;
         public string market;
 
-        public decimal balance;
+        public decimal total;
+        public decimal available;
+        public decimal inuse;
         public Balance() 
         {
             this.ccy = "";
             this.market = "";
-            this.balance = 0;
+            this.total = 0;
+            this.available = 0;
+            this.inuse = 0;
         }
     }
 }

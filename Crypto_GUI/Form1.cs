@@ -443,8 +443,8 @@ namespace Crypto_GUI
                 this.lbl_market.Text = this.selected_ins.market;
                 this.lbl_lastprice.Text = this.selected_ins.last_price.ToString();
                 this.lbl_notional.Text = (this.selected_ins.buy_notional + this.selected_ins.sell_notional).ToString("N2");
-                this.lbl_baseBalance.Text = this.selected_ins.baseBalance.balance.ToString("N" + this.selected_ins.quantity_scale);
-                this.lbl_quoteBalance.Text = this.selected_ins.quoteBalance.balance.ToString("N2");
+                this.lbl_baseBalance.Text = this.selected_ins.baseBalance.total.ToString("N" + this.selected_ins.quantity_scale);
+                this.lbl_quoteBalance.Text = this.selected_ins.quoteBalance.total.ToString("N2");
                 this.lbl_sellQuantity.Text = this.selected_ins.my_sell_quantity.ToString("N" + this.selected_ins.quantity_scale);
                 this.lbl_buyQuantity.Text = this.selected_ins.my_buy_quantity.ToString("N" + this.selected_ins.quantity_scale);
                 this.lbl_sellNotional.Text = this.selected_ins.my_sell_notional.ToString("N2");
@@ -494,8 +494,8 @@ namespace Crypto_GUI
         {
             if (this.stg.taker != null)
             {
-                this.lbl_baseCcy_taker.Text = this.stg.taker.baseBalance.balance.ToString("N5");
-                this.lbl_quoteCcy_taker.Text = this.stg.taker.quoteBalance.balance.ToString("N5");
+                this.lbl_baseCcy_taker.Text = this.stg.taker.baseBalance.total.ToString("N5");
+                this.lbl_quoteCcy_taker.Text = this.stg.taker.quoteBalance.total.ToString("N5");
                 this.lbl_makerfee_taker.Text = this.stg.taker.maker_fee.ToString("N5");
                 this.lbl_takerfee_taker.Text = this.stg.taker.taker_fee.ToString("N5");
                 this.updateQuotesView(this.gridView_Taker, this.stg.taker);
@@ -504,8 +504,8 @@ namespace Crypto_GUI
             }
             if (this.stg.maker != null)
             {
-                this.lbl_baseCcy_maker.Text = this.stg.maker.baseBalance.balance.ToString("N5");
-                this.lbl_quoteCcy_maker.Text = this.stg.maker.quoteBalance.balance.ToString("N5");
+                this.lbl_baseCcy_maker.Text = this.stg.maker.baseBalance.total.ToString("N5");
+                this.lbl_quoteCcy_maker.Text = this.stg.maker.quoteBalance.total.ToString("N5");
                 this.lbl_makerfee_maker.Text = this.stg.maker.maker_fee.ToString("N5");
                 this.lbl_takerfee_maker.Text = this.stg.maker.taker_fee.ToString("N5");
                 this.updateQuotesView(this.gridView_Maker, this.stg.maker);
@@ -664,6 +664,7 @@ namespace Crypto_GUI
                 this.thManager.addThread("updateQuotes", this.qManager._updateQuotes);
                 this.thManager.addThread("updateTrades", this.qManager._updateTrades);
                 this.thManager.addThread("updateOrders", this.oManager._updateOrders);
+                this.thManager.addThread("updateFill", this.oManager._updateFill);
                 this.thManager.addThread("orderLogging", this.oManager._orderLogging, this.oManager.onLoggingStopped);
                 this.threadsStarted = true;
             }
