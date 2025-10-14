@@ -469,7 +469,7 @@ namespace Crypto_Trading
             return skew_point;
         }
 
-        public void on_Message(DataFill fill)
+        public async Task on_Message(DataFill fill)
         {
             if (this.enabled)
             {
@@ -495,10 +495,12 @@ namespace Crypto_Trading
                     switch (fill.side)
                     {
                         case orderSide.Buy:
-                            this.oManager.placeNewSpotOrder(this.taker, orderSide.Sell, orderType.Market, filled_quantity, 0);
+                            fill.msg += " BeforeNew:" + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff");
+                            await this.oManager.placeNewSpotOrder(this.taker, orderSide.Sell, orderType.Market, filled_quantity, 0);
                             break;
                         case orderSide.Sell:
-                            this.oManager.placeNewSpotOrder(this.taker, orderSide.Buy, orderType.Market, filled_quantity, 0);
+                            fill.msg += " BeforeNew:" + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff");
+                            await this.oManager.placeNewSpotOrder(this.taker, orderSide.Buy, orderType.Market, filled_quantity, 0);
                             break;
                     }
                 }

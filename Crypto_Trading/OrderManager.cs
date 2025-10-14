@@ -10,6 +10,7 @@ using PubnubApi;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Net;
@@ -371,6 +372,7 @@ namespace Crypto_Trading
             }
             else if(ins.market == "coincheck")
             {
+                double latency = 0;
                 if(ordtype == orderType.Limit)
                 {
                     js = await this.ord_client.coincheck_client.placeNewOrder(ins.symbol, side.ToString().ToLower(), price, quantity, "post_only");
@@ -387,7 +389,10 @@ namespace Crypto_Trading
                         order_price = Math.Round(ins.bestbid.Item1 * (decimal)0.9 / ins.price_unit) * ins.price_unit;
                     }
                     //Market Order
+                    var sw = Stopwatch.StartNew();
                     js = await this.ord_client.coincheck_client.placeNewOrder(ins.symbol, side.ToString().ToLower(), order_price, quantity);
+                    sw.Stop();
+                    latency = sw.Elapsed.TotalMilliseconds;
                 }
                 if (js.RootElement.GetProperty("success").GetBoolean())
                 {
@@ -456,6 +461,7 @@ namespace Crypto_Trading
                     output.fee_asset = "";
                     output.is_trigger_order = true;
                     output.last_trade = "";
+                    output.msg += latency.ToString();
 
                     this.ord_client.ordUpdateQueue.Enqueue(output);
                 }
@@ -704,7 +710,7 @@ namespace Crypto_Trading
                     output = await this.placeNewSpotOrder(ins, side, type, quantity, price, tif);
                     if (output != null)
                     {
-                        output.comment += "ModOrder from " + orderId + " ";
+                        output.msg += "ModOrder from " + orderId + " ";
                     }
                     
                     return output;
@@ -746,7 +752,8 @@ namespace Crypto_Trading
             Instrument ins = null;
             if (this.ord_client.fillQueue.TryDequeue(out fill))
             {
-                this.ordLogQueue.Enqueue(fill.ToString());
+                fill.msg += " Dequeued:" + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff");
+                await this.stg.on_Message(fill);
                 if (this.Instruments.ContainsKey(fill.symbol_market))
                 {
                     if (fill.market == "coincheck")
@@ -757,10 +764,10 @@ namespace Crypto_Trading
                             filled.average_price = fill.price;//For viewing purpose
                         }
                     }
-                    this.stg.on_Message(fill);
                     ins = this.Instruments[fill.symbol_market];
                     ins.updateFills(fill);
                 }
+                this.ordLogQueue.Enqueue(fill.ToString());
                 this.filledOrderQueue.Enqueue(fill);
             }
             return true;
@@ -825,69 +832,68 @@ namespace Crypto_Trading
                     if (this.orders.ContainsKey(ord.order_id))
                     {
                         prevord = this.orders[ord.order_id];
-                        this.orders[ord.order_id] = ord;
-                        if(ins != null)
+                        if(ord.status < prevord.status)
                         {
-                            ins.orders[ord.order_id] = ord;
+                            ord.init();
+                            this.ord_client.ordUpdateStack.Push(ord);
                         }
-                        if (ord.status == orderStatus.Open)
+                        else
                         {
-                            this.live_orders[ord.order_id] = ord;
+                            this.orders[ord.order_id] = ord;
                             if (ins != null)
                             {
-                                ins.live_orders[ord.order_id] = ord;
+                                ins.orders[ord.order_id] = ord;
                             }
+                            if (ord.status == orderStatus.Open)
+                            {
+                                this.live_orders[ord.order_id] = ord;
+                                if (ins != null)
+                                {
+                                    ins.live_orders[ord.order_id] = ord;
+                                }
+                            }
+                            else if (this.live_orders.ContainsKey(ord.order_id))
+                            {
+                                while (Interlocked.CompareExchange(ref this.order_lock, 1, 0) != 0)
+                                {
+                                }
+                                this.live_orders.Remove(ord.order_id);
+                                Volatile.Write(ref this.order_lock, 0);
+                                if (ins != null)
+                                {
+                                    while (Interlocked.CompareExchange(ref ins.orders_lock, 1, 0) != 0)
+                                    {
+                                    }
+                                    if (ins.live_orders.ContainsKey(ord.order_id))
+                                    {
+                                        ins.live_orders.Remove(ord.order_id);
+                                    }
+                                    Volatile.Write(ref ins.orders_lock, 0);
+                                }
+
+                            }
+                            if (this.modifingOrders.ContainsKey(ord.order_id))
+                            {
+                                mod = this.modifingOrders[ord.order_id];
+
+                                if (ord.status == orderStatus.Canceled)
+                                {
+                                    this.placeNewSpotOrder(mod.ins, mod.side, mod.order_type, mod.newQuantity, mod.newPrice, mod.time_in_force);
+                                    this.modifingOrders.Remove(ord.order_id);
+                                    mod.init();
+                                    this.modifingOrdStack.Push(mod);
+                                }
+                                else if (ord.status == orderStatus.Filled)
+                                {
+                                    this.modifingOrders.Remove(ord.order_id);
+                                    mod.init();
+                                    this.modifingOrdStack.Push(mod);
+                                }
+                            }
+                            prevord.init();
+                            this.ord_client.ordUpdateStack.Push(prevord);
                         }
-                        else if (this.live_orders.ContainsKey(ord.order_id))
-                        {
-                            while (Interlocked.CompareExchange(ref this.order_lock, 1, 0) != 0)
-                            {
-                            }
-                            this.live_orders.Remove(ord.order_id);
-                            Volatile.Write(ref this.order_lock, 0);
-                            if(ins != null)
-                            {
-                                while (Interlocked.CompareExchange(ref ins.orders_lock, 1, 0) != 0)
-                                {
-                                }
-                                if (ins.live_orders.ContainsKey(ord.order_id))
-                                {
-                                    ins.live_orders.Remove(ord.order_id);
-                                }
-                                Volatile.Write(ref ins.orders_lock, 0);
-                            }
                             
-                        }
-                        if (this.modifingOrders.ContainsKey(ord.order_id))
-                        {
-                            mod = this.modifingOrders[ord.order_id];
-
-                            if (ord.status == orderStatus.Canceled)
-                            {
-                                this.placeNewSpotOrder(mod.ins, mod.side, mod.order_type, mod.newQuantity, mod.newPrice, mod.time_in_force);
-                                this.modifingOrders.Remove(ord.order_id);
-                                mod.init();
-                                this.modifingOrdStack.Push(mod);
-                            }
-                            else if (ord.status == orderStatus.Filled)
-                            {
-                                this.modifingOrders.Remove(ord.order_id);
-                                mod.init();
-                                this.modifingOrdStack.Push(mod);
-                            }
-                        }
-                        //decimal filledQuantity = ord.filled_quantity - prevord.filled_quantity;
-                        //if (ins != null && filledQuantity > 0)
-                        //{
-                        //    //ins = this.Instruments[ord.symbol_market];
-                        //    ins.updateFills(prevord, ord);
-                        //    //For future upodate, create a fill object here and call only the updateFills with the fill object.
-                        //    //this.filledOrderQueue.Enqueue(ord.order_id);
-                        //}
-                        //this.stg.on_Message(prevord, ord);
-
-                        prevord.init();
-                        this.ord_client.ordUpdateStack.Push(prevord);
                     }
                     else
                     {
@@ -900,10 +906,6 @@ namespace Crypto_Trading
                                 ins.live_orders[ord.order_id] = ord;
                             }
                         }
-                        //if (ins != null && ord.filled_quantity > 0)
-                        //{
-                        //    ins.updateFills(ord, ord);
-                        //}
                     }
                 }
                 if(ins != null)
@@ -911,25 +913,6 @@ namespace Crypto_Trading
                     Volatile.Write(ref ins.orders_lock, 0);
                 }
             }
-            //if (this.ord_client.fillQueue.TryDequeue(out fill))
-            //{
-            //    this.ordLogQueue.Enqueue(fill.ToString());
-            //    if (this.Instruments.ContainsKey(fill.symbol_market))
-            //    {
-            //        if(fill.market == "coincheck")
-            //        {
-            //            if(this.orders.ContainsKey(fill.order_id))
-            //            {
-            //                DataSpotOrderUpdate filled = this.orders[fill.order_id];
-            //                filled.average_price = fill.price;//For viewing purpose
-            //            }
-            //        }
-            //        this.stg.on_Message(fill);
-            //        ins = this.Instruments[fill.symbol_market];
-            //        ins.updateFills(fill);
-            //    }
-            //    this.filledOrderQueue.Enqueue(fill);
-            //}
             return true;
         }
 

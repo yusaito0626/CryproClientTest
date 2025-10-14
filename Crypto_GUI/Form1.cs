@@ -25,7 +25,7 @@ namespace Crypto_GUI
     {
         const string ver_major = "0";
         const string ver_minor = "3";
-        const string ver_patch = "4";
+        const string ver_patch = "5";
         string configPath = "C:\\Users\\yusai\\Crypto_Project\\configs\\config.json";
         string defaultConfigPath = AppContext.BaseDirectory + "\\config.json";
         string logPath = AppContext.BaseDirectory + "\\crypto.log";
@@ -653,10 +653,10 @@ namespace Crypto_GUI
                 if (liveTrading || this.privateConnect)
                 {
                     await crypto_client.subscribeSpotOrderUpdates(this.qManager._markets.Keys);
-                    if (this.qManager._markets.ContainsKey("bitbank"))
-                    {
-                        this.thManager.addThread("bitbankSpotOrderUpdates", this.crypto_client.onBitbankOrderUpdates);
-                    }
+                    //if (this.qManager._markets.ContainsKey("bitbank"))
+                    //{
+                    //    this.thManager.addThread("bitbankSpotOrderUpdates", this.crypto_client.onBitbankOrderUpdates);
+                    //}
                 }
 
                 this.oManager.ready = true;
@@ -1012,14 +1012,15 @@ namespace Crypto_GUI
                     if (this.live || this.privateConnect)
                     {
                         
-                        if (market == "bitbank")
-                        {
-                            this.thManager.addThread("bitbankSpotOrderUpdates", this.crypto_client.onBitbankOrderUpdates);
-                        }
-                        else
-                        {
-                            await crypto_client.subscribeSpotOrderUpdates(markets);
-                        }
+                        //if (market == "bitbank")
+                        //{
+                        //    this.thManager.addThread("bitbankSpotOrderUpdates", this.crypto_client.onBitbankOrderUpdates);
+                        //}
+                        //else
+                        //{
+                            
+                        //}
+                        await crypto_client.subscribeSpotOrderUpdates(markets);
                     }
                     if (this.oManager.getVirtualMode())
                     {
@@ -1087,6 +1088,9 @@ namespace Crypto_GUI
             decimal fee = 0;
             decimal total = 0;
             string msg = "";
+
+            //To keep http_client alive.
+            await this.crypto_client.getBalance(this.qManager._markets.Keys);
 
             if (this.stg.maker != null && this.stg.taker != null)
             {

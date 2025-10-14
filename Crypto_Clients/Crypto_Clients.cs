@@ -82,6 +82,8 @@ namespace Crypto_Clients
             this.fillStack = new ConcurrentStack<DataFill>();
 
             this.strQueue = new ConcurrentQueue<string>();
+
+            this.bitbank_client.setQueues(this);
             
             //this._addLog = Console.WriteLine;
 
@@ -642,7 +644,7 @@ namespace Crypto_Clients
                 {
                     case "bitbank":
                         //await this.bitbank_client.connectPrivateAsync();
-                        this.addLog("For bitbank spot order updates, please subscribe separately and register it on the thread manager.", Enums.logType.WARNING);
+                        //this.addLog("For bitbank spot order updates, please subscribe separately and register it on the thread manager.", Enums.logType.WARNING);
                         //this.bitbankOrderUpdateTh = new Thread(this.bitbankOrderUpdates);
                         //this.bitbankOrderUpdateTh.Start();
                         break;
@@ -675,71 +677,31 @@ namespace Crypto_Clients
             }
         }
 
-        public void bitbankOrderUpdates()
-        {
-            int i = 0;
-            JsonElement js;
-            DataSpotOrderUpdate ord;
-            DataFill fill;
-            while(true)
-            {
-                if(this.bitbank_client.orderQueue.TryDequeue(out js))
-                {
-                    while(!this.ordUpdateStack.TryPop(out ord))
-                    {
+        //public async Task<bool> onBitbankOrderUpdates()
+        //{
+        //    JsonElement js;
+        //    DataSpotOrderUpdate ord;
+        //    DataFill fill;
+        //    if (this.bitbank_client.orderQueue.TryDequeue(out js))
+        //    {
+        //        while (!this.ordUpdateStack.TryPop(out ord))
+        //        {
 
-                    }
-                    ord.setBitbankSpotOrder(js);
-                    this.ordUpdateQueue.Enqueue(ord);
-                    i = 0;
-                }
-                else if(this.bitbank_client.fillQueue.TryDequeue(out js))
-                {
-                    while(!this.fillStack.TryPop(out fill))
-                    {
+        //        }
+        //        ord.setBitbankSpotOrder(js);
+        //        this.ordUpdateQueue.Enqueue(ord);
+        //    }
+        //    else if (this.bitbank_client.fillQueue.TryDequeue(out js))
+        //    {
+        //        while (!this.fillStack.TryPop(out fill))
+        //        {
 
-                    }
-                    fill.setBitBankFill(js);
-                    this.fillQueue.Enqueue(fill);
-                    i = 0;
-                }
-                else
-                {
-                    ++i;
-                    if (i > 100000)
-                    {
-                        Thread.Sleep(0);
-                        i = 0;
-                    }
-                }
-            }
-        }
-
-        public async Task<bool> onBitbankOrderUpdates()
-        {
-            JsonElement js;
-            DataSpotOrderUpdate ord;
-            DataFill fill;
-            if (this.bitbank_client.orderQueue.TryDequeue(out js))
-            {
-                while (!this.ordUpdateStack.TryPop(out ord))
-                {
-
-                }
-                ord.setBitbankSpotOrder(js);
-                this.ordUpdateQueue.Enqueue(ord);
-            }
-            else if (this.bitbank_client.fillQueue.TryDequeue(out js))
-            {
-                while (!this.fillStack.TryPop(out fill))
-                {
-
-                }
-                fill.setBitBankFill(js);
-                this.fillQueue.Enqueue(fill);
-            }
-            return true;
-        }
+        //        }
+        //        fill.setBitBankFill(js);
+        //        this.fillQueue.Enqueue(fill);
+        //    }
+        //    return true;
+        //}
 
         async public Task subscribeTrades(IEnumerable<string>? markets, string baseCcy, string quoteCcy)
         {
@@ -1367,6 +1329,8 @@ namespace Crypto_Clients
         public decimal profit_loss;
         public decimal interest;
 
+        public string msg;
+
         public DataFill()
         {
             this.timestamp = null;
@@ -1386,6 +1350,7 @@ namespace Crypto_Clients
             this.order_type = orderType.NONE;
             this.profit_loss = 0;
             this.interest = 0;
+            this.msg = "";
         }
 
         public void setCoincheckFill(JsonElement js)
@@ -1552,6 +1517,7 @@ namespace Crypto_Clients
             {
                 line += "";
             }
+            line += "," + this.msg;
             return line;
         }
 
@@ -1609,7 +1575,7 @@ namespace Crypto_Clients
         public bool is_trigger_order;
 
         public bool isVirtual;
-        public string comment;
+        public string msg;
 
         public DataSpotOrderUpdate()
         {
@@ -1637,7 +1603,7 @@ namespace Crypto_Clients
             this.trigger_price = 0;
             this.is_trigger_order = false;
             this.isVirtual = false;
-            this.comment = "";
+            this.msg = "";
         }
 
         public void setCoincheckSpotOrder(JsonElement js)
@@ -2254,7 +2220,7 @@ namespace Crypto_Clients
             this.trigger_price = 0;
             this.is_trigger_order = false;
             this.isVirtual = false;
-            this.comment = "";
+            this.msg = "";
         }
         public string ToString()
         {
@@ -2284,7 +2250,7 @@ namespace Crypto_Clients
             {
                 line += ",";
             }
-            line += "," + this.last_trade + "," + this.trigger_price.ToString() + "," + this.is_trigger_order.ToString() + "," + this.comment;
+            line += "," + this.last_trade + "," + this.trigger_price.ToString() + "," + this.is_trigger_order.ToString() + "," + this.msg;
 
             return line;
         }
@@ -2435,13 +2401,13 @@ namespace Crypto_Clients
     public enum orderStatus
     {
         NONE = -1,
-        Open = 1,
-        Filled = 2,
+        WaitOpen = 1,
+        Open = 2,
         PartialFill = 3,
-        Canceled = 4,
-        WaitOpen = 5,
-        WaitMod = 6,
-        WaitCancel = 7,
+        WaitCancel = 4,
+        Filled = 5,
+        Canceled = 6,
+        WaitMod = 98,
         INVALID = 99
     }
     public enum timeInForce

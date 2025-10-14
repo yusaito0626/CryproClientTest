@@ -25,10 +25,13 @@ namespace Crypto_Clients
         private const string URL = "https://api.bitbank.cc";
         private const string ws_URL = "wss://stream.bitbank.cc/socket.io/?EIO=4&transport=websocket";
 
-        public ConcurrentQueue<JsonElement> orderQueue;
-        public ConcurrentQueue<JsonElement> fillQueue;
+        public ConcurrentQueue<DataSpotOrderUpdate> orderQueue;
+        public ConcurrentStack<DataSpotOrderUpdate> orderStack;
+        public ConcurrentQueue<DataFill> fillQueue;
+        public ConcurrentStack<DataFill> fillStack;
 
         ClientWebSocket websocket_client;
+        HttpClient http_client;
 
         WebSocketState pubnub_state;
 
@@ -53,9 +56,10 @@ namespace Crypto_Clients
             this.secretKey = "";
 
             this.websocket_client = new ClientWebSocket();
+            this.http_client = new HttpClient();
 
-            this.orderQueue = new ConcurrentQueue<JsonElement>();
-            this.fillQueue = new ConcurrentQueue<JsonElement>();
+            //this.orderQueue = new ConcurrentQueue<JsonElement>();
+            //this.fillQueue = new ConcurrentQueue<JsonElement>();
 
             this.closeSent = false;
             this.pubnub_state = WebSocketState.None;
@@ -66,6 +70,14 @@ namespace Crypto_Clients
             this.onMessage = Console.WriteLine;
 
             
+        }
+
+        public void setQueues(Crypto_Clients client)
+        {
+            this.orderQueue = client.ordUpdateQueue;
+            this.orderStack = client.ordUpdateStack;
+            this.fillQueue = client.fillQueue;
+            this.fillStack = client.fillStack;
         }
 
         public void setLogFile(string path)
@@ -291,7 +303,7 @@ namespace Crypto_Clients
                         msg = "";
                         break;
                 }
-                this.logFilePublic.WriteLine(DateTime.UtcNow.ToString() + "   " + msg);
+                this.logFilePublic.WriteLine(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   " + msg);
                 this.logFilePublic.Flush();
             }
 
@@ -375,7 +387,7 @@ namespace Crypto_Clients
                             msg = "";
                             break;
                     }
-                    this.logFilePublic.WriteLine(DateTime.UtcNow.ToString() + "   " + msg);
+                    this.logFilePublic.WriteLine(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   " + msg);
                     this.logFilePublic.Flush();
                     this.ws_memory.SetLength(0);
                     this.ws_memory.Position = 0;
@@ -495,7 +507,6 @@ namespace Crypto_Clients
             var timeWindow = "5000";
             var message = $"{nonce}{timeWindow}{endpoint}";
 
-            using var client = new HttpClient();
             var request = new HttpRequestMessage(HttpMethod.Get, bitbank_connection.URL + endpoint);
 
             request.Headers.Add("ACCESS-KEY", this.apiName);
@@ -505,7 +516,7 @@ namespace Crypto_Clients
 
             request.Content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
 
-            var response = await client.SendAsync(request);
+            var response = await this.http_client.SendAsync(request);
             var resString = await response.Content.ReadAsStringAsync();
 
             return resString;
@@ -516,7 +527,6 @@ namespace Crypto_Clients
             var timeWindow = "5000";
             var message = $"{nonce}{timeWindow}{body}";
 
-            using var client = new HttpClient();
             var request = new HttpRequestMessage(HttpMethod.Post, bitbank_connection.URL + endpoint);
 
             request.Content = new StringContent(body, Encoding.UTF8, "application/json");
@@ -526,7 +536,7 @@ namespace Crypto_Clients
             request.Headers.Add("ACCESS-TIME-WINDOW", timeWindow);
             request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
 
-            var response = await client.SendAsync(request);
+            var response = await this.http_client.SendAsync(request);
             var resString = await response.Content.ReadAsStringAsync();
 
             return resString;
@@ -610,13 +620,15 @@ namespace Crypto_Clients
             };
 
             var pubnub = new Pubnub(config);
-
+           
             pubnub.AddListener(new SubscribeCallbackExt(
                 (pubnubObj, messageResult) =>
                 {
                     if (messageResult != null && messageResult.Message != null)
                     {
                         var json = JsonDocument.Parse(messageResult.Message.ToString());
+                        DataFill fill;
+                        DataSpotOrderUpdate ord;
                         if (json.RootElement.TryGetProperty("method", out var method))
                         {
                             var methodStr = method.GetString();
@@ -625,17 +637,27 @@ namespace Crypto_Clients
                                 //Orders
                                 case "spot_order_new":
                                 case "spot_order":
-                                    var ord = json.RootElement.GetProperty("params").EnumerateArray();
-                                    foreach (var d in ord)
+                                    var ord_msg = json.RootElement.GetProperty("params").EnumerateArray();
+                                    foreach (var d in ord_msg)
                                     {
-                                        this.orderQueue.Enqueue(d);
+                                        while (!this.orderStack.TryPop(out ord))
+                                        {
+
+                                        }
+                                        ord.setBitbankSpotOrder(d);
+                                        this.orderQueue.Enqueue(ord);
                                     }
                                     break;
                                 case "spot_trade":
                                     var trd = json.RootElement.GetProperty("params").EnumerateArray();
                                     foreach (var d in trd)
                                     {
-                                        this.fillQueue.Enqueue(d);
+                                        while(!this.fillStack.TryPop(out fill))
+                                        {
+
+                                        }
+                                        fill.setBitBankFill(d);
+                                        this.fillQueue.Enqueue(fill);
                                     }
                                     break;
                                 case "spot_order_invalidation":
@@ -646,14 +668,14 @@ namespace Crypto_Clients
                                     break;
                             }
                         }
-                        this.logFilePrivate.WriteLine(DateTime.UtcNow.ToString() + "   " + messageResult.Message.ToString());
+                        this.logFilePrivate.WriteLine(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   " + messageResult.Message.ToString());
                         this.logFilePrivate.Flush();
                     }
                 },
                 (pubnubObj, presenceResult) =>
                 {
                     this.addLog("presence: " + presenceResult.Event);
-                    this.logFilePrivate.WriteLine(DateTime.UtcNow.ToString() + "   " + presenceResult.Event);
+                    this.logFilePrivate.WriteLine(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   " + presenceResult.Event);
                     this.logFilePrivate.Flush();
                 },
                 async (pubnubObj, status) =>
@@ -691,7 +713,7 @@ namespace Crypto_Clients
                             this.pubnub_state = WebSocketState.None;
                             break;
                     }
-                    this.logFilePrivate.WriteLine(DateTime.UtcNow.ToString() + "   " + status.Category.ToString() + " " + status.ErrorData.ToString());
+                    this.logFilePrivate.WriteLine(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   " + status.Category.ToString() + " " + status.ErrorData.ToString());
                     this.logFilePrivate.Flush();
                 }));
 

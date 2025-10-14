@@ -1,5 +1,6 @@
 ﻿using PubnubApi;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO.Compression;
 using System.Net.WebSockets;
@@ -25,6 +26,7 @@ namespace Crypto_Clients
 
         ClientWebSocket websocket_client;
         ClientWebSocket private_client;
+        HttpClient http_client;
 
         public Action<string> onMessage;
         public Action<string> onPrivateMessage;
@@ -56,6 +58,7 @@ namespace Crypto_Clients
 
             this.websocket_client = new ClientWebSocket();
             this.private_client = new ClientWebSocket();
+            this.http_client = new HttpClient();
 
             this.orderQueue = new ConcurrentQueue<JsonElement>();
             this.fillQueue = new ConcurrentQueue<JsonElement>();
@@ -677,7 +680,6 @@ namespace Crypto_Clients
             this.lastnonce = nonce;
             var message = $"{nonce}{coincheck_connection.URL}{endpoint}";
 
-            using var client = new HttpClient();
             var request = new HttpRequestMessage(HttpMethod.Get, coincheck_connection.URL + endpoint);
 
             request.Headers.Add("ACCESS-KEY", this.apiName);
@@ -694,7 +696,7 @@ namespace Crypto_Clients
             }
                 
 
-            var response = await client.SendAsync(request);
+            var response = await this.http_client.SendAsync(request);
             var resString = await response.Content.ReadAsStringAsync();
 
             return resString;
@@ -710,7 +712,6 @@ namespace Crypto_Clients
             this.lastnonce = nonce;
             var message = $"{nonce}{coincheck_connection.URL}{endpoint}{body}";
 
-            using var client = new HttpClient();
             var request = new HttpRequestMessage(HttpMethod.Post, coincheck_connection.URL + endpoint);
 
             request.Content = new StringContent(body, Encoding.UTF8, "application/json");
@@ -718,8 +719,11 @@ namespace Crypto_Clients
             request.Headers.Add("ACCESS-KEY", this.apiName);
             request.Headers.Add("ACCESS-NONCE", nonce.ToString());
             request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
-
-            var response = await client.SendAsync(request);
+            //Stopwatch sw = Stopwatch.StartNew();
+            var response = await this.http_client.SendAsync(request);
+            //sw.Stop();
+            //double latency = sw.Elapsed.TotalMilliseconds;
+            //this.addLog("Pure latency sendAsync:" + latency.ToString());
             var resString = await response.Content.ReadAsStringAsync();
 
             return resString;
@@ -735,7 +739,6 @@ namespace Crypto_Clients
             this.lastnonce = nonce;
             var message = $"{nonce}{coincheck_connection.URL}{endpoint}{body}";
 
-            using var client = new HttpClient();
             var request = new HttpRequestMessage(HttpMethod.Delete, coincheck_connection.URL + endpoint);
 
             request.Content = new StringContent(body, Encoding.UTF8, "application/json");
@@ -744,7 +747,7 @@ namespace Crypto_Clients
             request.Headers.Add("ACCESS-NONCE", nonce.ToString());
             request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
 
-            var response = await client.SendAsync(request);
+            var response = await this.http_client.SendAsync(request);
             var resString = await response.Content.ReadAsStringAsync();
 
             return resString;
@@ -791,7 +794,12 @@ namespace Crypto_Clients
             
 
             var jsonBody = JsonSerializer.Serialize(body);
+            //var sw = Stopwatch.StartNew();
             var resString = await this.postAsync("/api/exchange/orders", jsonBody);
+            //sw.Stop();
+
+            //double latency = sw.Elapsed.TotalMilliseconds;
+            //this.addLog("Coincheck postAsync latency:" + latency.ToString());
 
             return JsonDocument.Parse(resString);
         }

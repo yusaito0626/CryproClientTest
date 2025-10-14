@@ -833,22 +833,6 @@ namespace Crypto_Clients
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadAsStringAsync();
 
-            //var nonce = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            //var message = $"{nonce}{bittrade_connection.URL}{endpoint}{body}";
-
-            //using var client = new HttpClient();
-            //var request = new HttpRequestMessage(HttpMethod.Post, bittrade_connection.URL + endpoint);
-
-            //request.Content = new StringContent(body, Encoding.UTF8, "application/json");
-
-            //request.Headers.Add("ACCESS-KEY", this.apiName);
-            //request.Headers.Add("ACCESS-NONCE", nonce.ToString());
-            //request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
-
-            //var response = await client.SendAsync(request);
-            //var resString = await response.Content.ReadAsStringAsync();
-
-            //return resString;
         }
 
         private string BuildSignedUrl(string method, string endpoint, IDictionary<string, string>? extraParams)
