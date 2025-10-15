@@ -137,7 +137,7 @@ namespace Crypto_GUI
             this.oManager.setInstruments(this.qManager.instruments);
             this.oManager.filledOrderQueue = this.filledOrderQueue;
 
-            this.setStrategies("C:\\Users\\yusai\\Crypto_Project\\configs\\multi_strategy.json");
+            this.setStrategies(this.strategyFile);
             this.qManager.strategies = this.strategies;
             this.oManager.strategies = this.strategies;
 
