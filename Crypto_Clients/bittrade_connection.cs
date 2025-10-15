@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -61,6 +62,10 @@ namespace Crypto_Clients
         public StreamWriter logFilePublic;
         public StreamWriter logFilePrivate;
 
+        Stopwatch sw;
+        double elapsedTime_POST;
+        int count;
+
         private bittrade_connection()
         {
             this.apiName = "";
@@ -77,6 +82,10 @@ namespace Crypto_Clients
             this.closeSentPublic = false;
             this.closeSentPrivate = false;
             this.subscribingChannels = new List<string>();
+
+            this.sw = new Stopwatch();
+            this.elapsedTime_POST = 0;
+            this.count = 0;
 
             //this._addLog = Console.WriteLine;
         }
@@ -861,7 +870,12 @@ namespace Crypto_Clients
             request.Headers.Add("Accept", "application/json");
             request.Content = new StringContent(body, Encoding.UTF8, "application/json");
 
+            sw.Start();
             var response = await this.http_client.SendAsync(request);
+            sw.Stop();
+            this.elapsedTime_POST += sw.Elapsed.TotalNanoseconds / 1000;
+            ++this.count;
+            sw.Reset();
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadAsStringAsync();
 
@@ -969,6 +983,17 @@ namespace Crypto_Clients
         public WebSocketState GetSocketStatePrivate()
         {
             return this.private_client.State;
+        }
+        public double avgLatency()
+        {
+            if (this.count > 0)
+            {
+                return this.elapsedTime_POST / this.count;
+            }
+            else
+            {
+                return 0;
+            }
         }
 
         private string ToSha256(string key, string value)

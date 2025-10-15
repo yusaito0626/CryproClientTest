@@ -4,6 +4,7 @@ using PubnubApi;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.WebSockets;
@@ -46,6 +47,10 @@ namespace Crypto_Clients
         public StreamWriter logFilePublic;
         public StreamWriter logFilePrivate;
 
+        Stopwatch sw;
+        double elapsedTime_POST;
+        int count;
+
         bool closeSent;
 
         private List<string> subscribingChannels;
@@ -54,6 +59,10 @@ namespace Crypto_Clients
         {
             this.apiName = "";
             this.secretKey = "";
+
+            this.sw = new Stopwatch();
+            this.elapsedTime_POST = 0;
+            this.count = 0;
 
             this.websocket_client = new ClientWebSocket();
             this.http_client = new HttpClient();
@@ -553,7 +562,12 @@ namespace Crypto_Clients
             request.Headers.Add("ACCESS-TIME-WINDOW", timeWindow);
             request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
 
+            sw.Start();
             var response = await this.http_client.SendAsync(request);
+            sw.Stop();
+            this.elapsedTime_POST += sw.Elapsed.TotalNanoseconds / 1000;
+            ++this.count;
+            sw.Reset();
             var resString = await response.Content.ReadAsStringAsync();
 
             return resString;
@@ -759,6 +773,17 @@ namespace Crypto_Clients
         public WebSocketState GetSocketStatePrivate()
         {
             return this.pubnub_state;
+        }
+        public double avgLatency()
+        {
+            if (this.count > 0)
+            {
+                return this.elapsedTime_POST / this.count;
+            }
+            else
+            {
+                return 0;
+            }
         }
         private string ToSha256(string key, string value)
         {

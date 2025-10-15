@@ -189,15 +189,16 @@
             label39 = new Label();
             label38 = new Label();
             gridView_ThStatus = new DataGridView();
+            dataGridViewTextBoxColumn10 = new DataGridViewTextBoxColumn();
+            dataGridViewTextBoxColumn11 = new DataGridViewTextBoxColumn();
+            col_latency = new DataGridViewTextBoxColumn();
             gridView_Connection = new DataGridView();
             timer_statusCheck = new System.Windows.Forms.Timer(components);
             timer_PeriodicMsg = new System.Windows.Forms.Timer(components);
             dataGridViewTextBoxColumn7 = new DataGridViewTextBoxColumn();
             dataGridViewTextBoxColumn8 = new DataGridViewTextBoxColumn();
             dataGridViewTextBoxColumn9 = new DataGridViewTextBoxColumn();
-            dataGridViewTextBoxColumn10 = new DataGridViewTextBoxColumn();
-            dataGridViewTextBoxColumn11 = new DataGridViewTextBoxColumn();
-            col_latency = new DataGridViewTextBoxColumn();
+            col_roundTrip = new DataGridViewTextBoxColumn();
             tabControl.SuspendLayout();
             tabPage1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)gridView_PnL).BeginInit();
@@ -1783,7 +1784,7 @@
             gridView_ThStatus.ColumnHeadersHeight = 30;
             gridView_ThStatus.Columns.AddRange(new DataGridViewColumn[] { dataGridViewTextBoxColumn10, dataGridViewTextBoxColumn11, col_latency });
             gridView_ThStatus.GridColor = SystemColors.Menu;
-            gridView_ThStatus.Location = new Point(458, 50);
+            gridView_ThStatus.Location = new Point(533, 50);
             gridView_ThStatus.Margin = new Padding(2);
             gridView_ThStatus.Name = "gridView_ThStatus";
             gridView_ThStatus.RowHeadersBorderStyle = DataGridViewHeaderBorderStyle.Sunken;
@@ -1802,6 +1803,27 @@
             gridView_ThStatus.Size = new Size(489, 742);
             gridView_ThStatus.TabIndex = 7;
             // 
+            // dataGridViewTextBoxColumn10
+            // 
+            dataGridViewTextBoxColumn10.HeaderText = "Thread";
+            dataGridViewTextBoxColumn10.MinimumWidth = 10;
+            dataGridViewTextBoxColumn10.Name = "dataGridViewTextBoxColumn10";
+            dataGridViewTextBoxColumn10.Width = 200;
+            // 
+            // dataGridViewTextBoxColumn11
+            // 
+            dataGridViewTextBoxColumn11.HeaderText = "Status";
+            dataGridViewTextBoxColumn11.MinimumWidth = 10;
+            dataGridViewTextBoxColumn11.Name = "dataGridViewTextBoxColumn11";
+            dataGridViewTextBoxColumn11.Width = 150;
+            // 
+            // col_latency
+            // 
+            col_latency.HeaderText = "Latency";
+            col_latency.MinimumWidth = 6;
+            col_latency.Name = "col_latency";
+            col_latency.Width = 125;
+            // 
             // gridView_Connection
             // 
             dataGridViewCellStyle14.Alignment = DataGridViewContentAlignment.MiddleCenter;
@@ -1813,7 +1835,7 @@
             dataGridViewCellStyle14.WrapMode = DataGridViewTriState.True;
             gridView_Connection.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle14;
             gridView_Connection.ColumnHeadersHeight = 30;
-            gridView_Connection.Columns.AddRange(new DataGridViewColumn[] { dataGridViewTextBoxColumn7, dataGridViewTextBoxColumn8, dataGridViewTextBoxColumn9 });
+            gridView_Connection.Columns.AddRange(new DataGridViewColumn[] { dataGridViewTextBoxColumn7, dataGridViewTextBoxColumn8, dataGridViewTextBoxColumn9, col_roundTrip });
             gridView_Connection.GridColor = SystemColors.Menu;
             gridView_Connection.Location = new Point(20, 50);
             gridView_Connection.Margin = new Padding(2);
@@ -1831,7 +1853,7 @@
             gridView_Connection.RowHeadersWidth = 82;
             dataGridViewCellStyle16.Alignment = DataGridViewContentAlignment.MiddleRight;
             gridView_Connection.RowsDefaultCellStyle = dataGridViewCellStyle16;
-            gridView_Connection.Size = new Size(397, 213);
+            gridView_Connection.Size = new Size(490, 213);
             gridView_Connection.TabIndex = 6;
             // 
             // timer_statusCheck
@@ -1856,35 +1878,19 @@
             dataGridViewTextBoxColumn8.HeaderText = "Public";
             dataGridViewTextBoxColumn8.MinimumWidth = 10;
             dataGridViewTextBoxColumn8.Name = "dataGridViewTextBoxColumn8";
-            dataGridViewTextBoxColumn8.Width = 120;
             // 
             // dataGridViewTextBoxColumn9
             // 
             dataGridViewTextBoxColumn9.HeaderText = "Private";
             dataGridViewTextBoxColumn9.MinimumWidth = 10;
             dataGridViewTextBoxColumn9.Name = "dataGridViewTextBoxColumn9";
-            dataGridViewTextBoxColumn9.Width = 120;
             // 
-            // dataGridViewTextBoxColumn10
+            // col_roundTrip
             // 
-            dataGridViewTextBoxColumn10.HeaderText = "Thread";
-            dataGridViewTextBoxColumn10.MinimumWidth = 10;
-            dataGridViewTextBoxColumn10.Name = "dataGridViewTextBoxColumn10";
-            dataGridViewTextBoxColumn10.Width = 200;
-            // 
-            // dataGridViewTextBoxColumn11
-            // 
-            dataGridViewTextBoxColumn11.HeaderText = "Status";
-            dataGridViewTextBoxColumn11.MinimumWidth = 10;
-            dataGridViewTextBoxColumn11.Name = "dataGridViewTextBoxColumn11";
-            dataGridViewTextBoxColumn11.Width = 150;
-            // 
-            // col_latency
-            // 
-            col_latency.HeaderText = "Latency";
-            col_latency.MinimumWidth = 6;
-            col_latency.Name = "col_latency";
-            col_latency.Width = 125;
+            col_roundTrip.HeaderText = "RoundTrip";
+            col_roundTrip.MinimumWidth = 6;
+            col_roundTrip.Name = "col_roundTrip";
+            col_roundTrip.Width = 125;
             // 
             // Form1
             // 
@@ -2075,11 +2081,12 @@
         private Label label26;
         private Label lbl_optCount;
         private Label label42;
-        private DataGridViewTextBoxColumn dataGridViewTextBoxColumn7;
-        private DataGridViewTextBoxColumn dataGridViewTextBoxColumn8;
-        private DataGridViewTextBoxColumn dataGridViewTextBoxColumn9;
         private DataGridViewTextBoxColumn dataGridViewTextBoxColumn10;
         private DataGridViewTextBoxColumn dataGridViewTextBoxColumn11;
         private DataGridViewTextBoxColumn col_latency;
+        private DataGridViewTextBoxColumn dataGridViewTextBoxColumn7;
+        private DataGridViewTextBoxColumn dataGridViewTextBoxColumn8;
+        private DataGridViewTextBoxColumn dataGridViewTextBoxColumn9;
+        private DataGridViewTextBoxColumn col_roundTrip;
     }
 }

@@ -25,7 +25,7 @@ namespace Crypto_GUI
     {
         const string ver_major = "0";
         const string ver_minor = "4";
-        const string ver_patch = "1";
+        const string ver_patch = "2";
         string configPath = "C:\\Users\\yusai\\Crypto_Project\\configs\\config.json";
         string defaultConfigPath = AppContext.BaseDirectory + "\\config.json";
         string logPath = AppContext.BaseDirectory + "\\crypto.log";
@@ -44,7 +44,7 @@ namespace Crypto_GUI
         ThreadManager thManager = ThreadManager.GetInstance();
         MessageDeliverer MsgDeliverer = MessageDeliverer.GetInstance();
 
-        Strategy stg;
+        Strategy selected_stg;
         Dictionary<string, Strategy> strategies;
 
         bool enabled;
@@ -595,35 +595,35 @@ namespace Crypto_GUI
                     this.oManager.pushbackFill(fill);
                 }
             }
-            if (this.stg != null)
+            if (this.selected_stg != null)
             {
-                if (this.stg.taker != null)
+                if (this.selected_stg.taker != null)
                 {
-                    this.lbl_takerName.Text = this.stg.taker.symbol_market;
-                    this.lbl_baseCcy_taker.Text = this.stg.taker.baseBalance.total.ToString("N5");
-                    this.lbl_quoteCcy_taker.Text = this.stg.taker.quoteBalance.total.ToString("N5");
-                    this.lbl_makerfee_taker.Text = this.stg.taker.maker_fee.ToString("N5");
-                    this.lbl_takerfee_taker.Text = this.stg.taker.taker_fee.ToString("N5");
-                    this.updateQuotesView(this.gridView_Taker, this.stg.taker);
-                    this.lbl_adjustedask.Text = this.stg.taker.adjusted_bestask.Item1.ToString("N" + this.stg.taker.price_scale);
-                    this.lbl_adjustedbid.Text = this.stg.taker.adjusted_bestbid.Item1.ToString("N" + this.stg.taker.price_scale);
+                    this.lbl_takerName.Text = this.selected_stg.taker.symbol_market;
+                    this.lbl_baseCcy_taker.Text = this.selected_stg.taker.baseBalance.total.ToString("N5");
+                    this.lbl_quoteCcy_taker.Text = this.selected_stg.taker.quoteBalance.total.ToString("N5");
+                    this.lbl_makerfee_taker.Text = this.selected_stg.taker.maker_fee.ToString("N5");
+                    this.lbl_takerfee_taker.Text = this.selected_stg.taker.taker_fee.ToString("N5");
+                    this.updateQuotesView(this.gridView_Taker, this.selected_stg.taker);
+                    this.lbl_adjustedask.Text = this.selected_stg.taker.adjusted_bestask.Item1.ToString("N" + this.selected_stg.taker.price_scale);
+                    this.lbl_adjustedbid.Text = this.selected_stg.taker.adjusted_bestbid.Item1.ToString("N" + this.selected_stg.taker.price_scale);
                 }
-                if (this.stg.maker != null)
+                if (this.selected_stg.maker != null)
                 {
-                    this.lbl_makerName.Text = this.stg.maker.symbol_market;
-                    this.lbl_baseCcy_maker.Text = this.stg.maker.baseBalance.total.ToString("N5");
-                    this.lbl_quoteCcy_maker.Text = this.stg.maker.quoteBalance.total.ToString("N5");
-                    this.lbl_makerfee_maker.Text = this.stg.maker.maker_fee.ToString("N5");
-                    this.lbl_takerfee_maker.Text = this.stg.maker.taker_fee.ToString("N5");
-                    this.updateQuotesView(this.gridView_Maker, this.stg.maker);
-                    this.lbl_askprice.Text = this.stg.live_askprice.ToString("N" + this.stg.maker.price_scale);
-                    this.lbl_bidprice.Text = this.stg.live_bidprice.ToString("N" + this.stg.maker.price_scale);
-                    this.lbl_skewpoint.Text = this.stg.skew_point.ToString("N");
+                    this.lbl_makerName.Text = this.selected_stg.maker.symbol_market;
+                    this.lbl_baseCcy_maker.Text = this.selected_stg.maker.baseBalance.total.ToString("N5");
+                    this.lbl_quoteCcy_maker.Text = this.selected_stg.maker.quoteBalance.total.ToString("N5");
+                    this.lbl_makerfee_maker.Text = this.selected_stg.maker.maker_fee.ToString("N5");
+                    this.lbl_takerfee_maker.Text = this.selected_stg.maker.taker_fee.ToString("N5");
+                    this.updateQuotesView(this.gridView_Maker, this.selected_stg.maker);
+                    this.lbl_askprice.Text = this.selected_stg.live_askprice.ToString("N" + this.selected_stg.maker.price_scale);
+                    this.lbl_bidprice.Text = this.selected_stg.live_bidprice.ToString("N" + this.selected_stg.maker.price_scale);
+                    this.lbl_skewpoint.Text = this.selected_stg.skew_point.ToString("N");
                 }
                 foreach (DataGridViewRow row in this.gridView_orders.Rows)
                 {
                     string symbol_market = row.Cells[2].Value + "@" + row.Cells[1].Value;
-                    if (symbol_market == this.stg.maker.symbol_market || symbol_market == this.stg.taker.symbol_market)
+                    if (symbol_market == this.selected_stg.maker.symbol_market || symbol_market == this.selected_stg.taker.symbol_market)
                     {
                         row.Visible = true;
                     }
@@ -1005,6 +1005,22 @@ namespace Crypto_GUI
                     if (row.Cells[0] != null && row.Cells[0].Value.ToString() == mkt.Key)
                     {
                         row.Cells[2].Value = mkt.Value.ToString();
+                        switch(row.Cells[0].Value)
+                        {
+                            case "bitbank":
+                                row.Cells[3].Value = this.crypto_client.bitbank_client.avgLatency().ToString("N2");
+                                break;
+                            case "coincheck":
+                                row.Cells[3].Value = this.crypto_client.coincheck_client.avgLatency().ToString("N2");
+                                break;
+                            case "bittrade":
+                                row.Cells[3].Value = this.crypto_client.bittrade_client.avgLatency().ToString("N2");
+                                break;
+                            default:
+                                row.Cells[3].Value = "None";
+                                break;
+
+                        }
                         found = true;
                         break;
                     }
@@ -1197,6 +1213,11 @@ namespace Crypto_GUI
             decimal tradingPL = 0;
             decimal fee = 0;
             decimal total = 0;
+
+            decimal volumeAll = 0;
+            decimal tradingPLAll = 0;
+            decimal feeAll = 0;
+            decimal totalAll = 0;
             string msg = "";
 
             //To keep http_client alive.
@@ -1206,17 +1227,23 @@ namespace Crypto_GUI
             {
                 foreach (var stg in this.strategies.Values)
                 {
-                    if (this.stg.maker != null && this.stg.taker != null)
+                    if (stg.maker != null && stg.taker != null)
                     {
-                        volume = this.stg.maker.my_buy_notional + this.stg.maker.my_sell_notional;
-                        tradingPL = (this.stg.taker.my_sell_notional - this.stg.taker.my_sell_quantity * this.stg.taker.mid) + (this.stg.taker.my_buy_quantity * this.stg.taker.mid - this.stg.taker.my_buy_notional);
-                        tradingPL += (this.stg.maker.my_sell_notional - this.stg.maker.my_sell_quantity * this.stg.taker.mid) + (this.stg.maker.my_buy_quantity * this.stg.taker.mid - this.stg.maker.my_buy_notional);
-                        fee = this.stg.taker.base_fee * this.stg.taker.mid + this.stg.taker.quote_fee + this.stg.maker.base_fee * this.stg.taker.mid + this.stg.maker.quote_fee;
+                        volume = stg.maker.my_buy_notional + stg.maker.my_sell_notional;
+                        tradingPL = (stg.taker.my_sell_notional - stg.taker.my_sell_quantity * stg.taker.mid) + (stg.taker.my_buy_quantity * stg.taker.mid - stg.taker.my_buy_notional);
+                        tradingPL += (stg.maker.my_sell_notional - stg.maker.my_sell_quantity * stg.taker.mid) + (stg.maker.my_buy_quantity * stg.taker.mid - stg.maker.my_buy_notional);
+                        fee = stg.taker.base_fee * stg.taker.mid + stg.taker.quote_fee + stg.maker.base_fee * stg.taker.mid + stg.maker.quote_fee;
                         total = tradingPL - fee;
 
-                        msg = DateTime.UtcNow.ToString() + " - Strategy " + stg.name + " -    Notional Volume:" + volume.ToString("N2") + " Trading PnL:" + tradingPL.ToString("N2") + " Fee:" + fee.ToString("N2") + " Total:" + total.ToString("N2") + "\n";
+                        msg += DateTime.UtcNow.ToString() + " - Strategy " + stg.name + " -    Notional Volume:" + volume.ToString("N2") + " Trading PnL:" + tradingPL.ToString("N2") + " Fee:" + fee.ToString("N2") + " Total:" + total.ToString("N2") + "\n";
+                        volumeAll += volume;
+                        tradingPLAll += tradingPL;
+                        feeAll += fee;
+                        totalAll += total;
                     }
                 }
+                msg += DateTime.UtcNow.ToString() + " - All -    Notional Volume:" + volumeAll.ToString("N2") + " Trading PnL:" + tradingPLAll.ToString("N2") + " Fee:" + feeAll.ToString("N2") + " Total:" + totalAll.ToString("N2") + "\n";
+
                 await this.MsgDeliverer.sendMessage(msg);
                 this.nextMsgTime += TimeSpan.FromMinutes(this.msg_Interval);
             }
@@ -1235,7 +1262,7 @@ namespace Crypto_GUI
         {
             if(this.strategies.ContainsKey(this.comboStrategy.Text))
             {
-                this.stg = this.strategies[this.comboStrategy.Text];
+                this.selected_stg = this.strategies[this.comboStrategy.Text];
             }
         }
     }
