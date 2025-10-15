@@ -1,6 +1,7 @@
 ﻿using Enums;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -135,6 +136,9 @@ namespace Crypto_Trading
         public bool isRunning;
         public string name;
 
+        public double totalElapsedTime;
+        public int count;
+
         public Func<Task<bool>> action;
         public Action onClosing;
         public Action onError;
@@ -150,6 +154,8 @@ namespace Crypto_Trading
             onError ??= () => { };
             this.onClosing = onClosing;
             this.onError = onError;
+            this.totalElapsedTime = 0;
+            this.count = 0;
         }
         public void start()
         {
@@ -163,15 +169,24 @@ namespace Crypto_Trading
 
         private async void loop()
         {
+
+            Stopwatch sw = new Stopwatch();
+            double elapsedTime = 0;
             try
             {
                 while (true)
                 {
-                    if(!await this.action())
+                    sw.Start();
+                    if (!await this.action())
                     {
                         //this.addLog("Thread is being closed by unexpected error. name:" + this.name, logType.ERROR);
                         this.isRunning=false;
                     }
+                    sw.Stop();
+                    elapsedTime = sw.Elapsed.TotalNanoseconds;
+                    this.totalElapsedTime += elapsedTime;
+                    ++this.count;
+                    sw.Reset();
                     if (!this.isRunning)
                     {
                         this.onClosing();
@@ -182,6 +197,8 @@ namespace Crypto_Trading
             }
             catch (Exception e)
             {
+                sw.Stop();
+                sw.Reset();
                 this.addLog("An error thrown within the thread:" + this.name,logType.ERROR);
                 this.addLog(e.Message, logType.ERROR);
                 if(e.StackTrace != null)

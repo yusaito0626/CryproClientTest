@@ -25,7 +25,7 @@ namespace Crypto_GUI
     {
         const string ver_major = "0";
         const string ver_minor = "4";
-        const string ver_patch = "0";
+        const string ver_patch = "1";
         string configPath = "C:\\Users\\yusai\\Crypto_Project\\configs\\config.json";
         string defaultConfigPath = AppContext.BaseDirectory + "\\config.json";
         string logPath = AppContext.BaseDirectory + "\\crypto.log";
@@ -397,18 +397,19 @@ namespace Crypto_GUI
         private void addLog(string body, Enums.logType logtype = Enums.logType.INFO)
         {
             string messageline = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   [" + logtype.ToString() + "]" + body + "\n";
+            
+            this.logQueue.Enqueue(messageline);
             switch (logtype)
             {
                 case Enums.logType.ERROR:
                 case Enums.logType.FATAL:
                     this.MsgDeliverer.sendMessage(messageline);
-                    //this.onError();
+                    this.onError();
                     break;
                 default:
                     break;
 
             }
-            this.logQueue.Enqueue(messageline);
         }
         private void onError()
         {
@@ -1047,6 +1048,7 @@ namespace Crypto_GUI
                     {
 
                         row.Cells[1].Value = st;
+                        row.Cells[2].Value = (th.Value.totalElapsedTime / th.Value.count / 1000).ToString("N3");
                         found = true;
                         break;
                     }

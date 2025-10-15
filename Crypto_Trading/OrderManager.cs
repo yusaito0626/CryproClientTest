@@ -317,8 +317,19 @@ namespace Crypto_Trading
                             ins.baseBalance.AddBalance(0, output.order_quantity);
                             break;
                     }
-                    this.virtual_liveorders[output.client_order_id] = output;
-                    this.ord_client.ordUpdateQueue.Enqueue(output);
+                    if(this.virtual_liveorders.ContainsKey(output.client_order_id))
+                    {
+                        this.virtual_liveorders[output.client_order_id] = output;
+                    }
+                    else
+                    {
+                        while(Interlocked.CompareExchange(ref this.virtual_order_lock, 1, 0) != 0)
+                        {
+                        }
+                        this.virtual_liveorders[output.client_order_id] = output;
+                        Volatile.Write(ref this.virtual_order_lock, 0);
+                    }
+                        this.ord_client.ordUpdateQueue.Enqueue(output);
                 }
             }
             else if(ins.market == "bitbank")
