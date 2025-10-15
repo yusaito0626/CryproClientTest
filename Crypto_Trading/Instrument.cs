@@ -12,8 +12,11 @@ namespace Crypto_Trading
         public string baseCcy;
         public string quoteCcy;
         public string market;
-        public string symbol_market;
         public string master_symbol;
+        public string symbol_market
+        {
+            get { return symbol + "@" + market; }
+        }
 
         public DateTime? last_quote_updated_time;
         public DateTime? last_traded_time;
@@ -72,7 +75,6 @@ namespace Crypto_Trading
             this.baseCcy = "";
             this.quoteCcy = "";
             this.market = "";
-            this.symbol_market = "";
             this.master_symbol = "";
 
             this.last_quote_updated_time = null;
@@ -152,20 +154,12 @@ namespace Crypto_Trading
             this.baseBalance.ccy = this.baseCcy;
             this.quoteBalance.market = this.market;
             this.quoteBalance.ccy = this.quoteCcy;
-            this.setSymbolMarket(symbol, market);
         }
         static int GetDecimalScale(decimal value)
         {
             int[] bits = decimal.GetBits(value);
             byte scale = (byte)((bits[3] >> 16) & 0x7F);
             return scale;
-        }
-
-        public void setSymbolMarket(string symbol, string market)
-        {
-            this.symbol = symbol;
-            this.market = market;
-            this.symbol_market = symbol + "@" + market;
         }
 
         public void updateQuotes(DataOrderBook update)
@@ -465,17 +459,17 @@ namespace Crypto_Trading
                 this.my_buy_quantity += filledQuantity;
                 this.my_buy_notional += filledQuantity * filledPrice;
             }
-            this.baseBalance.total += filledQuantity;
-            this.quoteBalance.total -= filledQuantity * filledPrice;
+            this.baseBalance.AddBalance(filledQuantity,0);
+            this.quoteBalance.AddBalance(-filledQuantity * filledPrice,0);
 
             if(new_ord.fee_asset.ToUpper() == this.baseCcy)
             {
-                this.baseBalance.total -= fee;
+                this.baseBalance.AddBalance(- fee, 0);
                 this.base_fee += fee;
             }
             else if(new_ord.fee_asset.ToUpper() == this.quoteCcy)
             {
-                this.quoteBalance.total -= fee;
+                this.quoteBalance.AddBalance(- fee, 0);
                 this.quote_fee += fee;
             }
             else
@@ -490,19 +484,19 @@ namespace Crypto_Trading
             {
                 this.my_buy_quantity += fill.quantity;
                 this.my_buy_notional += fill.quantity * fill.price;
-                this.baseBalance.total += fill.quantity;
-                this.quoteBalance.total -= fill.quantity * fill.price;
+                this.baseBalance.AddBalance(fill.quantity,0);
+                this.quoteBalance.AddBalance(-fill.quantity * fill.price,0);                
             }
             else if(fill.side == orderSide.Sell)
             {
 
                 this.my_sell_quantity += fill.quantity;
                 this.my_sell_notional += fill.quantity * fill.price;
-                this.baseBalance.total -= fill.quantity;
-                this.quoteBalance.total += fill.quantity * fill.price;
+                this.baseBalance.AddBalance(-fill.quantity,0);
+                this.quoteBalance.AddBalance(fill.quantity * fill.price,0);
             }
-            this.baseBalance.total -= fill.fee_base;
-            this.quoteBalance.total -= fill.fee_quote;
+            this.baseBalance.AddBalance(-fill.fee_base, 0);
+            this.quoteBalance.AddBalance(-fill.fee_quote, 0);
             this.quote_fee += fill.fee_quote;
             this.base_fee += fill.fee_base;
             this.unknown_fee += fill.fee_unknown;

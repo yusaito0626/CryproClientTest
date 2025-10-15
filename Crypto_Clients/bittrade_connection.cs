@@ -450,7 +450,16 @@ namespace Crypto_Clients
             this.ws_memory.Position = 0;
             this.websocket_client.Dispose();
         }
-
+        public void onListenOnError()
+        {
+            this.ws_memory.SetLength(0);
+            this.ws_memory.Position = 0;
+            this.websocket_client.Dispose();
+            if (this.logging)
+            {
+                this.logFilePublic.Flush();
+            }
+        }
         public async Task<bool> onListen(Action<string> onMsg)
         {
             WebSocketReceiveResult result;
@@ -493,7 +502,7 @@ namespace Crypto_Clients
                     if(this.logging)
                     {
                         this.logFilePublic.WriteLine(DateTime.UtcNow.ToString() + "   " + msg);
-                        this.logFilePublic.Flush();
+                        //this.logFilePublic.Flush();
                     }
                     this.ws_memory.SetLength(0);
                     this.ws_memory.Position = 0;
@@ -701,6 +710,17 @@ namespace Crypto_Clients
             this.private_client.Dispose();
         }
 
+        public void onListenPrivateOnError()
+        {
+            this.pv_memory.SetLength(0);
+            this.pv_memory.Position = 0;
+            this.private_client.Dispose();
+            if (this.logging)
+            {
+                this.logFilePrivate.Flush();
+            }
+        }
+
         public async Task<bool> onListenPrivate(Action<string> onMsg)
         {
             WebSocketReceiveResult result;
@@ -742,7 +762,7 @@ namespace Crypto_Clients
                     if(this.logging)
                     {
                         this.logFilePrivate.WriteLine(DateTime.UtcNow.ToString() + "   " + msg);
-                        this.logFilePrivate.Flush();
+                        //this.logFilePrivate.Flush();
                     }
                     this.pv_memory.SetLength(0);
                     this.pv_memory.Position = 0;

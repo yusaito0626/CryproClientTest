@@ -31,7 +31,10 @@ namespace Crypto_Trading
         public ConcurrentQueue<DataTrade> tradeQueue;
         private ConcurrentStack<DataTrade> tradeStack;
 
+        public ConcurrentQueue<Strategy> optQueue;
+
         public Strategy? stg;
+        public Dictionary<string, Strategy> strategies;
 
         private OrderManager oManager;
 
@@ -47,6 +50,8 @@ namespace Crypto_Trading
             this.ins_bymaster = new Dictionary<string, Instrument>();
             this.balances = new Dictionary<string, Balance>();
             this._markets = new Dictionary<string, WebSocketState>();
+            this.strategies = new Dictionary<string, Strategy>();
+            this.optQueue = new ConcurrentQueue<Strategy>();
             this.oManager = OrderManager.GetInstance();
             this.ready = false;
             //this._addLog = Console.WriteLine;
@@ -71,7 +76,7 @@ namespace Crypto_Trading
                     {
                         await this.crypto_client.bitbank_client.onClosing(this.crypto_client.onBitbankMessage);
                     };
-                    thManager.addThread(market + "Public", onMsg,onClosing);
+                    thManager.addThread(market + "Public", onMsg,onClosing,this.crypto_client.bitbank_client.onListenOnError);
                     this._markets[market] = this.crypto_client.bitbank_client.GetSocketStatePublic();
                     break;
                 case "coincheck":
@@ -84,7 +89,7 @@ namespace Crypto_Trading
                     {
                         await this.crypto_client.coincheck_client.onClosing(this.crypto_client.onCoincheckMessage);
                     };
-                    thManager.addThread(market + "Public", onMsg,onClosing);
+                    thManager.addThread(market + "Public", onMsg,onClosing,this.crypto_client.coincheck_client.onListenOnError);
                     this._markets[market] = this.crypto_client.coincheck_client.GetSocketStatePublic();
                     break;
                 case "bittrade":
@@ -97,7 +102,7 @@ namespace Crypto_Trading
                     {
                         await this.crypto_client.bittrade_client.onClosing(this.crypto_client.onBitTradeMessage);
                     };
-                    thManager.addThread(market + "Public", onMsg,onClosing);
+                    thManager.addThread(market + "Public", onMsg,onClosing,this.crypto_client.bittrade_client.onListenOnError);
                     this._markets[market] = this.crypto_client.bittrade_client.GetSocketStatePublic();
                     break;
             }
@@ -161,6 +166,20 @@ namespace Crypto_Trading
                 return false;
             }
         }
+
+        public Instrument getInstrument(string baseCcy,string quoteCcy, string market)
+        {
+            Instrument output = null;
+            foreach(var ins in this.instruments.Values)
+            {
+                if(ins.baseCcy == baseCcy && ins.quoteCcy == quoteCcy && ins.market == market)
+                {
+                    output = ins;
+                    break;
+                }
+            }
+            return output;
+        }
         public bool setVirtualBalance(string balanceFile)
         {
             if (File.Exists(balanceFile))
@@ -223,14 +242,16 @@ namespace Crypto_Trading
                 key = item.asset + "@" + item.market;
                 if (this.balances.ContainsKey(key))
                 {
-                    this.balances[key].total = item.available;
+                    this.balances[key].total = item.total;
+                    this.balances[key].inuse = item.total - item.available;
                 }
                 else
                 {
                     Balance balance = new Balance();
                     balance.ccy = item.asset.ToUpper();
                     balance.market = item.market;
-                    balance.total = item.available;
+                    balance.total = item.total;
+                    balance.inuse = item.total - item.available;
                     this.balances[key] = balance;
                     foreach (var ins in this.instruments.Values)
                     {
@@ -248,47 +269,6 @@ namespace Crypto_Trading
                     }
                 }
             }
-            //foreach (var subResult in results)
-            //{
-            //    if(subResult.Success)
-            //    {
-            //        foreach (var data in subResult.Data)
-            //        {
-            //            key = data.Asset + "@" + subResult.Exchange;
-            //            if(this.balances.ContainsKey(key))
-            //            {
-            //                this.balances[key].balance = data.Available;
-            //            }
-            //            else
-            //            {
-            //                Balance balance = new Balance();
-            //                balance.ccy = data.Asset;
-            //                balance.market = subResult.Exchange;
-            //                balance.balance = data.Available;
-            //                this.balances[key] = balance;
-            //                foreach(var ins in this.instruments.Values)
-            //                {
-            //                    if(ins.market == balance.market)
-            //                    {
-            //                        if(ins.quoteCcy == balance.ccy)
-            //                        {
-            //                            ins.quoteBalance = balance;
-            //                        }
-            //                        else if(ins.baseCcy == balance.ccy)
-            //                        {
-            //                            ins.baseBalance = balance;
-            //                        }
-            //                    }
-            //                }
-            //            }
-            //        }
-            //    }
-            //    else
-            //    {
-            //        this.addLog("[ERROR]Failed to receive balance information.  Exchange:" + subResult.Exchange);
-            //        output = false;
-            //    }
-            //}
             return output;
         }
         public bool setFees(ExchangeWebResult<SharedFee>[] results,string master_symbol)
@@ -321,51 +301,6 @@ namespace Crypto_Trading
             return output;
         }
 
-        //public async void updateQuotes()
-        //{
-        //    int i = 0;
-        //    Instrument ins;
-        //    DataOrderBook msg;
-        //    string symbol_market;
-        //    while (true)
-        //    {
-        //        if(this.ordBookQueue.TryDequeue(out msg))
-        //        {
-        //            symbol_market = msg.symbol + "@" + msg.market;
-        //            if (this.instruments.ContainsKey(symbol_market))
-        //            {
-        //                ins = instruments[symbol_market];
-        //                ins.updateQuotes(msg);
-        //                if(symbol_market == this.stg.taker.symbol_market)
-        //                {
-        //                    await this.stg.updateOrders();
-        //                }
-        //                this.oManager.checkVirtualOrders(ins);
-        //            }
-        //            else
-        //            {
-        //                this.addLog("The symbol doesn't exist. Instrument:" + symbol_market, Enums.logType.WARNING);
-        //            }
-        //            msg.init();
-        //            this.ordBookStack.Push(msg);
-        //            i = 0;
-        //        }
-        //        else
-        //        {
-        //            ++i;
-        //            if(i > 100000)
-        //            {
-        //                i = 0;
-        //                Thread.Sleep(0);
-        //            }
-        //        }
-        //        if(this.aborting)
-        //        {
-        //            break;
-        //        }
-        //    }
-        //}
-
         public async Task<bool> _updateQuotes()
         {
             Instrument ins;
@@ -378,9 +313,15 @@ namespace Crypto_Trading
                 {
                     ins = instruments[symbol_market];
                     ins.updateQuotes(msg);
-                    if (symbol_market == this.stg.taker.symbol_market)
+                    foreach(var stg in this.strategies)
                     {
-                        await this.stg.updateOrders();
+                        if(symbol_market == stg.Value.taker.symbol_market && stg.Value.enabled)
+                        {
+                            if(Interlocked.CompareExchange(ref stg.Value.updating,1,0) == 0)
+                            {
+                                this.optQueue.Enqueue(stg.Value);
+                            }
+                        }
                     }
                     this.oManager.checkVirtualOrders(ins);
                 }
@@ -393,47 +334,73 @@ namespace Crypto_Trading
             }
             return true;
         }
-        //public void updateTrades()
-        //{
-        //    int i = 0;
-        //    Instrument ins;
-        //    DataTrade msg;
-        //    string symbol_market;
-        //    while (true)
-        //    {
-        //        if (this.tradeQueue.TryDequeue(out msg))
-        //        {
-        //            symbol_market = msg.symbol + "@" + msg.market;
-        //            if (this.instruments.ContainsKey(symbol_market))
-        //            {
-        //                ins = instruments[symbol_market];
-        //                ins.updateTrade(msg);
 
-        //                this.oManager.checkVirtualOrders(ins,msg);
-        //            }
-        //            else
-        //            {
-        //                this.addLog("The symbol doesn't exist. Instrument:" + symbol_market, Enums.logType.WARNING);
-        //            }
-        //            msg.init();
-        //            this.tradeStack.Push(msg);
-        //            i = 0;
-        //        }
-        //        else
-        //        {
-        //            ++i;
-        //            if (i > 100000)
-        //            {
-        //                i = 0;
-        //                Thread.Sleep(0);
-        //            }
-        //        }
-        //        if(this.aborting)
-        //        {
-        //            break;
-        //        }
-        //    }
-        //}
+        public void updateQuotesOnClosing()
+        {
+            Instrument ins;
+            DataOrderBook msg;
+            string symbol_market;
+            while (this.ordBookQueue.Count() > 0)
+            {
+                if (this.ordBookQueue.TryDequeue(out msg))
+                {
+                    symbol_market = msg.symbol + "@" + msg.market;
+                    if (this.instruments.ContainsKey(symbol_market))
+                    {
+                        ins = instruments[symbol_market];
+                        ins.updateQuotes(msg);
+                        this.oManager.checkVirtualOrders(ins);
+                    }
+                    else
+                    {
+                        this.addLog("The symbol doesn't exist. Instrument:" + symbol_market, Enums.logType.WARNING);
+                    }
+                    msg.init();
+                    this.ordBookStack.Push(msg);
+                }
+            }
+        }
+
+        public void updateQuotesOnError()
+        {
+            foreach(var ins in this.instruments.Values)
+            {
+                ins.quotes_lock = 0;
+            }
+            this.oManager.virtual_order_lock = 0;
+        }
+
+        public async Task<bool> _optimize()
+        {
+            Strategy stg;
+            if(this.optQueue.TryDequeue(out stg))
+            {
+                await stg.updateOrders();
+            }
+            return true;
+        }
+
+        public async void optimizeOnClosing()
+        {
+            Strategy stg;
+            while(this.optQueue.Count() > 0)
+            {
+                if (this.optQueue.TryDequeue(out stg))
+                {
+                    await stg.updateOrders();
+                }
+            }
+        }
+        public void optimizeOnError()
+        {
+            foreach(var stg in this.strategies.Values)
+            {
+                stg.updating = 0;
+                stg.taker.quotes_lock = 0;
+                stg.maker.quotes_lock = 0;
+            }
+            this.oManager.order_lock = 0;
+        }
         public async Task<bool> _updateTrades()
         {
             Instrument ins;
@@ -457,6 +424,37 @@ namespace Crypto_Trading
                 this.tradeStack.Push(msg);
             }
             return true;
+        }
+
+        public void updateTradesOnClosing()
+        {
+            Instrument ins;
+            DataTrade msg;
+            string symbol_market;
+            while (this.tradeQueue.Count() > 0)
+            {
+                if (this.tradeQueue.TryDequeue(out msg))
+                {
+                    symbol_market = msg.symbol + "@" + msg.market;
+                    if (this.instruments.ContainsKey(symbol_market))
+                    {
+                        ins = instruments[symbol_market];
+                        ins.updateTrade(msg);
+                        this.oManager.checkVirtualOrders(ins, msg);
+                    }
+                    else
+                    {
+                        this.addLog("The symbol doesn't exist. Instrument:" + symbol_market, Enums.logType.WARNING);
+                    }
+                    msg.init();
+                    this.tradeStack.Push(msg);
+                }
+            }
+        }
+
+        public void updateTradeOnError()
+        {
+            this.oManager.virtual_order_lock = 0;
         }
 
         public void addLog(string line,logType logtype = logType.INFO)

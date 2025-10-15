@@ -15,13 +15,13 @@ string[] markets = [Exchange.Binance];
 Dictionary<string, Instrument> instruments = new Dictionary<string, Instrument>();
 
 Instrument ins = new Instrument();
-ins.setSymbolMarket(baseCcy + quoteCcy, Exchange.Bybit);
+//ins.setSymbolMarket(baseCcy + quoteCcy, Exchange.Bybit);
 instruments[ins.symbol_market] = ins;
 ins = new Instrument();
-ins.setSymbolMarket(baseCcy + "-" + quoteCcy, Exchange.Coinbase);
+//ins.setSymbolMarket(baseCcy + "-" + quoteCcy, Exchange.Coinbase);
 instruments[ins.symbol_market] = ins;
 ins = new Instrument();
-ins.setSymbolMarket(baseCcy + quoteCcy, Exchange.Binance);
+//ins.setSymbolMarket(baseCcy + quoteCcy, Exchange.Binance);
 instruments[ins.symbol_market] = ins;
 
 //await cl.subscribeTrades(markets,baseCcy, quoteCcy);

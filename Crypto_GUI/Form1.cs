@@ -24,8 +24,8 @@ namespace Crypto_GUI
     public partial class Form1 : Form
     {
         const string ver_major = "0";
-        const string ver_minor = "3";
-        const string ver_patch = "7";
+        const string ver_minor = "4";
+        const string ver_patch = "0";
         string configPath = "C:\\Users\\yusai\\Crypto_Project\\configs\\config.json";
         string defaultConfigPath = AppContext.BaseDirectory + "\\config.json";
         string logPath = AppContext.BaseDirectory + "\\crypto.log";
@@ -36,6 +36,8 @@ namespace Crypto_GUI
         string virtualBalanceFile = "";
         string strategyFile = "";
 
+        int latency = 100;
+
         Crypto_Clients.Crypto_Clients crypto_client = Crypto_Clients.Crypto_Clients.GetInstance();
         QuoteManager qManager = QuoteManager.GetInstance();
         OrderManager oManager = OrderManager.GetInstance();
@@ -43,6 +45,9 @@ namespace Crypto_GUI
         MessageDeliverer MsgDeliverer = MessageDeliverer.GetInstance();
 
         Strategy stg;
+        Dictionary<string, Strategy> strategies;
+
+        bool enabled;
 
         ConcurrentQueue<string> logQueue;
         ConcurrentQueue<DataFill> filledOrderQueue;
@@ -64,8 +69,6 @@ namespace Crypto_GUI
         private bool threadsStarted;
         private int stopTradingCalled;
         private bool aborting;
-
-        private decimal multiplier = 1;
 
         private bool autoStart;
         private bool live;
@@ -90,11 +93,14 @@ namespace Crypto_GUI
             this.logQueue = new ConcurrentQueue<string>();
             this.filledOrderQueue = new ConcurrentQueue<DataFill>();
 
+            this.strategies = new Dictionary<string, Strategy>();
+
+            this.enabled = false;
+
             InitializeComponent();
 
             this.lbl_version.Text = Form1.ver_major + ":" + Form1.ver_minor + ":" + Form1.ver_patch;
-            this.Text += "   Ver." +  this.lbl_version.Text;
-            this.lbl_multiplier.Text = this.multiplier.ToString("N0");
+            this.Text += "   Ver." + this.lbl_version.Text;
 
             this.button_receiveFeed.Enabled = false;
             this.button_startTrading.Enabled = false;
@@ -131,39 +137,49 @@ namespace Crypto_GUI
             this.oManager.setInstruments(this.qManager.instruments);
             this.oManager.filledOrderQueue = this.filledOrderQueue;
 
-            this.stg = new Strategy();
-            this.stg.readStrategyFile(this.strategyFile);
+            this.setStrategies("C:\\Users\\yusai\\Crypto_Project\\configs\\multi_strategy.json");
+            this.qManager.strategies = this.strategies;
+            this.oManager.strategies = this.strategies;
 
-            this.stg.maker = this.qManager.instruments[this.stg.maker_symbol_market];
-            this.stg.taker = this.qManager.instruments[this.stg.taker_symbol_market];
-            this.stg.maker.ToBsize = this.stg.ToBsize;
-            this.stg.taker.ToBsize = this.stg.ToBsize;
 
-            this.stg._addLog = this.addLog;
+            //this.stg = new Strategy();
+            //this.stg.readStrategyFile(this.strategyFile);
 
-            this.qManager.stg = this.stg;
-            this.oManager.stg = this.stg;
+            //this.stg.maker = this.qManager.instruments[this.stg.maker_symbol_market];
+            //this.stg.taker = this.qManager.instruments[this.stg.taker_symbol_market];
+            //this.stg.maker.ToBsize = this.stg.ToBsize;
+            //this.stg.taker.ToBsize = this.stg.ToBsize;
 
-            this.lbl_makerName.Text = this.stg.maker_symbol_market;
-            this.lbl_takerName.Text = this.stg.taker_symbol_market;
-            this.lbl_makerfee_maker.Text = this.stg.maker.maker_fee.ToString("N5");
-            this.lbl_takerfee_maker.Text = this.stg.maker.taker_fee.ToString("N5");
-            this.lbl_makerfee_taker.Text = this.stg.taker.maker_fee.ToString("N5");
-            this.lbl_takerfee_taker.Text = this.stg.taker.taker_fee.ToString("N5");
-            this.lbl_stgSymbol.Text = this.stg.baseCcy + this.stg.quoteCcy;
-            this.lbl_markup.Text = this.stg.markup.ToString("N0");
-            this.lbl_minMarkup.Text = this.stg.min_markup.ToString("N0");
-            this.lbl_maxSkew.Text = this.stg.maxSkew.ToString("N0");
-            this.lbl_tobsize.Text = this.stg.ToBsize.ToString("N5");
-            this.lbl_maxpos.Text = this.stg.baseCcyQuantity.ToString("N5");
-            this.lbl_skew.Text = this.stg.skewThreshold.ToString("N0");
-            this.lbl_oneside.Text = this.stg.oneSideThreshold.ToString("N0");
-            this.lbl_fillInterval.Text = this.stg.intervalAfterFill.ToString("N2");
-            this.lbl_ordUpdateTh.Text = this.stg.modThreshold.ToString("N5");
+            //this.stg._addLog = this.addLog;
+
+            //this.qManager.stg = this.stg;
+            //this.oManager.stg = this.stg;
+
+            //this.lbl_makerName.Text = this.stg.maker_symbol_market;
+            //this.lbl_takerName.Text = this.stg.taker_symbol_market;
+            //this.lbl_makerfee_maker.Text = this.stg.maker.maker_fee.ToString("N5");
+            //this.lbl_takerfee_maker.Text = this.stg.maker.taker_fee.ToString("N5");
+            //this.lbl_makerfee_taker.Text = this.stg.taker.maker_fee.ToString("N5");
+            //this.lbl_takerfee_taker.Text = this.stg.taker.taker_fee.ToString("N5");
+            //this.lbl_stgSymbol.Text = this.stg.baseCcy + this.stg.quoteCcy;
+            //this.lbl_markup.Text = this.stg.markup.ToString("N0");
+            //this.lbl_minMarkup.Text = this.stg.min_markup.ToString("N0");
+            //this.lbl_maxSkew.Text = this.stg.maxSkew.ToString("N0");
+            //this.lbl_tobsize.Text = this.stg.ToBsize.ToString("N5");
+            //this.lbl_maxpos.Text = this.stg.baseCcyQuantity.ToString("N5");
+            //this.lbl_skew.Text = this.stg.skewThreshold.ToString("N0");
+            //this.lbl_oneside.Text = this.stg.oneSideThreshold.ToString("N0");
+            //this.lbl_fillInterval.Text = this.stg.intervalAfterFill.ToString("N2");
+            //this.lbl_ordUpdateTh.Text = this.stg.modThreshold.ToString("N5");
 
             foreach (string key in this.qManager.instruments.Keys)
             {
                 this.comboSymbols.Items.Add(key);
+            }
+
+            foreach (string key in this.strategies.Keys)
+            {
+                this.comboStrategy.Items.Add(key);
             }
 
             int i = 0;
@@ -219,6 +235,10 @@ namespace Crypto_GUI
             if (root.TryGetProperty("live", out elem))
             {
                 this.live = elem.GetBoolean();
+                if(this.live)
+                {
+                    this.BackColor = SystemColors.GradientActiveCaption;
+                }
             }
             else
             {
@@ -226,7 +246,7 @@ namespace Crypto_GUI
             }
             if (root.TryGetProperty("privateConnect", out elem))
             {
-                if(!this.live)
+                if (!this.live)
                 {
                     this.privateConnect = elem.GetBoolean();
                 }
@@ -243,7 +263,7 @@ namespace Crypto_GUI
             {
                 this.msgLogging = false;
             }
-            if(root.TryGetProperty("endTime", out elem))
+            if (root.TryGetProperty("endTime", out elem))
             {
                 this.str_endTime = elem.GetString();
                 TimeSpan timeOfDay = TimeSpan.ParseExact(this.str_endTime, "hh\\:mm\\:ss", null);
@@ -321,6 +341,10 @@ namespace Crypto_GUI
                 this.addLog("Balance file is not configured.", Enums.logType.WARNING);
                 this.addLog("The virtual balance will be all 0.", Enums.logType.WARNING);
             }
+            if (root.TryGetProperty("latency", out elem))
+            {
+                this.oManager.latency = elem.GetInt32();
+            }
 
             string dt = DateTime.UtcNow.ToString("yyyy-MM-dd");
             string newpath = this.outputPath + "\\" + dt;
@@ -332,6 +356,28 @@ namespace Crypto_GUI
             this.logPath = this.outputPath + "\\crypto.log";
 
             return true;
+
+        }
+
+        private void setStrategies(string strategyFile)
+        {
+            if (File.Exists(strategyFile))
+            {
+                string fileContent = File.ReadAllText(strategyFile);
+                using JsonDocument doc = JsonDocument.Parse(fileContent);
+                foreach (var elem in doc.RootElement.EnumerateArray())
+                {
+                    Strategy stg = new Strategy();
+                    stg.setStrategy(elem);
+                    stg.maker = this.qManager.getInstrument(stg.baseCcy, stg.quoteCcy, stg.maker_market);
+                    stg.taker = this.qManager.getInstrument(stg.baseCcy, stg.quoteCcy, stg.taker_market);
+                    stg.maker.ToBsize = stg.ToBsize;
+                    stg.taker.ToBsize = stg.ToBsize;
+                    stg._addLog = this.addLog;
+                    this.strategies[stg.name] = stg;
+                    //this.stg = stg;
+                }
+            }
 
         }
         private void readAPIFiles(string path)
@@ -356,7 +402,7 @@ namespace Crypto_GUI
                 case Enums.logType.ERROR:
                 case Enums.logType.FATAL:
                     this.MsgDeliverer.sendMessage(messageline);
-                    this.onError();
+                    //this.onError();
                     break;
                 default:
                     break;
@@ -427,21 +473,42 @@ namespace Crypto_GUI
             decimal fee = 0;
             decimal total = 0;
 
-            if (this.stg.maker != null && this.stg.taker != null)
+            foreach(var stg in this.strategies.Values)
             {
-                volume = this.stg.maker.my_buy_notional + this.stg.maker.my_sell_notional;
-                tradingPL = (this.stg.taker.my_sell_notional - this.stg.taker.my_sell_quantity * this.stg.taker.mid) + (this.stg.taker.my_buy_quantity * this.stg.taker.mid - this.stg.taker.my_buy_notional);
-                tradingPL += (this.stg.maker.my_sell_notional - this.stg.maker.my_sell_quantity * this.stg.taker.mid) + (this.stg.maker.my_buy_quantity * this.stg.taker.mid - this.stg.maker.my_buy_notional);
-                fee = this.stg.taker.base_fee * this.stg.taker.mid + this.stg.taker.quote_fee + this.stg.maker.base_fee * this.stg.taker.mid + this.stg.maker.quote_fee;
-                volume *= this.multiplier;
-                tradingPL *= this.multiplier;
-                fee *= this.multiplier;
-                total = tradingPL - fee;
-                this.gridView_PnL.Rows[0].Cells[0].Value = volume.ToString("N2");
-                this.gridView_PnL.Rows[0].Cells[1].Value = tradingPL.ToString("N2");
-                this.gridView_PnL.Rows[0].Cells[2].Value = fee.ToString("N2");
-                this.gridView_PnL.Rows[0].Cells[3].Value = total.ToString("N2");
+                if (stg.maker != null && stg.taker != null)
+                {
+                    volume = stg.maker.my_buy_notional + stg.maker.my_sell_notional;
+                    tradingPL = (stg.taker.my_sell_notional - stg.taker.my_sell_quantity * stg.taker.mid) + (stg.taker.my_buy_quantity * stg.taker.mid - stg.taker.my_buy_notional);
+                    tradingPL += (stg.maker.my_sell_notional - stg.maker.my_sell_quantity * stg.taker.mid) + (stg.maker.my_buy_quantity * stg.taker.mid - stg.maker.my_buy_notional);
+                    fee = stg.taker.base_fee * stg.taker.mid + stg.taker.quote_fee + stg.maker.base_fee * stg.taker.mid + stg.maker.quote_fee;
+                    total = tradingPL - fee;
+                    bool found = false;
+                    foreach (DataGridViewRow row in this.gridView_PnL.Rows)
+                    {
+                        if (row.IsNewRow)
+                        {
+                            continue;
+                        }
+                        if (row.Cells[0] != null && row.Cells[0].Value.ToString() == stg.name)
+                        {
+
+                            row.Cells[1].Value = volume.ToString("N2");
+                            row.Cells[2].Value = tradingPL.ToString("N2");
+                            row.Cells[3].Value = fee.ToString("N2");
+                            row.Cells[4].Value = total.ToString("N2");
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found)
+                    {
+                        this.gridView_PnL.Rows.Add(stg.name, volume.ToString("N2"), tradingPL.ToString("N2"), fee.ToString("N2"), total.ToString("N2"));
+                    }
+                }
+                
             }
+
+            
         }
         private void update_Instrument()
         {
@@ -453,8 +520,10 @@ namespace Crypto_GUI
                 this.lbl_market.Text = this.selected_ins.market;
                 this.lbl_lastprice.Text = this.selected_ins.last_price.ToString();
                 this.lbl_notional.Text = (this.selected_ins.buy_notional + this.selected_ins.sell_notional).ToString("N2");
-                this.lbl_baseBalance.Text = this.selected_ins.baseBalance.total.ToString("N" + this.selected_ins.quantity_scale);
-                this.lbl_quoteBalance.Text = this.selected_ins.quoteBalance.total.ToString("N2");
+                this.lbl_baseCcyTotal.Text = this.selected_ins.baseBalance.total.ToString("N" + this.selected_ins.quantity_scale);
+                this.lbl_quoteCcyTotal.Text = this.selected_ins.quoteBalance.total.ToString("N2");
+                this.lbl_baseCcyInuse.Text = this.selected_ins.baseBalance.inuse.ToString("N" + this.selected_ins.quantity_scale);
+                this.lbl_quoteCcyInuse.Text = this.selected_ins.quoteBalance.inuse.ToString("N2");
                 this.lbl_sellQuantity.Text = this.selected_ins.my_sell_quantity.ToString("N" + this.selected_ins.quantity_scale);
                 this.lbl_buyQuantity.Text = this.selected_ins.my_buy_quantity.ToString("N" + this.selected_ins.quantity_scale);
                 this.lbl_sellNotional.Text = this.selected_ins.my_sell_notional.ToString("N2");
@@ -502,27 +571,6 @@ namespace Crypto_GUI
         }
         private void update_strategy()
         {
-            if (this.stg.taker != null)
-            {
-                this.lbl_baseCcy_taker.Text = this.stg.taker.baseBalance.total.ToString("N5");
-                this.lbl_quoteCcy_taker.Text = this.stg.taker.quoteBalance.total.ToString("N5");
-                this.lbl_makerfee_taker.Text = this.stg.taker.maker_fee.ToString("N5");
-                this.lbl_takerfee_taker.Text = this.stg.taker.taker_fee.ToString("N5");
-                this.updateQuotesView(this.gridView_Taker, this.stg.taker);
-                this.lbl_adjustedask.Text = this.stg.taker.adjusted_bestask.Item1.ToString("N" + this.stg.taker.price_scale);
-                this.lbl_adjustedbid.Text = this.stg.taker.adjusted_bestbid.Item1.ToString("N" + this.stg.taker.price_scale);
-            }
-            if (this.stg.maker != null)
-            {
-                this.lbl_baseCcy_maker.Text = this.stg.maker.baseBalance.total.ToString("N5");
-                this.lbl_quoteCcy_maker.Text = this.stg.maker.quoteBalance.total.ToString("N5");
-                this.lbl_makerfee_maker.Text = this.stg.maker.maker_fee.ToString("N5");
-                this.lbl_takerfee_maker.Text = this.stg.maker.taker_fee.ToString("N5");
-                this.updateQuotesView(this.gridView_Maker, this.stg.maker);
-                this.lbl_askprice.Text = this.stg.live_askprice.ToString("N" + this.stg.maker.price_scale);
-                this.lbl_bidprice.Text = this.stg.live_bidprice.ToString("N" + this.stg.maker.price_scale);
-                this.lbl_skewpoint.Text = this.stg.skew_point.ToString("N");
-            }
             DataFill fill;
             //DataSpotOrderUpdate ord;
             while (this.filledOrderQueue.Count > 0)
@@ -530,25 +578,62 @@ namespace Crypto_GUI
                 if (this.filledOrderQueue.TryDequeue(out fill))
                 {
                     //ord = this.oManager.orders[ord_id];
-                    this.gridView_orders.Rows.Insert(0);
-                    this.gridView_orders.Rows[0].Cells[0].Value = ((DateTime)fill.timestamp).ToString("HH:mm:ss.fff");
-                    this.gridView_orders.Rows[0].Cells[1].Value = fill.market;
-                    this.gridView_orders.Rows[0].Cells[2].Value = fill.symbol;
-                    this.gridView_orders.Rows[0].Cells[3].Value = fill.side.ToString();
-                    if (fill.symbol_market == this.stg.maker_symbol_market)
+                    if (this.qManager.instruments.ContainsKey(fill.symbol_market))
                     {
-                        this.gridView_orders.Rows[0].Cells[4].Value = fill.price.ToString("N" + this.stg.maker.price_scale);
-                        this.gridView_orders.Rows[0].Cells[5].Value = fill.quantity.ToString("N" + this.stg.maker.quantity_scale);
+                        Instrument ins = this.qManager.instruments[fill.symbol_market];
+                        this.gridView_orders.Rows.Insert(0);
+                        this.gridView_orders.Rows[0].Cells[0].Value = ((DateTime)fill.timestamp).ToString("HH:mm:ss.fff");
+                        this.gridView_orders.Rows[0].Cells[1].Value = fill.market;
+                        this.gridView_orders.Rows[0].Cells[2].Value = fill.symbol;
+                        this.gridView_orders.Rows[0].Cells[3].Value = fill.side.ToString();
+                        this.gridView_orders.Rows[0].Cells[4].Value = fill.price.ToString("N" + ins.price_scale);
+                        this.gridView_orders.Rows[0].Cells[5].Value = fill.quantity.ToString("N" + ins.quantity_scale);
+                        this.gridView_orders.Rows[0].Cells[7].Value = fill.fee_quote + fill.fee_base * fill.price;
                     }
-                    else
-                    {
-                        this.gridView_orders.Rows[0].Cells[4].Value = fill.price.ToString("N" + this.stg.taker.price_scale);
-                        this.gridView_orders.Rows[0].Cells[5].Value = fill.quantity.ToString("N" + this.stg.taker.quantity_scale);
-                    }
-                    this.gridView_orders.Rows[0].Cells[7].Value = fill.fee_quote + fill.fee_base * fill.price;
+
                     this.oManager.pushbackFill(fill);
                 }
             }
+            if (this.stg != null)
+            {
+                if (this.stg.taker != null)
+                {
+                    this.lbl_takerName.Text = this.stg.taker.symbol_market;
+                    this.lbl_baseCcy_taker.Text = this.stg.taker.baseBalance.total.ToString("N5");
+                    this.lbl_quoteCcy_taker.Text = this.stg.taker.quoteBalance.total.ToString("N5");
+                    this.lbl_makerfee_taker.Text = this.stg.taker.maker_fee.ToString("N5");
+                    this.lbl_takerfee_taker.Text = this.stg.taker.taker_fee.ToString("N5");
+                    this.updateQuotesView(this.gridView_Taker, this.stg.taker);
+                    this.lbl_adjustedask.Text = this.stg.taker.adjusted_bestask.Item1.ToString("N" + this.stg.taker.price_scale);
+                    this.lbl_adjustedbid.Text = this.stg.taker.adjusted_bestbid.Item1.ToString("N" + this.stg.taker.price_scale);
+                }
+                if (this.stg.maker != null)
+                {
+                    this.lbl_makerName.Text = this.stg.maker.symbol_market;
+                    this.lbl_baseCcy_maker.Text = this.stg.maker.baseBalance.total.ToString("N5");
+                    this.lbl_quoteCcy_maker.Text = this.stg.maker.quoteBalance.total.ToString("N5");
+                    this.lbl_makerfee_maker.Text = this.stg.maker.maker_fee.ToString("N5");
+                    this.lbl_takerfee_maker.Text = this.stg.maker.taker_fee.ToString("N5");
+                    this.updateQuotesView(this.gridView_Maker, this.stg.maker);
+                    this.lbl_askprice.Text = this.stg.live_askprice.ToString("N" + this.stg.maker.price_scale);
+                    this.lbl_bidprice.Text = this.stg.live_bidprice.ToString("N" + this.stg.maker.price_scale);
+                    this.lbl_skewpoint.Text = this.stg.skew_point.ToString("N");
+                }
+                foreach (DataGridViewRow row in this.gridView_orders.Rows)
+                {
+                    string symbol_market = row.Cells[2].Value + "@" + row.Cells[1].Value;
+                    if (symbol_market == this.stg.maker.symbol_market || symbol_market == this.stg.taker.symbol_market)
+                    {
+                        row.Visible = true;
+                    }
+                    else if(!row.IsNewRow)
+                    {
+                        row.Visible = false;
+                    }
+                }
+            }
+
+            
         }
         private void updateQuotesView(DataGridView view, Instrument ins)
         {
@@ -671,11 +756,12 @@ namespace Crypto_GUI
 
                 this.oManager.ready = true;
 
-                this.thManager.addThread("updateQuotes", this.qManager._updateQuotes);
-                this.thManager.addThread("updateTrades", this.qManager._updateTrades);
-                this.thManager.addThread("updateOrders", this.oManager._updateOrders);
-                this.thManager.addThread("updateFill", this.oManager._updateFill);
-                this.thManager.addThread("orderLogging", this.oManager._orderLogging, this.oManager.onLoggingStopped);
+                this.thManager.addThread("updateQuotes", this.qManager._updateQuotes,this.qManager.updateQuotesOnClosing,this.qManager.updateQuotesOnError);
+                this.thManager.addThread("updateTrades", this.qManager._updateTrades,this.qManager.updateTradesOnClosing,this.qManager.updateTradesOnClosing);
+                this.thManager.addThread("updateOrders", this.oManager._updateOrders,this.oManager.updateOrdersOnClosing,this.oManager.updateOrdersOnError);
+                this.thManager.addThread("updateFill", this.oManager._updateFill,this.oManager.updateFillOnClosing);
+                this.thManager.addThread("optimize", this.qManager._optimize,this.qManager.optimizeOnClosing,this.qManager.optimizeOnError);
+                this.thManager.addThread("orderLogging", this.oManager._orderLogging, this.oManager.ordLoggingOnClosing,this.oManager.ordLoggingOnError);
                 this.threadsStarted = true;
             }
             catch (Exception ex)
@@ -688,10 +774,24 @@ namespace Crypto_GUI
 
             return true;
         }
-        private async Task<bool> startTrading()
+        private bool startTrading()
         {
-            this.stg.enabled = true;
+            this.enabled = true;
+            foreach(var stg in this.strategies.Values)
+            {
+                stg.enabled = true;
+            }
             this.addLog("Trading started.");
+            return true;
+        }
+
+        private bool stopStrategies()
+        {
+            foreach (var stg in this.strategies.Values)
+            {
+                stg.enabled = false;
+            }
+            this.enabled = false;
             return true;
         }
         private async Task<bool> stopTrading(bool error = false)
@@ -699,7 +799,7 @@ namespace Crypto_GUI
 
             if (Interlocked.CompareExchange(ref this.stopTradingCalled, 1, 0) == 0)
             {
-                this.stg.enabled = false;
+                stopStrategies();
                 if (error)
                 {
                     this.addLog("Error received. Now stopping the trading. Check the exchange to make sure all the orders are cancelled.", Enums.logType.ERROR);
@@ -739,7 +839,7 @@ namespace Crypto_GUI
         }
         private async void startTrading_clicked(object sender, EventArgs e)
         {
-            if (await this.startTrading())
+            if (this.startTrading())
             {
                 this.button_startTrading.Enabled = false;
                 this.button_orderTest.Enabled = false;
@@ -784,7 +884,7 @@ namespace Crypto_GUI
             ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.01, 600000);
             if (ord != null)
             {
-                ordid = ord.order_id;
+                ordid = ord.client_order_id;
                 this.addLog(ord.ToString());
             }
             else
@@ -799,7 +899,7 @@ namespace Crypto_GUI
             ord = await this.oManager.placeModSpotOrder(ins, ordid, (decimal)0.01, 570000, false);
             if (ord != null)
             {
-                ordid = ord.order_id;
+                ordid = ord.client_order_id;
                 this.addLog(ord.ToString());
             }
             else
@@ -817,7 +917,7 @@ namespace Crypto_GUI
                 ord = await this.oManager.placeCancelSpotOrder(ins, ord.order_id);
                 if (ord != null)
                 {
-                    ordid = ord.order_id;
+                    ordid = ord.client_order_id;
                     this.addLog(ord.ToString());
                 }
                 else
@@ -829,7 +929,7 @@ namespace Crypto_GUI
             Thread.Sleep(1000);
             this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
 
-            if(fillcheck)
+            if (fillcheck)
             {
                 this.addLog("Fill Check");
                 ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.01, 700000);
@@ -920,7 +1020,7 @@ namespace Crypto_GUI
             {
                 bool found = false;
                 string st;
-                if(this.stopTradingCalled == 0 && th.Value.isRunning == false)
+                if (this.stopTradingCalled == 0 && th.Value.isRunning == false)
                 {
                     //If connection lost, try reconnect
                     //If public connection, reconnect and subscribe
@@ -957,12 +1057,12 @@ namespace Crypto_GUI
                 }
             }
 
-            foreach(var stoppedTh in stoppedThreads)
+            foreach (var stoppedTh in stoppedThreads)
             {
                 if (stoppedTh.Contains("Public"))
                 {
-                    bool currentTradingState = this.stg.enabled;
-                    this.stg.enabled = false;
+                    bool currentTradingState = this.enabled;
+                    stopStrategies();
                     await this.oManager.cancelAllOrders();
                     string market = stoppedTh.Replace("Public", "");
                     this.addLog("Public Connection to " + market + " lost reconnecting in 5 sec", Enums.logType.WARNING);
@@ -994,23 +1094,26 @@ namespace Crypto_GUI
                     {
                         if (!this.qManager.setVirtualBalance(this.virtualBalanceFile))
                         {
-                            
+
                         }
                     }
                     else
                     {
                         if (!this.qManager.setBalance(await this.crypto_client.getBalance(this.qManager._markets.Keys)))
                         {
-                            
+
                         }
                     }
                     this.addLog("Reconnection completed.");
-                    this.stg.enabled = currentTradingState;
+                    if(currentTradingState)
+                    {
+                        startTrading();
+                    }
                 }
                 else if (stoppedTh.Contains("Private"))
                 {
-                    bool currentTradingState = this.stg.enabled;
-                    this.stg.enabled = false;
+                    bool currentTradingState = this.enabled;
+                    stopStrategies();
                     await this.oManager.cancelAllOrders();
                     string market = stoppedTh.Replace("Private", "");
                     this.addLog("Private Connection to " + market + " lost reconnecting in 5 sec", Enums.logType.WARNING);
@@ -1021,15 +1124,6 @@ namespace Crypto_GUI
                     string[] markets = [market];
                     if (this.live || this.privateConnect)
                     {
-                        
-                        //if (market == "bitbank")
-                        //{
-                        //    this.thManager.addThread("bitbankSpotOrderUpdates", this.crypto_client.onBitbankOrderUpdates);
-                        //}
-                        //else
-                        //{
-                            
-                        //}
                         await crypto_client.subscribeSpotOrderUpdates(markets);
                     }
                     if (this.oManager.getVirtualMode())
@@ -1047,14 +1141,17 @@ namespace Crypto_GUI
                         }
                     }
                     this.addLog("Reconnection completed.");
-                    this.stg.enabled = currentTradingState;
+                    if(currentTradingState)
+                    {
+                        startTrading();
+                    }
                 }
                 else
                 {
-                    this.addLog("Updateing thread stopped. Stopping all the process", Enums.logType.ERROR);
+                    this.addLog("Updating thread stopped. Stopping all the process", Enums.logType.ERROR);
                 }
             }
-            if(this.qManager.ordBookQueue.Count() > 1000)
+            if (this.qManager.ordBookQueue.Count() > 1000)
             {
                 this.addLog("The order book queue count exceeds 1000.", Enums.logType.WARNING);
                 if (this.qManager.ordBookQueue.Count() > 10000)
@@ -1073,6 +1170,7 @@ namespace Crypto_GUI
             this.lbl_quoteUpdateCount.Text = this.qManager.ordBookQueue.Count().ToString();
             this.lbl_orderUpdateCount.Text = this.crypto_client.ordUpdateQueue.Count().ToString();
             this.lbl_fillUpdateCount.Text = this.crypto_client.fillQueue.Count().ToString();
+            this.lbl_optCount.Text = this.qManager.optQueue.Count().ToString();
 
         }
 
@@ -1087,7 +1185,7 @@ namespace Crypto_GUI
                 await this.tradePreparation(this.live);
                 this.addLog("Waiting for 5 sec", Enums.logType.INFO);
                 Thread.Sleep(5000);
-                await this.startTrading();
+                this.startTrading();
             }
         }
 
@@ -1102,32 +1200,40 @@ namespace Crypto_GUI
             //To keep http_client alive.
             await this.crypto_client.getBalance(this.qManager._markets.Keys);
 
-            if (this.stg.maker != null && this.stg.taker != null)
+            if (DateTime.UtcNow > this.nextMsgTime)
             {
-                if(DateTime.UtcNow > this.nextMsgTime)
+                foreach (var stg in this.strategies.Values)
                 {
-                    volume = this.stg.maker.my_buy_notional + this.stg.maker.my_sell_notional;
-                    tradingPL = (this.stg.taker.my_sell_notional - this.stg.taker.my_sell_quantity * this.stg.taker.mid) + (this.stg.taker.my_buy_quantity * this.stg.taker.mid - this.stg.taker.my_buy_notional);
-                    tradingPL += (this.stg.maker.my_sell_notional - this.stg.maker.my_sell_quantity * this.stg.taker.mid) + (this.stg.maker.my_buy_quantity * this.stg.taker.mid - this.stg.maker.my_buy_notional);
-                    fee = this.stg.taker.base_fee * this.stg.taker.mid + this.stg.taker.quote_fee + this.stg.maker.base_fee * this.stg.taker.mid + this.stg.maker.quote_fee;
-                    volume *= this.multiplier;
-                    tradingPL *= this.multiplier;
-                    fee *= this.multiplier;
-                    total = tradingPL - fee;
+                    if (this.stg.maker != null && this.stg.taker != null)
+                    {
+                        volume = this.stg.maker.my_buy_notional + this.stg.maker.my_sell_notional;
+                        tradingPL = (this.stg.taker.my_sell_notional - this.stg.taker.my_sell_quantity * this.stg.taker.mid) + (this.stg.taker.my_buy_quantity * this.stg.taker.mid - this.stg.taker.my_buy_notional);
+                        tradingPL += (this.stg.maker.my_sell_notional - this.stg.maker.my_sell_quantity * this.stg.taker.mid) + (this.stg.maker.my_buy_quantity * this.stg.taker.mid - this.stg.maker.my_buy_notional);
+                        fee = this.stg.taker.base_fee * this.stg.taker.mid + this.stg.taker.quote_fee + this.stg.maker.base_fee * this.stg.taker.mid + this.stg.maker.quote_fee;
+                        total = tradingPL - fee;
 
-                    msg = DateTime.UtcNow.ToString() + " Notional Volume:" + volume.ToString("N2") + " Trading PnL:" + tradingPL.ToString("N2") + " Fee:" + fee.ToString("N2") + " Total:" + total.ToString("N2");
-
-                    await this.MsgDeliverer.sendMessage(msg);
-                    this.nextMsgTime += TimeSpan.FromMinutes(this.msg_Interval);
+                        msg = DateTime.UtcNow.ToString() + " - Strategy " + stg.name + " -    Notional Volume:" + volume.ToString("N2") + " Trading PnL:" + tradingPL.ToString("N2") + " Fee:" + fee.ToString("N2") + " Total:" + total.ToString("N2") + "\n";
+                    }
                 }
-                
+                await this.MsgDeliverer.sendMessage(msg);
+                this.nextMsgTime += TimeSpan.FromMinutes(this.msg_Interval);
             }
+            
+            
 
-            if(DateTime.UtcNow > this.endTime)
+            if (DateTime.UtcNow > this.endTime)
             {
                 this.addLog("Closing application at EoD.");
                 await this.stopTrading(false);
                 Application.Exit();
+            }
+        }
+
+        private void comboStrategy_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if(this.strategies.ContainsKey(this.comboStrategy.Text))
+            {
+                this.stg = this.strategies[this.comboStrategy.Text];
             }
         }
     }

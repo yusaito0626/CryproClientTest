@@ -20,7 +20,7 @@ namespace Crypto_Trading
             //this._addLog = Console.WriteLine;
         }
 
-        public void addThread(string name, Func<Task<bool>> action, Action onClosing = null)
+        public void addThread(string name, Func<Task<bool>> action, Action onClosing = null,Action onError = null)
         {
             if(this.threads.ContainsKey(name))
             {
@@ -28,7 +28,7 @@ namespace Crypto_Trading
             }
             else
             {
-                thread t = new thread(name, action, onClosing);
+                thread t = new thread(name, action, onClosing, onError);
                 t.addLog = this.addLog;
                 this.threads[name] = t;
                 t.start();
@@ -137,16 +137,19 @@ namespace Crypto_Trading
 
         public Func<Task<bool>> action;
         public Action onClosing;
+        public Action onError;
 
         public Action<string, logType> addLog;
 
-        public thread(string name, Func<Task<bool>> action, Action onClosing = null)
+        public thread(string name, Func<Task<bool>> action, Action onClosing = null, Action onError = null)
         {
             this.name = name;
             this.action = action;
             this.isRunning = false;
             onClosing ??= () => { };
+            onError ??= () => { };
             this.onClosing = onClosing;
+            this.onError = onError;
         }
         public void start()
         {
@@ -181,6 +184,10 @@ namespace Crypto_Trading
             {
                 this.addLog("An error thrown within the thread:" + this.name,logType.ERROR);
                 this.addLog(e.Message, logType.ERROR);
+                if(e.StackTrace != null)
+                {
+                    this.addLog(e.StackTrace, logType.ERROR);
+                }
                 this.isRunning = false;
             }
            

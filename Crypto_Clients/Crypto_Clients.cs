@@ -1326,6 +1326,7 @@ namespace Crypto_Clients
         public decimal fee_unknown;
         public string maker_taker;
         public string order_id;
+        public string client_order_id;
         public string symbol;
         public decimal price;
         public orderSide side;
@@ -1348,6 +1349,7 @@ namespace Crypto_Clients
             this.fee_unknown = 0;
             this.maker_taker = "";
             this.order_id = "";
+            this.client_order_id = "";
             this.symbol = "";
             this.price = 0;
             this.side = orderSide.NONE;
@@ -1367,6 +1369,7 @@ namespace Crypto_Clients
             this.symbol = js.GetProperty("pair").GetString();
             this.market = "coincheck";
             this.symbol_market = this.symbol + "@" + this.market;
+            this.client_order_id = this.market + this.order_id;
             string maker_taker = js.GetProperty("liquidity").GetString();
             if (maker_taker == "M")
             {
@@ -1426,6 +1429,7 @@ namespace Crypto_Clients
             this.symbol = js.GetProperty("pair").GetString();
             this.market = "bitbank";
             this.symbol_market = this.symbol + "@" + this.market;
+            this.client_order_id = this.market + this.order_id;
             this.price = decimal.Parse(js.GetProperty("price").GetString());
             string side = js.GetProperty("side").GetString();
             if(side == "buy")
@@ -1462,6 +1466,7 @@ namespace Crypto_Clients
             this.symbol = js.GetProperty("symbol").GetString();
             this.market = "bittrade";
             this.symbol_market = this.symbol + "@" + this.market;
+            this.client_order_id = this.market + this.order_id;
             this.order_id = js.GetProperty("orderId").GetInt64().ToString();
             bool aggressor = js.GetProperty("aggressor").GetBoolean();
             if(aggressor)
@@ -1513,7 +1518,7 @@ namespace Crypto_Clients
             {
                 line = "";
             }
-            line += "," + this.trade_id + "," + this.order_id + "," + this.market + "," + this.symbol + "," + this.order_type.ToString() + "," + this.side.ToString() + "," + this.price.ToString() + "," + this.quantity.ToString() + "," + this.maker_taker + "," + this.fee_base.ToString() + "," + this.fee_quote.ToString() + "," + this.profit_loss.ToString() + "," + this.interest + ",";
+            line += "," + this.trade_id + "," + this.order_id + "," + this.market + "," + this.symbol + "," + this.order_type.ToString() + "," + this.side.ToString() + "," + this.price.ToString() + "," + this.quantity.ToString() + "," + this.maker_taker + "," + this.fee_base.ToString() + "," + this.fee_quote.ToString() + "," + this.profit_loss.ToString() + "," + this.interest + "," + this.client_order_id + ",";
             if (this.filled_time != null)
             {
                 line += ((DateTime)this.filled_time).ToString("yyyy-MM-dd HH:mm:ss.fff");
@@ -1539,6 +1544,7 @@ namespace Crypto_Clients
             this.maker_taker = "";
             this.order_id = "";
             this.symbol = "";
+            this.client_order_id = "";
             this.price = 0;
             this.side = orderSide.NONE;
             this.trade_id = "";
@@ -1568,7 +1574,7 @@ namespace Crypto_Clients
         public decimal current_traded_quantity;
         public decimal current_traded_price;
 
-        public string? client_order_id;
+        public string client_order_id;
 
         public string? fee_asset;
         public decimal fee;
@@ -1685,7 +1691,7 @@ namespace Crypto_Clients
                     this.time_in_force = timeInForce.NONE;
                     break;
             }
-            this.client_order_id = "";
+            this.client_order_id = this.market + this.order_id;
             this.fee_asset = "";
             this.fee = 0;
             this.last_trade = "";
@@ -1763,7 +1769,7 @@ namespace Crypto_Clients
             this.order_quantity = decimal.Parse(js.GetProperty("start_amount").GetString());
             this.filled_quantity = decimal.Parse(js.GetProperty("executed_amount").GetString());
             this.average_price = decimal.Parse(js.GetProperty("average_price").GetString());
-            this.client_order_id = "";
+            this.client_order_id = this.market + this.order_id;
             this.fee_asset = "";
             this.fee = 0;
             this.create_time = DateTimeOffset.FromUnixTimeMilliseconds(js.GetProperty("ordered_at").GetInt64()).UtcDateTime;
@@ -1973,7 +1979,7 @@ namespace Crypto_Clients
                     break;
             }
             this.average_price = 0;
-            this.client_order_id = js.GetProperty("clientOrderId").GetString();
+            this.client_order_id = this.market + this.order_id;// js.GetProperty("clientOrderId").GetString();
             this.fee_asset = "";
             this.fee = 0;
             this.last_trade = "";
@@ -2178,7 +2184,7 @@ namespace Crypto_Clients
             {
                 this.average_price = 0;
             }
-            this.client_order_id = update.ClientOrderId;
+            this.client_order_id = this.market + this.order_id; //update.ClientOrderId;
             this.fee_asset = update.FeeAsset.ToUpper();
             if(update.Fee != null)
             {
