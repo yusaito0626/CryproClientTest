@@ -40,6 +40,17 @@ namespace Crypto_Clients
         ClientWebSocket private_client;
         HttpClient http_client;
 
+        private static readonly SocketsHttpHandler _handler = new()
+        {
+            PooledConnectionLifetime = TimeSpan.FromHours(1),
+
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(10),
+
+            KeepAlivePingDelay = TimeSpan.FromMinutes(1),
+            KeepAlivePingTimeout = TimeSpan.FromSeconds(15),
+            KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always
+        };
+
         public Action<string> onMessage;
         public Action<string> onPrivateMessage;
         public Action<string,Enums.logType> _addLog;
@@ -76,7 +87,10 @@ namespace Crypto_Clients
 
             this.websocket_client = new ClientWebSocket();
             this.private_client = new ClientWebSocket();
-            this.http_client = new HttpClient();
+            this.http_client = new HttpClient(_handler)
+            {
+                BaseAddress = new Uri(URL)
+            };
 
             this.orderQueue = new ConcurrentQueue<JsonElement>();
             this.fillQueue = new ConcurrentQueue<JsonElement>();
@@ -822,8 +836,6 @@ namespace Crypto_Clients
         {
             string url = BuildSignedUrl("POST", endpoint, null);
 
-            this.addLog(url);
-
             using var request = new HttpRequestMessage(HttpMethod.Post, url);
             request.Headers.Add("Accept", "application/json");
             request.Content = new StringContent(body, Encoding.UTF8, "application/json");
@@ -876,26 +888,6 @@ namespace Crypto_Clients
             string encodedSignature = Uri.EscapeDataString(signature);
 
             return $"{bittrade_connection.URL}{path}?{canonicalQuery}&Signature={encodedSignature}";
-        }
-
-        private async Task<string> deleteAsync(string endpoint, string body)
-        {
-            var nonce = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var message = $"{nonce}{bittrade_connection.URL}{endpoint}{body}";
-
-            using var client = new HttpClient();
-            var request = new HttpRequestMessage(HttpMethod.Delete, bittrade_connection.URL + endpoint);
-
-            request.Content = new StringContent(body, Encoding.UTF8, "application/json");
-
-            request.Headers.Add("ACCESS-KEY", this.apiName);
-            request.Headers.Add("ACCESS-NONCE", nonce.ToString());
-            request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
-
-            var response = await client.SendAsync(request);
-            var resString = await response.Content.ReadAsStringAsync();
-
-            return resString;
         }
 
         public async Task<JsonDocument> getAccount()

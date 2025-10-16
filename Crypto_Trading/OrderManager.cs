@@ -430,18 +430,14 @@ namespace Crypto_Trading
                 }
                 else
                 {
-                    decimal order_price;
+                    //decimal order_price;
                     if(side == orderSide.Buy)
                     {
-                        order_price = Math.Round(ins.bestask.Item1 * (decimal)1.1 / ins.price_unit) * ins.price_unit;
-                        //js = await this.ord_client.coincheck_client.placeNewOrder(ins.symbol, side.ToString().ToLower(), order_price, quantity);
                         quantity = quantity * ins.bestask.Item1;
                         js = await this.ord_client.coincheck_client.placeMarketNewOrder(ins.symbol, side.ToString().ToLower(), 0, quantity);
                     }
                     else
                     {
-                        //order_price = Math.Round(ins.bestbid.Item1 * (decimal)0.9 / ins.price_unit) * ins.price_unit;
-
                         js = await this.ord_client.coincheck_client.placeMarketNewOrder(ins.symbol, side.ToString().ToLower(), 0, quantity);
                     }
                     //Market Order
@@ -449,6 +445,7 @@ namespace Crypto_Trading
                 if (js.RootElement.GetProperty("success").GetBoolean())
                 {
                     JsonElement ord_obj = js.RootElement;
+                    string line = JsonSerializer.Serialize(ord_obj);
                     while (!this.ord_client.ordUpdateStack.TryPop(out output))
                     {
 
@@ -468,9 +465,27 @@ namespace Crypto_Trading
                     {
                         output.side = orderSide.Sell;
                     }
-                    output.order_type = orderType.Limit;
-                    output.order_price = decimal.Parse(ord_obj.GetProperty("rate").GetString());
-                    output.order_quantity = decimal.Parse(ord_obj.GetProperty("amount").GetString());
+                    if(str_side.StartsWith("market_"))//market order
+                    {
+                        output.order_type = orderType.Market;
+                        if(str_side == "market_buy")
+                        {
+                            output.order_price = 0;
+                            output.order_quantity = 0;
+                        }
+                        else
+                        {
+                            output.order_price = 0;
+                            output.order_quantity = decimal.Parse(ord_obj.GetProperty("amount").GetString());
+                        }
+                    }
+                    else
+                    {
+                        output.order_type = orderType.Limit;
+                        output.order_price = decimal.Parse(ord_obj.GetProperty("rate").GetString());
+                        output.order_quantity = decimal.Parse(ord_obj.GetProperty("amount").GetString());
+                    }
+                    
                     output.filled_quantity = 0;//Even if an executed order is passed, output 0 executed quantity as the execution will be streamed anyway.
                     output.average_price = 0;
                     output.create_time = DateTime.Parse(ord_obj.GetProperty("created_at").GetString(), null, System.Globalization.DateTimeStyles.RoundtripKind);
@@ -502,9 +517,25 @@ namespace Crypto_Trading
                     {
                         output.side = orderSide.Sell;
                     }
-                    output.order_type = orderType.Limit;
-                    output.order_price = decimal.Parse(ord_obj.GetProperty("rate").GetString());
-                    output.order_quantity = decimal.Parse(ord_obj.GetProperty("amount").GetString());
+                    if (str_side.StartsWith("market_"))//market order
+                    {
+                        output.order_type = orderType.Market;
+                        if (str_side == "market_buy")
+                        {
+                            output.order_price = 0;
+                            output.order_quantity = 0;
+                        }
+                        else
+                        {
+                            bool stop = true;
+                        }
+                    }
+                    else
+                    {
+                        output.order_type = orderType.Limit;
+                        output.order_price = decimal.Parse(ord_obj.GetProperty("rate").GetString());
+                        output.order_quantity = decimal.Parse(ord_obj.GetProperty("amount").GetString());
+                    }
                     output.filled_quantity = 0;//Even if an executed order is passed, output 0 executed quantity as the execution will be streamed anyway.
                     output.average_price = 0;
                     output.create_time = DateTime.Parse(ord_obj.GetProperty("created_at").GetString(), null, System.Globalization.DateTimeStyles.RoundtripKind);
@@ -515,7 +546,6 @@ namespace Crypto_Trading
                     output.fee_asset = "";
                     output.is_trigger_order = true;
                     output.last_trade = "";
-                    output.msg += latency.ToString();
                     switch (side)
                     {
                         case orderSide.Buy:
@@ -789,7 +819,7 @@ namespace Crypto_Trading
                     orderSide side = ord.side;
                     orderType type = ord.order_type;
                     timeInForce tif = ord.time_in_force;
-                    await this.placeCancelSpotOrder(ins, orderId);
+                    this.placeCancelSpotOrder(ins, orderId);
                     Thread.Sleep(1);
                     output = await this.placeNewSpotOrder(ins, side, type, quantity, price, tif);
                     if (output != null)
@@ -838,8 +868,6 @@ namespace Crypto_Trading
             if (this.ord_client.fillQueue.TryDequeue(out fill))
             {
                 this.sw_updateFills.Start();
-                fill.msg += " Dequeued:" + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff");
-                //await this.stg.on_Message(fill);
                 foreach(var stg in this.strategies)
                 {
                     if(stg.Value.maker.symbol_market == fill.symbol_market)

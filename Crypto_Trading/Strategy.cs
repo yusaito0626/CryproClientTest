@@ -537,7 +537,6 @@ namespace Crypto_Trading
                     switch (fill.side)
                     {
                         case orderSide.Buy:
-                            fill.msg += " BeforeNew:" + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff");
                             ord = await this.oManager.placeNewSpotOrder(this.taker, orderSide.Sell, orderType.Market, filled_quantity, 0);
                             if(ord != null)
                             {
@@ -545,7 +544,6 @@ namespace Crypto_Trading
                             }
                             break;
                         case orderSide.Sell:
-                            fill.msg += " BeforeNew:" + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff");
                             ord = await this.oManager.placeNewSpotOrder(this.taker, orderSide.Buy, orderType.Market, filled_quantity, 0);
                             if (ord != null)
                             {

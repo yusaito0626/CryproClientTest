@@ -1648,26 +1648,30 @@ namespace Crypto_Clients
                     break;
             }
             string side = js.GetProperty("order_type").GetString();
-            if (side == "buy")
+            if (side == "buy" || side == "market_buy")
             {
                 this.side = orderSide.Buy;
             }
-            else if (side == "sell")
+            else if (side == "sell" || side == "market_sell")
             {
                 this.side = orderSide.Sell;
             }
-            if (js.TryGetProperty("market_" + side + "amount", out JsonElement market_element)
-    && market_element.ValueKind != JsonValueKind.Null
-    && market_element.ValueKind != JsonValueKind.Undefined)
+            if(side.StartsWith("market_"))
             {
                 this.order_type = orderType.Market;
+                if(side == "market_buy")
+                {
+                    this.order_price = 0;
+                    this.order_quantity = 0;
+                }
             }
             else
             {
                 this.order_type = orderType.Limit;
+                this.order_price = decimal.Parse(js.GetProperty("rate").GetString());
+                this.order_quantity = decimal.Parse(js.GetProperty("amount").GetString());
             }
-            this.order_price = decimal.Parse(js.GetProperty("rate").GetString());
-            this.order_quantity = decimal.Parse(js.GetProperty("amount").GetString());
+
             if (js.TryGetProperty("latest_executed_amount", out JsonElement filled_element)
     && filled_element.ValueKind != JsonValueKind.Null
     && filled_element.ValueKind != JsonValueKind.Undefined)

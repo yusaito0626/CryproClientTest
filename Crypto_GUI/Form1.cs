@@ -5,6 +5,7 @@ using Discord;
 using Discord.WebSocket;
 using PubnubApi.EventEngine.Subscribe.Common;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.WebSockets;
@@ -25,7 +26,7 @@ namespace Crypto_GUI
     {
         const string ver_major = "0";
         const string ver_minor = "4";
-        const string ver_patch = "3";
+        const string ver_patch = "4";
         string configPath = "C:\\Users\\yusai\\Crypto_Project\\configs\\config.json";
         string defaultConfigPath = AppContext.BaseDirectory + "\\config.json";
         string logPath = AppContext.BaseDirectory + "\\crypto.log";
@@ -116,6 +117,16 @@ namespace Crypto_GUI
                 updatingTh = new Thread(update);
                 updatingTh.Start();
                 return;
+            }
+
+            if (this.live)
+            {
+                this.BackColor = SystemColors.GradientActiveCaption;
+                this.Text += " LIVE";
+                foreach (TabPage tab in this.tabControl.TabPages)
+                {
+                    tab.BackColor = SystemColors.GradientActiveCaption;
+                }
             }
 
             this.nextMsgTime = DateTime.UtcNow + TimeSpan.FromMinutes(this.msg_Interval);
@@ -235,10 +246,6 @@ namespace Crypto_GUI
             if (root.TryGetProperty("live", out elem))
             {
                 this.live = elem.GetBoolean();
-                if(this.live)
-                {
-                    this.BackColor = SystemColors.GradientActiveCaption;
-                }
             }
             else
             {
@@ -854,19 +861,9 @@ namespace Crypto_GUI
         }
         private async void test_Click(object sender, EventArgs e)
         {
-            this.addLog("Disconnecting bitbank public");
-            await this.crypto_client.bitbank_client.disconnectPublic();
-            Thread.Sleep(1000);
-            this.addLog("Disconnecting coincheck public");
-            await this.crypto_client.coincheck_client.disconnectPublic();
-            Thread.Sleep(1000);
-            this.addLog("Disconnecting coincheck private");
-            await this.crypto_client.coincheck_client.disconnectPrivate();
-            Thread.Sleep(1000);
 
 
-
-            //await tradeTest(this.qManager.instruments["eth_jpy@coincheck"],true);
+            await tradeTest(this.qManager.instruments["eth_jpy@coincheck"],true);
         }
         private async Task onErrorCheck()
         {
@@ -876,16 +873,20 @@ namespace Crypto_GUI
         private async Task tradeTest(Instrument ins, bool fillcheck)
         {
             DataSpotOrderUpdate ord;
+            Stopwatch sw = new Stopwatch();
+            double latency = 0;
             this.oManager.setVirtualMode(false);
 
             this.addLog("Testing orderManager");
             Thread.Sleep(3000);
             this.addLog("Placing a new order");
             string ordid;
+            sw.Start();
             ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.01, 600000);
+            sw.Stop();
             if (ord != null)
             {
-                ordid = ord.client_order_id;
+                ordid = ord.order_id;
                 this.addLog(ord.ToString());
             }
             else
@@ -893,14 +894,19 @@ namespace Crypto_GUI
                 this.addLog("Failed to place a new order");
                 return;
             }
+            latency = sw.Elapsed.TotalMilliseconds;
+            this.addLog("Round trip latency:" + latency.ToString("N3"));
+            sw.Reset();
             Thread.Sleep(1000);
             this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
             Thread.Sleep(3000);
             this.addLog("modifing a order");
+            sw.Start();
             ord = await this.oManager.placeModSpotOrder(ins, ordid, (decimal)0.01, 570000, false);
+            sw.Stop();
             if (ord != null)
             {
-                ordid = ord.client_order_id;
+                ordid = ord.order_id;
                 this.addLog(ord.ToString());
             }
             else
@@ -908,14 +914,19 @@ namespace Crypto_GUI
                 this.addLog("Failed to place a mod order");
                 return;
             }
+            latency = sw.Elapsed.TotalMilliseconds;
+            this.addLog("Round trip latency:" + latency.ToString("N3"));
+            sw.Reset();
             Thread.Sleep(1000);
             this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
             if (this.oManager.live_orders.Count > 0)
             {
                 this.addLog("Cancelling a order");
-                ord = this.oManager.live_orders.Values.First();
-                this.addLog(ord.ToString());
-                ord = await this.oManager.placeCancelSpotOrder(ins, ord.order_id);
+                //ord = this.oManager.live_orders.Values.First();
+                //this.addLog(ord.ToString());
+                sw.Start();
+                ord = await this.oManager.placeCancelSpotOrder(ins, ordid);
+                sw.Stop();
                 if (ord != null)
                 {
                     ordid = ord.client_order_id;
@@ -926,6 +937,9 @@ namespace Crypto_GUI
                     this.addLog("Failed to place a can order");
                     return;
                 }
+                latency = sw.Elapsed.TotalMilliseconds;
+                this.addLog("Round trip latency:" + latency.ToString("N3"));
+                sw.Reset();
             }
             Thread.Sleep(1000);
             this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
@@ -933,13 +947,24 @@ namespace Crypto_GUI
             if (fillcheck)
             {
                 this.addLog("Fill Check");
-                ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.01, 700000);
+                sw.Start();
+                this.addLog("Using limit order");
+                await this.crypto_client.coincheck_client.placeNewOrder(ins.symbol, "buy", (decimal)700000, (decimal)0.01);
+                //ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.01, 700000);
+                sw.Stop();
                 this.addLog(ord.ToString());
+                latency = sw.Elapsed.TotalMilliseconds;
+                this.addLog("Round trip latency:" + latency.ToString("N3"));
+                sw.Reset();
                 Thread.Sleep(1000);
                 this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
 
                 this.addLog("Market Order");
-                ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Market, (decimal)0.01, 700000);
+                sw.Start();
+                ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Sell, orderType.Market, (decimal)0.01, 700000);
+                latency = sw.Elapsed.TotalMilliseconds;
+                this.addLog("Round trip latency:" + latency.ToString("N3"));
+                sw.Reset();
                 if (ord != null)
                 {
                     this.addLog(ord.ToString());

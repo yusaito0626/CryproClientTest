@@ -27,6 +27,16 @@ namespace Crypto_Clients
         ClientWebSocket websocket_client;
         ClientWebSocket private_client;
         HttpClient http_client;
+        private static readonly SocketsHttpHandler _handler = new()
+        {
+            PooledConnectionLifetime = TimeSpan.FromHours(1),
+
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(10),
+
+            KeepAlivePingDelay = TimeSpan.FromMinutes(1),
+            KeepAlivePingTimeout = TimeSpan.FromSeconds(15),
+            KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always
+        };
 
         public Action<string> onMessage;
         public Action<string> onPrivateMessage;
@@ -64,7 +74,10 @@ namespace Crypto_Clients
 
             this.websocket_client = new ClientWebSocket();
             this.private_client = new ClientWebSocket();
-            this.http_client = new HttpClient();
+            this.http_client = new HttpClient(_handler)
+            {
+                BaseAddress = new Uri(URL)
+            };
 
             this.orderQueue = new ConcurrentQueue<JsonElement>();
             this.fillQueue = new ConcurrentQueue<JsonElement>();
