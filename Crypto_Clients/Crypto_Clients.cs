@@ -594,7 +594,7 @@ namespace Crypto_Clients
 
                 }
                 ord.order_id = result.Data.Id;
-                ord.timestamp = DateTime.UtcNow;
+                //ord.timestamp = DateTime.UtcNow;
                 ord.side = _side;
                 ord.order_price = price;
                 ord.order_quantity = quantity;

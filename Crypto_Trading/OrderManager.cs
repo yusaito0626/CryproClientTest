@@ -338,7 +338,8 @@ namespace Crypto_Trading
             }
             else if(ins.market == "bitbank")
             {
-                if(ordtype == orderType.Limit)
+                DateTime sendTime = DateTime.UtcNow;
+                if (ordtype == orderType.Limit)
                 {
                     js = await this.ord_client.bitbank_client.placeNewOrder(ins.symbol, ordtype.ToString().ToLower(), side.ToString().ToLower(), price, quantity, true);
                 }
@@ -354,7 +355,7 @@ namespace Crypto_Trading
                     {
 
                     }
-                    output.timestamp = DateTime.UtcNow;
+                    output.timestamp = sendTime;
                     output.order_id = ord_obj.GetProperty("order_id").GetInt64().ToString();
                     output.symbol = ord_obj.GetProperty("pair").GetString();
                     output.market = ins.market;
@@ -422,8 +423,8 @@ namespace Crypto_Trading
             }
             else if(ins.market == "coincheck")
             {
-                double latency = 0;
-                if(ordtype == orderType.Limit)
+                DateTime sendTime = DateTime.UtcNow;
+                if (ordtype == orderType.Limit)
                 {
                     js = await this.ord_client.coincheck_client.placeNewOrder(ins.symbol, side.ToString().ToLower(), price, quantity, "post_only");
                 }
@@ -433,20 +434,15 @@ namespace Crypto_Trading
                     if(side == orderSide.Buy)
                     {
                         order_price = Math.Round(ins.bestask.Item1 * (decimal)1.1 / ins.price_unit) * ins.price_unit;
-
-                        var sw = Stopwatch.StartNew();
-                        js = await this.ord_client.coincheck_client.placeNewOrder(ins.symbol, side.ToString().ToLower(), order_price, quantity);
-                        sw.Stop();
-                        latency = sw.Elapsed.TotalMilliseconds;
+                        //js = await this.ord_client.coincheck_client.placeNewOrder(ins.symbol, side.ToString().ToLower(), order_price, quantity);
+                        quantity = quantity * ins.bestask.Item1;
+                        js = await this.ord_client.coincheck_client.placeMarketNewOrder(ins.symbol, side.ToString().ToLower(), 0, quantity);
                     }
                     else
                     {
                         //order_price = Math.Round(ins.bestbid.Item1 * (decimal)0.9 / ins.price_unit) * ins.price_unit;
 
-                        var sw = Stopwatch.StartNew();
                         js = await this.ord_client.coincheck_client.placeMarketNewOrder(ins.symbol, side.ToString().ToLower(), 0, quantity);
-                        sw.Stop();
-                        latency = sw.Elapsed.TotalMilliseconds;
                     }
                     //Market Order
                 }
@@ -457,7 +453,7 @@ namespace Crypto_Trading
                     {
 
                     }
-                    output.timestamp = DateTime.UtcNow;
+                    output.timestamp = sendTime;
                     output.order_id = ord_obj.GetProperty("id").GetInt64().ToString();
                     output.symbol = ord_obj.GetProperty("pair").GetString();
                     output.market = ins.market;
@@ -541,6 +537,7 @@ namespace Crypto_Trading
             else if (ins.market == "bittrade")
             {
                 decimal order_price = price;
+                DateTime sendTime = DateTime.UtcNow;
                 if (ordtype == orderType.Limit)
                 {
                     js = await this.ord_client.bittrade_client.placeNewOrder(ins.symbol, side.ToString().ToLower(), price, quantity, true);
@@ -565,7 +562,7 @@ namespace Crypto_Trading
                     {
 
                     }
-                    output.timestamp = DateTime.UtcNow;
+                    output.timestamp = sendTime;
                     output.order_id = js.RootElement.GetProperty("data").GetString();
                     output.symbol = ins.symbol;
                     output.market = ins.market;
@@ -604,9 +601,11 @@ namespace Crypto_Trading
             }
             else
             {
+                DateTime sendTime = DateTime.UtcNow;
                 output = await this.ord_client.placeNewSpotOrder(ins.market, ins.baseCcy, ins.quoteCcy, side, ordtype, quantity, price, timeinforce);
                 if (output != null)
                 {
+                    output.timestamp = sendTime;
                     output.symbol_market = ins.symbol_market;
                     output.client_order_id = output.market + output.order_id;
                     this.ord_client.ordUpdateQueue.Enqueue(output);
@@ -674,6 +673,7 @@ namespace Crypto_Trading
             }
             else if(ins.market == "bitbank")
             {
+                DateTime sendTime = DateTime.UtcNow;
                 js = await this.ord_client.bitbank_client.placeCanOrder(ins.symbol, orderId);
                 if (js.RootElement.GetProperty("success").GetUInt16() == 1)
                 {
@@ -682,7 +682,7 @@ namespace Crypto_Trading
                     {
                     }
                     output.order_id = ord_obj.GetProperty("order_id").GetInt64().ToString();
-                    output.timestamp = DateTime.UtcNow;
+                    output.timestamp = sendTime;
                     output.order_price = -1;
                     output.order_quantity = 0;
                     output.market = ins.market;
@@ -695,6 +695,7 @@ namespace Crypto_Trading
             }
             else if (ins.market == "coincheck")
             {
+                DateTime sendTime = DateTime.UtcNow;
                 js = await this.ord_client.coincheck_client.placeCanOrder(orderId);
                 if (js.RootElement.GetProperty("success").GetBoolean())
                 {
@@ -703,7 +704,7 @@ namespace Crypto_Trading
                     {
                     }
                     output.order_id = ord_obj.GetProperty("id").GetInt64().ToString();
-                    output.timestamp = DateTime.UtcNow;
+                    output.timestamp = sendTime;
                     output.order_price = -1;
                     output.order_quantity = 0;
                     output.market = ins.market;
@@ -716,6 +717,7 @@ namespace Crypto_Trading
             }
             else if (ins.market == "bittrade")
             {
+                DateTime sendTime = DateTime.UtcNow;
                 js = await this.ord_client.bittrade_client.placeCanOrder(orderId);
                 if (js.RootElement.GetProperty("status").GetString() == "ok")
                 {
@@ -723,7 +725,7 @@ namespace Crypto_Trading
                     {
                     }
                     output.order_id = js.RootElement.GetProperty("data").GetString();
-                    output.timestamp = DateTime.UtcNow;
+                    output.timestamp = sendTime;
                     output.order_price = -1;
                     output.order_quantity = 0;
                     output.market = ins.market;
