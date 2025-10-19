@@ -737,6 +737,18 @@ namespace Crypto_GUI
                                     }
                                     break;
                                 case "fill":
+                                    var fills = JsonSerializer.Deserialize<List<fillInfo>>(content);
+                                    foreach(var f in fills)
+                                    {
+                                        this.gridView_orders.Rows.Insert(0);
+                                        this.gridView_orders.Rows[0].Cells[0].Value = f.timestamp;
+                                        this.gridView_orders.Rows[0].Cells[1].Value = f.market;
+                                        this.gridView_orders.Rows[0].Cells[2].Value = f.symbol;
+                                        this.gridView_orders.Rows[0].Cells[3].Value = f.side;
+                                        this.gridView_orders.Rows[0].Cells[4].Value = f.fill_price;
+                                        this.gridView_orders.Rows[0].Cells[5].Value = f.quantity;
+                                        this.gridView_orders.Rows[0].Cells[7].Value = f.fee;
+                                    }
                                     break;
                             }
 

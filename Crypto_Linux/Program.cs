@@ -42,6 +42,7 @@ namespace Crypto_Linux
         };
         static int logSize = 10000;
         static Stack<logEntry> logEntryStack;
+        static Stack<fillInfo> fillInfoStack;
 
         static Strategy selected_stg;
         static Dictionary<string, Strategy> strategies;
@@ -92,10 +93,12 @@ namespace Crypto_Linux
             logQueue = new ConcurrentQueue<string>();
             filledOrderQueue = new ConcurrentQueue<DataFill>();
             logEntryStack = new Stack<logEntry>();
+            fillInfoStack = new Stack<fillInfo>();
             int i = 0;
             while(i < logSize)
             {
                 logEntryStack.Push(new logEntry());
+                fillInfoStack.Push(new fillInfo());
                 ++i;
             }
 
@@ -174,7 +177,7 @@ namespace Crypto_Linux
             i = 0;
             while (isRunning)
             {
-
+                sendFills();
                 await statusCheck();
                 updateLog();
                 setInstrumentInfo();
@@ -211,12 +214,54 @@ namespace Crypto_Linux
                         }
                     }
                     msg += DateTime.UtcNow.ToString() + " - All -    Notional Volume:" + volumeAll.ToString("N2") + " Trading PnL:" + tradingPLAll.ToString("N2") + " Fee:" + feeAll.ToString("N2") + " Total:" + totalAll.ToString("N2") + "\n";
-                    addLog(msg);
-                    //Console.WriteLine(msg);
+                    //addLog(msg);
+                    Console.WriteLine(msg);
                     await timer_PeriodicMsg_Tick();
                     i = 0;
                 }
                 Thread.Sleep(1000);
+            }
+        }
+
+        static private async Task sendFills()
+        {
+            DataFill fill;
+            fillInfo fInfo;
+            while (filledOrderQueue.Count > 0)
+            {
+                while(!filledOrderQueue.TryDequeue(out fill))
+                {
+
+                }
+                if (fillInfoStack.Count > 0)
+                {
+                    fInfo = fillInfoStack.Pop();
+                }
+                else
+                {
+                    fInfo = new fillInfo();
+                }
+                if (qManager.instruments.ContainsKey(fill.symbol_market))
+                {
+                    Instrument ins = qManager.instruments[fill.symbol_market];
+                    if (fill.timestamp != null)
+                    {
+                        fInfo.timestamp = ((DateTime)fill.timestamp).ToString("yyyy-MM-dd HH:mm:ss.fff");
+                    }
+                    else
+                    {
+                        fInfo.timestamp = "";
+                    }
+                    fInfo.market = fill.market;
+                    fInfo.symbol = fill.symbol;
+                    fInfo.side = fill.side.ToString();
+                    fInfo.fill_price = fill.price.ToString("N" + ins.price_scale);
+                    fInfo.quantity = fill.quantity.ToString("N" + ins.quantity_scale);
+                    fInfo.fee = (fill.fee_quote + fill.fee_base * fill.price).ToString();
+                    ws_server.processFill(fInfo);
+                    fill.init();
+                    oManager.pushbackFill(fill);
+                }
             }
         }
 

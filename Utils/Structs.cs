@@ -11,6 +11,17 @@ namespace Utils
         public string logtype {  get; set; }
         public string msg { get; set; }
     }
+
+    public struct fillInfo
+    {
+        public string timestamp { get; set; }
+        public string market { get; set; }
+        public string symbol { get; set; }
+        public string side { get; set; }
+        public string fill_price { get; set; }
+        public string quantity { get; set; }
+        public string fee { get; set; }
+    }
     public struct strategyInfo
     {
         public string name { get; set; }

@@ -1,4 +1,5 @@
-﻿using Crypto_Trading;
+﻿using Crypto_Clients;
+using Crypto_Trading;
 using Enums;
 using System;
 using System.Collections.Concurrent;
@@ -21,7 +22,10 @@ namespace Crypto_Linux
         private readonly List<WebSocket> _clients = new();
 
         public List<logEntry> logList = new List<logEntry>();
+        public List<fillInfo> dataFillList = new List<fillInfo>();
+        
         public int sendingLogs = 0;
+        public int sendingFills = 0;
 
         public Action<string, Enums.logType> _addLog;
 
@@ -103,6 +107,30 @@ namespace Crypto_Linux
                 i += PageSize;
             }
             Volatile.Write(ref this.sendingLogs, 0);
+            while (Interlocked.CompareExchange(ref this.sendingFills, 1, 0) != 0)
+            {
+
+            }
+            i = 0;
+            while (i < this.dataFillList.Count)
+            {
+                List<fillInfo> subList;
+                if (i + PageSize >= this.dataFillList.Count)
+                {
+                    subList = this.dataFillList.GetRange(i, this.dataFillList.Count - i);
+                }
+                else
+                {
+                    subList = this.dataFillList.GetRange(i, PageSize);
+                }
+                json = JsonSerializer.Serialize(subList);
+                sendingItem["data_type"] = "fill";
+                sendingItem["data"] = json;
+                msg = JsonSerializer.Serialize(sendingItem, this.js_option);
+                this.BroadcastAsync(msg);
+                i += PageSize;
+            }
+            Volatile.Write(ref this.sendingFills, 0);
 
             this.addLog("Client connected");
 
@@ -132,6 +160,22 @@ namespace Crypto_Linux
             }
         }
 
+        public async Task processFill(fillInfo fill)
+        {
+            while (Interlocked.CompareExchange(ref this.sendingFills, 1, 0) != 0)
+            {
+
+            }
+            this.dataFillList.Add(fill);
+
+            string json = JsonSerializer.Serialize<List<fillInfo>>([fill]);
+            string msg;
+            sendingItem["data_type"] = "fill";
+            sendingItem["data"] = json;
+            msg = JsonSerializer.Serialize(sendingItem, this.js_option);
+            this.BroadcastAsync(msg);
+            Volatile.Write(ref this.sendingFills, 0);
+        }
         public async Task processLog(logEntry log)
         {
             while (Interlocked.CompareExchange(ref this.sendingLogs, 1, 0) != 0)
