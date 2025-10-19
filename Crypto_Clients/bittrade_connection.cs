@@ -110,9 +110,9 @@ namespace Crypto_Clients
         public void setLogFile(string path)
         {
             this.logging = true;
-            FileStream fspub = new FileStream(path + "\\bittradePublic_log" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + ".txt", FileMode.Append, FileAccess.Write, FileShare.Read);
+            FileStream fspub = new FileStream(path + "/bittradePublic_log" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + ".txt", FileMode.Append, FileAccess.Write, FileShare.Read);
             this.logFilePublic = new StreamWriter(fspub);
-            FileStream fspri = new FileStream(path + "\\bittradePrivate_log" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + ".txt", FileMode.Append, FileAccess.Write, FileShare.Read);
+            FileStream fspri = new FileStream(path + "/bittradePrivate_log" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + ".txt", FileMode.Append, FileAccess.Write, FileShare.Read);
             this.logFilePrivate = new StreamWriter(fspri);
         }
         public void SetApiCredentials(string name, string key)

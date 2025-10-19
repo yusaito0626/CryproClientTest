@@ -3,19 +3,23 @@ using Crypto_Trading;
 using CryptoClients.Net.Enums;
 using Discord;
 using Discord.WebSocket;
+using Enums;
 using PubnubApi.EventEngine.Subscribe.Common;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Net;
 using System.Net.WebSockets;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Xml.Linq;
 using Utils;
 
 
@@ -24,12 +28,9 @@ namespace Crypto_GUI
 {
     public partial class Form1 : Form
     {
-        const string ver_major = "0";
-        const string ver_minor = "4";
-        const string ver_patch = "6";
-        string configPath = "C:\\Users\\yusai\\Crypto_Project\\configs\\config.json";
-        string defaultConfigPath = AppContext.BaseDirectory + "\\config.json";
-        string logPath = AppContext.BaseDirectory + "\\crypto.log";
+        string configPath = "C:/Users/yusai/Crypto_Project/configs/config.json";
+        string defaultConfigPath = AppContext.BaseDirectory + "/config.json";
+        string logPath = AppContext.BaseDirectory + "/crypto.log";
         string outputPath = AppContext.BaseDirectory;
         string APIsPath = "";
         string discordTokenFile = "";
@@ -82,6 +83,16 @@ namespace Crypto_GUI
         int msg_Interval;
         DateTime nextMsgTime;
 
+        private bool monitoringMode = false;
+        private string tradeEngine = "";
+        ClientWebSocket info_receiver;
+        byte[] ws_buffer = new byte[4096];
+        MemoryStream ws_memory = new MemoryStream();
+        static Dictionary<string, strategyInfo> strategyInfos = new Dictionary<string, strategyInfo>();
+        static Dictionary<string, instrumentInfo> instrumentInfos = new Dictionary<string, instrumentInfo>();
+        static Dictionary<string, connecitonStatus> connectionStates = new Dictionary<string, connecitonStatus>();
+        static Dictionary<string, threadStatus> threadStates = new Dictionary<string, threadStatus>();
+
         public Form1()
         {
             this.aborting = false;
@@ -100,7 +111,7 @@ namespace Crypto_GUI
 
             InitializeComponent();
 
-            this.lbl_version.Text = Form1.ver_major + ":" + Form1.ver_minor + ":" + Form1.ver_patch;
+            this.lbl_version.Text = GlobalVariables.ver_major + ":" + GlobalVariables.ver_minor + ":" + GlobalVariables.ver_patch;
             this.Text += "   Ver." + this.lbl_version.Text;
 
             this.button_receiveFeed.Enabled = false;
@@ -128,6 +139,10 @@ namespace Crypto_GUI
                     tab.BackColor = SystemColors.GradientActiveCaption;
                 }
             }
+            else if(this.monitoringMode)
+            {
+                this.Text += " Monitoring Mode";
+            }
 
             this.nextMsgTime = DateTime.UtcNow + TimeSpan.FromMinutes(this.msg_Interval);
 
@@ -151,20 +166,6 @@ namespace Crypto_GUI
             this.setStrategies(this.strategyFile);
             this.qManager.strategies = this.strategies;
             this.oManager.strategies = this.strategies;
-
-
-            //this.stg = new Strategy();
-            //this.stg.readStrategyFile(this.strategyFile);
-
-            //this.stg.maker = this.qManager.instruments[this.stg.maker_symbol_market];
-            //this.stg.taker = this.qManager.instruments[this.stg.taker_symbol_market];
-            //this.stg.maker.ToBsize = this.stg.ToBsize;
-            //this.stg.taker.ToBsize = this.stg.ToBsize;
-
-            //this.stg._addLog = this.addLog;
-
-            //this.qManager.stg = this.stg;
-            //this.oManager.stg = this.stg;
 
             foreach (string key in this.qManager.instruments.Keys)
             {
@@ -226,6 +227,7 @@ namespace Crypto_GUI
             {
                 this.autoStart = false;
             }
+            
             if (root.TryGetProperty("live", out elem))
             {
                 this.live = elem.GetBoolean();
@@ -244,6 +246,23 @@ namespace Crypto_GUI
             else
             {
                 this.privateConnect = true;
+            }
+            if (root.TryGetProperty("monitoringMode", out elem))
+            {
+                this.monitoringMode = elem.GetBoolean();
+                if(monitoringMode)
+                {
+                    this.live = false;
+                    this.privateConnect = true;
+                }
+            }
+            else
+            {
+                this.privateConnect = true;
+            }
+            if (root.TryGetProperty("tradeEngine", out elem))
+            {
+                this.tradeEngine = elem.GetString();
             }
             if (root.TryGetProperty("msgLogging", out elem))
             {
@@ -337,13 +356,13 @@ namespace Crypto_GUI
             }
 
             string dt = DateTime.UtcNow.ToString("yyyy-MM-dd");
-            string newpath = this.outputPath + "\\" + dt;
+            string newpath = this.outputPath + "/" + dt;
             if (!Directory.Exists(newpath))
             {
                 Directory.CreateDirectory(newpath);
             }
             this.outputPath = newpath;
-            this.logPath = this.outputPath + "\\crypto.log";
+            this.logPath = this.outputPath + "/crypto.log";
 
             return true;
 
@@ -421,23 +440,304 @@ namespace Crypto_GUI
         }
         private async void update()
         {
-            if (!await this.MsgDeliverer.setDiscordToken(this.discordTokenFile))
-            {
-                this.addLog("Message configuration not found", Enums.logType.WARNING);
-            }
             Thread.Sleep(1000);
+            this.BeginInvoke(this.updateLog);
             this.updating = false;
-            while (!this.aborting)
+            
+            if(!monitoringMode)
             {
-                if (!this.updating)
+                if (!await this.MsgDeliverer.setDiscordToken(this.discordTokenFile))
                 {
-                    this.updating = true;
-                    this.BeginInvoke(this._update);
-                    Thread.Sleep(1);
+                    this.addLog("Message configuration not found", Enums.logType.WARNING);
                 }
             }
-            this.BeginInvoke(this.updateLog);
+                while (!this.aborting)
+                {
+                    if (!this.updating)
+                    {
+                        this.updating = true;
+                        this.BeginInvoke(this._update);
+                        Thread.Sleep(1);
+                    }
+                }
         }
+        private async Task connectTradeEngine()
+        {
+            if(this.tradeEngine == "")
+            {
+                this.addLog("The trade engine location is unknown", Enums.logType.ERROR);
+            }
+            else
+            {
+                bool connected = false;
+                int trial = 0;
+                this.info_receiver = new ClientWebSocket();
+                var uri = new Uri(this.tradeEngine);
+                while(!connected)
+                {
+                    try
+                    {
+                        this.info_receiver.Options.KeepAliveInterval = TimeSpan.FromSeconds(20);
+                        await this.info_receiver.ConnectAsync(uri, CancellationToken.None);
+                        this.addLog("Connected to the trade engine");
+                        connected = true;
+                    }
+                    catch (WebSocketException wse)
+                    {
+                        this.addLog($"WebSocketException: {wse.Message}", Enums.logType.WARNING);
+                        ++trial;
+                        this.info_receiver.Dispose();
+                        this.info_receiver = new ClientWebSocket();
+                        Thread.Sleep(5000);
+                    }
+                    catch (Exception ex)
+                    {
+                        this.addLog($"Connection failed: {ex.Message}", Enums.logType.WARNING);
+                        ++trial;
+                        this.info_receiver.Dispose();
+                        this.info_receiver = new ClientWebSocket();
+                        Thread.Sleep(5000);
+                    }
+                    if(!connected)
+                    {
+                        if(trial > 5)
+                        {
+                            this.addLog("Unable to connect after " + trial.ToString() + " trials",logType.ERROR);
+                            this.addLog("Aborting", logType.ERROR);
+                            return;
+                        }
+                        else
+                        {
+                            this.addLog("Tried " + trial.ToString() + " times",logType.WARNING);
+                        }
+                    }
+                }
+                
+                this.thManager.addThread("ReceiveInfo", receiveAsync, null, null);
+            }
+        }
+
+        private async Task<(bool,double)> receiveAsync()
+        {
+            WebSocketReceiveResult result;
+            string msg;
+            bool output = true;
+            double latency = 0;
+            switch (this.info_receiver.State)
+            {
+                case WebSocketState.Open:
+                    do
+                    {
+                        result = await this.info_receiver.ReceiveAsync(new ArraySegment<byte>(this.ws_buffer), CancellationToken.None);
+                        this.ws_memory.Write(this.ws_buffer, 0, result.Count);
+                    } while ((!result.EndOfMessage) && this.info_receiver.State != WebSocketState.Aborted && this.info_receiver.State != WebSocketState.Closed);
+
+                    switch (result.MessageType)
+                    {
+                        case WebSocketMessageType.Text:
+                            msg = Encoding.UTF8.GetString(this.ws_memory.ToArray());
+                            //this.addLog(msg);
+                            var js = JsonDocument.Parse(msg).RootElement;
+                            string data_type = js.GetProperty("data_type").GetString();
+                            string content = js.GetProperty("data").GetString();
+                            
+                            switch (data_type)
+                            {
+                                case "strategy":
+                                    var stginfos = JsonSerializer.Deserialize<Dictionary<string, strategyInfo>>(content);
+                                    foreach (var s in stginfos)
+                                    {
+                                        if (this.strategies.ContainsKey(s.Key))
+                                        {
+                                            Strategy stg = this.strategies[s.Key];
+                                            stg.skew_point = s.Value.skew;
+                                            stg.live_askprice = s.Value.ask;
+                                            stg.live_bidprice = s.Value.bid;
+                                            stg.notionalVolume = s.Value.notionalVolume;
+                                            stg.tradingPnL = s.Value.tradingPnL;
+                                            stg.totalFee = s.Value.totalFee;
+                                            stg.totalPnL = s.Value.totalPnL;
+                                        }
+                                        else
+                                        {
+                                            Strategy stg = new Strategy();
+                                            stg.name = s.Value.name;
+                                            stg.baseCcy = s.Value.baseCcy;
+                                            stg.quoteCcy = s.Value.quoteCcy;
+                                            stg.maker_market = s.Value.maker_market;
+                                            stg.taker_market = s.Value.taker_market;
+                                            stg.maker_symbol_market = s.Value.maker_symbol_market;
+                                            stg.taker_symbol_market = s.Value.taker_symbol_market;
+                                            if (this.qManager.instruments.ContainsKey(stg.maker_symbol_market))
+                                            {
+                                                stg.maker = this.qManager.instruments[stg.maker_symbol_market];
+                                            }
+                                            if (this.qManager.instruments.ContainsKey(stg.taker_symbol_market))
+                                            {
+                                                stg.taker = this.qManager.instruments[stg.taker_symbol_market];
+                                            }
+                                            stg.skew_point = s.Value.skew;
+                                            stg.live_askprice = s.Value.ask;
+                                            stg.live_bidprice = s.Value.bid;
+                                            stg.notionalVolume = s.Value.notionalVolume;
+                                            stg.tradingPnL = s.Value.tradingPnL;
+                                            stg.totalFee = s.Value.totalFee;
+                                            stg.totalPnL = s.Value.totalPnL;
+                                            this.strategies[s.Key] = stg;
+                                            this.comboStrategy.Items.Add(s.Key);
+                                        }
+                                    }
+                                    break;
+                                case "instrument":
+                                    var insinfos = JsonSerializer.Deserialize<Dictionary<string, instrumentInfo>>(content);
+                                    foreach (var i in insinfos)
+                                    {
+                                        if (this.qManager.instruments.ContainsKey(i.Key))
+                                        {
+                                            Instrument ins = this.qManager.instruments[i.Key];
+                                            ins.last_price = i.Value.last_price;
+                                            ins.buy_notional = i.Value.notional_buy;
+                                            ins.sell_notional = i.Value.notional_sell;
+                                            ins.buy_quantity = i.Value.quantity_buy;
+                                            ins.sell_quantity = i.Value.quantity_sell;
+                                            ins.baseBalance = new Balance();
+                                            ins.baseBalance.ccy = ins.baseCcy;
+                                            ins.baseBalance.total = i.Value.baseCcy_total;
+                                            ins.baseBalance.inuse = i.Value.baseCcy_inuse;
+                                            ins.quoteBalance = new Balance();
+                                            ins.quoteBalance.ccy = ins.quoteCcy;
+                                            ins.quoteBalance.total = i.Value.quoteCcy_total;
+                                            ins.quoteBalance.inuse = i.Value.quoteCcy_inuse;
+                                            ins.my_buy_quantity = i.Value.my_quantity_buy;
+                                            ins.my_buy_notional = i.Value.my_notional_buy;
+                                            ins.my_sell_quantity = i.Value.my_quantity_sell;
+                                            ins.my_sell_notional = i.Value.my_notional_sell;
+                                            ins.quote_fee = i.Value.quoteFee_total;
+                                            ins.base_fee = i.Value.baseFee_total;
+                                        }
+                                        else
+                                        {
+                                            Instrument ins = new Instrument();
+                                            ins.symbol = i.Value.symbol;
+                                            ins.market = i.Value.market;
+                                            ins.baseCcy = i.Value.baseCcy;
+                                            ins.quoteCcy = i.Value.quoteCcy;
+
+                                            ins.last_price = i.Value.last_price;
+                                            ins.buy_notional = i.Value.notional_buy;
+                                            ins.sell_notional = i.Value.notional_sell;
+                                            ins.buy_quantity = i.Value.quantity_buy;
+                                            ins.sell_quantity = i.Value.quantity_sell;
+                                            ins.baseBalance = new Balance();
+                                            ins.baseBalance.ccy = ins.baseCcy;
+                                            ins.baseBalance.total = i.Value.baseCcy_total;
+                                            ins.baseBalance.inuse = i.Value.baseCcy_inuse;
+                                            ins.quoteBalance = new Balance();
+                                            ins.quoteBalance.ccy = ins.quoteCcy;
+                                            ins.quoteBalance.total = i.Value.quoteCcy_total;
+                                            ins.quoteBalance.inuse = i.Value.quoteCcy_inuse;
+                                            ins.my_buy_quantity = i.Value.my_quantity_buy;
+                                            ins.my_buy_notional = i.Value.my_notional_buy;
+                                            ins.my_sell_quantity = i.Value.my_quantity_sell;
+                                            ins.my_sell_notional = i.Value.my_notional_sell;
+                                            ins.quote_fee = i.Value.quoteFee_total;
+                                            ins.base_fee = i.Value.baseFee_total;
+                                        }
+                                    }
+                                    break;
+                                case "connection":
+                                    var conninfos = JsonSerializer.Deserialize<Dictionary<string, connecitonStatus>>(content);
+                                    foreach(var c in conninfos)
+                                    {
+                                        bool found = false;
+                                        foreach (DataGridViewRow row in this.gridView_Connection.Rows)
+                                        {
+                                            if (row.IsNewRow)
+                                            {
+                                                continue;
+                                            }
+                                            if (row.Cells[0] != null && row.Cells[0].Value.ToString() == c.Key)
+                                            {
+                                                row.Cells[1].Value = c.Value.publicState;
+                                                row.Cells[2].Value = c.Value.privateState;
+                                                row.Cells[3].Value = c.Value.avgRTT.ToString("N3");
+                                                found = true;
+                                                break;
+                                            }
+                                        }
+                                        if (!found)
+                                        {
+                                            this.gridView_Connection.Rows.Add(c.Key, c.Value.publicState, c.Value.privateState,c.Value.avgRTT.ToString("N3"));
+                                        }
+                                    }
+                                    break;
+                                case "thread":
+                                    var thinfos = JsonSerializer.Deserialize<Dictionary<string, threadStatus>>(content);
+                                    string st;
+                                    foreach(var t in thinfos)
+                                    {
+                                        bool found = false;
+                                        if (t.Value.isRunning)
+                                        {
+                                            st = "Running";
+                                        }
+                                        else
+                                        {
+                                            st = "Stopped";
+                                        }
+                                        foreach (DataGridViewRow row in this.gridView_ThStatus.Rows)
+                                        {
+                                            if (row.IsNewRow)
+                                            {
+                                                continue;
+                                            }
+                                            if (row.Cells[0] != null && row.Cells[0].Value.ToString() == t.Key)
+                                            {
+
+                                                row.Cells[1].Value = st;
+                                                row.Cells[2].Value = t.Value.avgProcessingTime.ToString("N3");
+                                                found = true;
+                                                break;
+                                            }
+                                        }
+                                        if (!found)
+                                        {
+                                            this.gridView_ThStatus.Rows.Add(t.Key, st,t.Value.avgProcessingTime.ToString("N3"));
+                                        }
+                                    }
+                                    break;
+                            }
+
+                            break;
+                        case WebSocketMessageType.Binary:
+                            break;
+                        case WebSocketMessageType.Close:
+                            this.addLog("Closed by server");
+                            output = false;
+                            msg = "Closing message[onListen]:" + Encoding.UTF8.GetString(this.ws_memory.ToArray());
+                            break;
+                        default:
+                            msg = "";
+                            break;
+                    }
+                    this.ws_memory.SetLength(0);
+                    this.ws_memory.Position = 0;
+                    break;
+                case WebSocketState.None:
+                case WebSocketState.Connecting:
+                    //Do nothing
+                    break;
+                case WebSocketState.CloseReceived:
+                case WebSocketState.CloseSent:
+                case WebSocketState.Closed:
+                case WebSocketState.Aborted:
+                default:
+                    Thread.Sleep(1000);
+                    break;
+            }
+            return (true, 0);
+        }
+
         private void _update()
         {
             switch (this.tabControl.SelectedTab.Text)
@@ -464,15 +764,56 @@ namespace Crypto_GUI
             decimal fee = 0;
             decimal total = 0;
 
-            foreach(var stg in this.strategies.Values)
+            if(!this.monitoringMode)
             {
-                if (stg.maker != null && stg.taker != null)
+                foreach (var stg in this.strategies.Values)
                 {
-                    volume = stg.maker.my_buy_notional + stg.maker.my_sell_notional;
-                    tradingPL = (stg.taker.my_sell_notional - stg.taker.my_sell_quantity * stg.taker.mid) + (stg.taker.my_buy_quantity * stg.taker.mid - stg.taker.my_buy_notional);
-                    tradingPL += (stg.maker.my_sell_notional - stg.maker.my_sell_quantity * stg.taker.mid) + (stg.maker.my_buy_quantity * stg.taker.mid - stg.maker.my_buy_notional);
-                    fee = stg.taker.base_fee * stg.taker.mid + stg.taker.quote_fee + stg.maker.base_fee * stg.taker.mid + stg.maker.quote_fee;
-                    total = tradingPL - fee;
+                    if (stg.maker != null && stg.taker != null)
+                    {
+                        volume = stg.maker.my_buy_notional + stg.maker.my_sell_notional;
+                        tradingPL = (stg.taker.my_sell_notional - stg.taker.my_sell_quantity * stg.taker.mid) + (stg.taker.my_buy_quantity * stg.taker.mid - stg.taker.my_buy_notional);
+                        tradingPL += (stg.maker.my_sell_notional - stg.maker.my_sell_quantity * stg.taker.mid) + (stg.maker.my_buy_quantity * stg.taker.mid - stg.maker.my_buy_notional);
+                        fee = stg.taker.base_fee * stg.taker.mid + stg.taker.quote_fee + stg.maker.base_fee * stg.taker.mid + stg.maker.quote_fee;
+                        total = tradingPL - fee;
+                        bool found = false;
+                        foreach (DataGridViewRow row in this.gridView_PnL.Rows)
+                        {
+                            if (row.IsNewRow)
+                            {
+                                continue;
+                            }
+                            if (row.Cells[0] != null && row.Cells[0].Value.ToString() == stg.name)
+                            {
+
+                                row.Cells[1].Value = volume.ToString("N2");
+                                row.Cells[2].Value = tradingPL.ToString("N2");
+                                row.Cells[3].Value = fee.ToString("N2");
+                                row.Cells[4].Value = total.ToString("N2");
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found)
+                        {
+                            this.gridView_PnL.Rows.Add(stg.name, volume.ToString("N2"), tradingPL.ToString("N2"), fee.ToString("N2"), total.ToString("N2"));
+                        }
+                    }
+
+                }
+            }
+            else
+            {
+                foreach (var stg in this.strategies.Values)
+                {
+                    if (stg.maker != null && stg.taker != null)
+                    {
+                        volume = stg.maker.my_buy_notional + stg.maker.my_sell_notional;
+                        tradingPL = (stg.taker.my_sell_notional - stg.taker.my_sell_quantity * stg.taker.mid) + (stg.taker.my_buy_quantity * stg.taker.mid - stg.taker.my_buy_notional);
+                        tradingPL += (stg.maker.my_sell_notional - stg.maker.my_sell_quantity * stg.taker.mid) + (stg.maker.my_buy_quantity * stg.taker.mid - stg.maker.my_buy_notional);
+                        fee = stg.taker.base_fee * stg.taker.mid + stg.taker.quote_fee + stg.maker.base_fee * stg.taker.mid + stg.maker.quote_fee;
+                        total = tradingPL - fee;
+                        
+                    }
                     bool found = false;
                     foreach (DataGridViewRow row in this.gridView_PnL.Rows)
                     {
@@ -483,21 +824,22 @@ namespace Crypto_GUI
                         if (row.Cells[0] != null && row.Cells[0].Value.ToString() == stg.name)
                         {
 
-                            row.Cells[1].Value = volume.ToString("N2");
-                            row.Cells[2].Value = tradingPL.ToString("N2");
-                            row.Cells[3].Value = fee.ToString("N2");
-                            row.Cells[4].Value = total.ToString("N2");
+                            row.Cells[1].Value = stg.notionalVolume.ToString("N2");
+                            row.Cells[2].Value = stg.tradingPnL.ToString("N2");
+                            row.Cells[3].Value = stg.totalFee.ToString("N2");
+                            row.Cells[4].Value = stg.totalPnL.ToString("N2");
                             found = true;
                             break;
                         }
                     }
                     if (!found)
                     {
-                        this.gridView_PnL.Rows.Add(stg.name, volume.ToString("N2"), tradingPL.ToString("N2"), fee.ToString("N2"), total.ToString("N2"));
+                        this.gridView_PnL.Rows.Add(stg.name, stg.notionalVolume.ToString("N2"), stg.tradingPnL.ToString("N2"), stg.totalFee.ToString("N2"), stg.totalPnL.ToString("N2"));
                     }
+
                 }
-                
             }
+           
 
             
         }
@@ -687,20 +1029,48 @@ namespace Crypto_GUI
         {
             try
             {
-                this.oManager.setVirtualMode(!liveTrading);
-
-                foreach (var mkt in this.qManager._markets)
+                if(!this.monitoringMode)
                 {
-                    if (this.msgLogging)
+                    this.oManager.setVirtualMode(!liveTrading);
+                    foreach (var mkt in this.qManager._markets)
                     {
-                        this.crypto_client.setMsgLogging(mkt.Key, this.outputPath);
+                        if (this.msgLogging)
+                        {
+                            this.crypto_client.setMsgLogging(mkt.Key, this.outputPath);
+                        }
+                        await this.qManager.connectPublicChannel(mkt.Key);
+                        if (liveTrading || this.privateConnect)
+                        {
+                            await this.oManager.connectPrivateChannel(mkt.Key);
+                        }
                     }
-                    await this.qManager.connectPublicChannel(mkt.Key);
-                    if (liveTrading || this.privateConnect)
+                    if (this.oManager.getVirtualMode())
                     {
+                        if (!this.qManager.setVirtualBalance(this.virtualBalanceFile))
+                        {
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        if (!this.qManager.setBalance(await this.crypto_client.getBalance(this.qManager._markets.Keys)))
+                        {
+                            return false;
+                        }
+                    }
+                }
+                else
+                {
+                    await connectTradeEngine();
+                    this.oManager.setVirtualMode(true);
+                    foreach (var mkt in this.qManager._markets)
+                    {
+                        await this.qManager.connectPublicChannel(mkt.Key);
                         await this.oManager.connectPrivateChannel(mkt.Key);
                     }
                 }
+
+                    
 
                 foreach (var ins in this.qManager.instruments.Values)
                 {
@@ -720,49 +1090,37 @@ namespace Crypto_GUI
                     await crypto_client.subscribeTrades(markets, ins.baseCcy, ins.quoteCcy);
                 }
 
-                if (this.oManager.getVirtualMode())
-                {
-                    if (!this.qManager.setVirtualBalance(this.virtualBalanceFile))
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    if (!this.qManager.setBalance(await this.crypto_client.getBalance(this.qManager._markets.Keys)))
-                    {
-                        return false;
-                    }
-                }
+                
                 this.qManager.ready = true;
 
                 if (liveTrading || this.privateConnect)
                 {
                     await crypto_client.subscribeSpotOrderUpdates(this.qManager._markets.Keys);
-                    //if (this.qManager._markets.ContainsKey("bitbank"))
-                    //{
-                    //    this.thManager.addThread("bitbankSpotOrderUpdates", this.crypto_client.onBitbankOrderUpdates);
-                    //}
                 }
 
                 this.oManager.ready = true;
+
 
                 this.thManager.addThread("updateQuotes", this.qManager._updateQuotes,this.qManager.updateQuotesOnClosing,this.qManager.updateQuotesOnError);
                 this.thManager.addThread("updateTrades", this.qManager._updateTrades,this.qManager.updateTradesOnClosing,this.qManager.updateTradesOnClosing);
                 this.thManager.addThread("updateOrders", this.oManager._updateOrders,this.oManager.updateOrdersOnClosing,this.oManager.updateOrdersOnError);
                 this.thManager.addThread("updateFill", this.oManager._updateFill,this.oManager.updateFillOnClosing);
-                this.thManager.addThread("optimize", this.qManager._optimize,this.qManager.optimizeOnClosing,this.qManager.optimizeOnError);
-                this.thManager.addThread("orderLogging", this.oManager._orderLogging, this.oManager.ordLoggingOnClosing,this.oManager.ordLoggingOnError);
+                if(!this.monitoringMode)
+                {
+                    this.thManager.addThread("optimize", this.qManager._optimize, this.qManager.optimizeOnClosing, this.qManager.optimizeOnError);
+                    this.thManager.addThread("orderLogging", this.oManager._orderLogging, this.oManager.ordLoggingOnClosing, this.oManager.ordLoggingOnError);
+                }
                 this.threadsStarted = true;
             }
             catch (Exception ex)
             {
+                this.BeginInvoke(() => { this.button_receiveFeed.Enabled = false; });
                 this.addLog("An error occured while initializing the platforms.", Enums.logType.ERROR);
                 this.addLog(ex.Message, Enums.logType.ERROR);
                 return false;
             }
 
-
+            this.BeginInvoke(()=>{ this.button_startTrading.Enabled = true;});
             return true;
         }
         private bool startTrading()
@@ -821,12 +1179,17 @@ namespace Crypto_GUI
         }
         private async void receiveFeed_clicked(object sender, EventArgs e)
         {
-            if (await this.tradePreparation(this.live))
+            this.button_receiveFeed.Enabled = false;
+            Thread th = new Thread(async () =>
             {
-
-                this.button_receiveFeed.Enabled = false;
-                this.button_startTrading.Enabled = true;
-            }
+                await this.tradePreparation(this.live);
+            });
+            th.Start();
+                
+            //if (await this.tradePreparation(this.live))
+            //{
+            //    this.button_startTrading.Enabled = true;
+            //}
         }
         private async void startTrading_clicked(object sender, EventArgs e)
         {
@@ -1209,9 +1572,16 @@ namespace Crypto_GUI
                 this.button_startTrading.Enabled = false;
 
                 await this.tradePreparation(this.live);
-                this.addLog("Waiting for 5 sec", Enums.logType.INFO);
-                Thread.Sleep(5000);
-                this.startTrading();
+                if(!monitoringMode)
+                {
+                    this.addLog("Waiting for 5 sec", Enums.logType.INFO);
+                    Thread.Sleep(5000);
+                    this.startTrading();
+                }
+                else
+                {
+
+                }
             }
         }
 

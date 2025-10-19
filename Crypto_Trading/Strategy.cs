@@ -66,6 +66,11 @@ namespace Crypto_Trading
 
         public DateTime? last_filled_time;
 
+        public decimal notionalVolume;
+        public decimal tradingPnL;
+        public decimal totalFee;
+        public decimal totalPnL;
+
         public Action<string, Enums.logType> _addLog;
         public Strategy() 
         {
@@ -109,6 +114,11 @@ namespace Crypto_Trading
 
             this.taker_last_updated_mid = 0;
             this.maker_last_updated_mid = 0;
+
+            this.notionalVolume = 0;
+            this.tradingPnL = 0;
+            this.totalFee = 0;
+            this.totalPnL = 0;
 
             this.oManager = OrderManager.GetInstance();
         }

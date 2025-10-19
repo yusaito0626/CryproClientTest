@@ -108,9 +108,9 @@ namespace Crypto_Clients
         public void setLogFile(string path)
         {
             this.logging = true;
-            FileStream fspub = new FileStream(path + "\\bitbankPublic_log" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + ".txt", FileMode.Append, FileAccess.Write, FileShare.Read);
+            FileStream fspub = new FileStream(path + "/bitbankPublic_log" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + ".txt", FileMode.Append, FileAccess.Write, FileShare.Read);
             this.logFilePublic = new StreamWriter(fspub);
-            FileStream fspri = new FileStream(path + "\\bitbankPrivate_log" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + ".txt", FileMode.Append, FileAccess.Write, FileShare.Read);
+            FileStream fspri = new FileStream(path + "/bitbankPrivate_log" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + ".txt", FileMode.Append, FileAccess.Write, FileShare.Read);
             this.logFilePrivate = new StreamWriter(fspri);
         }
 

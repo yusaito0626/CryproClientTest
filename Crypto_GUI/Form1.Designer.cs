@@ -193,12 +193,12 @@
             dataGridViewTextBoxColumn11 = new DataGridViewTextBoxColumn();
             col_latency = new DataGridViewTextBoxColumn();
             gridView_Connection = new DataGridView();
-            timer_statusCheck = new System.Windows.Forms.Timer(components);
-            timer_PeriodicMsg = new System.Windows.Forms.Timer(components);
             dataGridViewTextBoxColumn7 = new DataGridViewTextBoxColumn();
             dataGridViewTextBoxColumn8 = new DataGridViewTextBoxColumn();
             dataGridViewTextBoxColumn9 = new DataGridViewTextBoxColumn();
             col_roundTrip = new DataGridViewTextBoxColumn();
+            timer_statusCheck = new System.Windows.Forms.Timer(components);
+            timer_PeriodicMsg = new System.Windows.Forms.Timer(components);
             tabControl.SuspendLayout();
             tabPage1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)gridView_PnL).BeginInit();
@@ -1856,16 +1856,6 @@
             gridView_Connection.Size = new Size(535, 219);
             gridView_Connection.TabIndex = 6;
             // 
-            // timer_statusCheck
-            // 
-            timer_statusCheck.Interval = 1000;
-            timer_statusCheck.Tick += timer_statusCheck_Tick;
-            // 
-            // timer_PeriodicMsg
-            // 
-            timer_PeriodicMsg.Interval = 60000;
-            timer_PeriodicMsg.Tick += timer_PeriodicMsg_Tick;
-            // 
             // dataGridViewTextBoxColumn7
             // 
             dataGridViewTextBoxColumn7.HeaderText = "Exchange";
@@ -1893,6 +1883,16 @@
             col_roundTrip.MinimumWidth = 6;
             col_roundTrip.Name = "col_roundTrip";
             col_roundTrip.Width = 125;
+            // 
+            // timer_statusCheck
+            // 
+            timer_statusCheck.Interval = 1000;
+            timer_statusCheck.Tick += timer_statusCheck_Tick;
+            // 
+            // timer_PeriodicMsg
+            // 
+            timer_PeriodicMsg.Interval = 60000;
+            timer_PeriodicMsg.Tick += timer_PeriodicMsg_Tick;
             // 
             // Form1
             // 

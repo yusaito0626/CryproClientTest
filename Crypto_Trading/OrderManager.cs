@@ -1326,7 +1326,7 @@ namespace Crypto_Trading
         public void setOrdLogPath(string logPath)
         {
             this.outputPath = logPath;
-            string filename = this.outputPath + "\\orderlog_" + DateTime.UtcNow.ToString("yyyy-MM-dd_HHmmss") + ".csv";
+            string filename = this.outputPath + "/orderlog_" + DateTime.UtcNow.ToString("yyyy-MM-dd_HHmmss") + ".csv";
             this.f = new FileStream(filename, FileMode.Create, FileAccess.Write);
             this.sw = new StreamWriter(f);
         }
@@ -1338,7 +1338,7 @@ namespace Crypto_Trading
             {
                 this.outputPath = logPath;
             }
-            string filename = this.outputPath + "\\orderlog_" + DateTime.UtcNow.ToString("yyyy-MM-dd_HHmmss") + ".csv";
+            string filename = this.outputPath + "/orderlog_" + DateTime.UtcNow.ToString("yyyy-MM-dd_HHmmss") + ".csv";
             using (FileStream f = new FileStream(filename, FileMode.Create, FileAccess.Write))
             {
                 using (StreamWriter s = new StreamWriter(f))
