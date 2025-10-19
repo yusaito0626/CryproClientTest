@@ -1,12 +1,17 @@
 ﻿using Crypto_Trading;
 using Enums;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.WebSockets;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
+
+using Utils;
+using static System.Reflection.Metadata.BlobBuilder;
 
 namespace Crypto_Linux
 {
@@ -15,7 +20,16 @@ namespace Crypto_Linux
         private readonly HttpListener _listener = new();
         private readonly List<WebSocket> _clients = new();
 
+        public List<logEntry> logList = new List<logEntry>();
+        public int sendingLogs = 0;
+
         public Action<string, Enums.logType> _addLog;
+
+        Dictionary<string, string> sendingItem = new Dictionary<string, string>();
+        JsonSerializerOptions js_option = new JsonSerializerOptions
+        {
+            WriteIndented = true
+        };
 
         private websocketServer()
         {
@@ -61,6 +75,35 @@ namespace Crypto_Linux
         {
             var buffer = new byte[4096];
 
+            while(Interlocked.CompareExchange(ref this.sendingLogs,1,0) != 0)
+            {
+
+            }
+            int PageSize = 10;
+            int i = 0;
+            string json = "";
+            
+            string msg;
+            while (i < this.logList.Count)
+            {
+                List<logEntry> subList;
+                if (i + PageSize >= this.logList.Count)
+                {
+                    subList = this.logList.GetRange(i, this.logList.Count - i);
+                }
+                else
+                {
+                    subList = this.logList.GetRange(i, PageSize);
+                }
+                json = JsonSerializer.Serialize(subList);
+                sendingItem["data_type"] = "log";
+                sendingItem["data"] = json;
+                msg = JsonSerializer.Serialize(sendingItem, this.js_option);
+                this.BroadcastAsync(msg);
+                i += PageSize;
+            }
+            Volatile.Write(ref this.sendingLogs, 0);
+
             this.addLog("Client connected");
 
             while (socket.State == WebSocketState.Open && !token.IsCancellationRequested)
@@ -89,6 +132,22 @@ namespace Crypto_Linux
             }
         }
 
+        public async Task processLog(logEntry log)
+        {
+            while (Interlocked.CompareExchange(ref this.sendingLogs, 1, 0) != 0)
+            {
+
+            }
+            this.logList.Add(log);
+
+            string json = JsonSerializer.Serialize<List<logEntry>>([log]);
+            string msg;
+            sendingItem["data_type"] = "log";
+            sendingItem["data"] = json;
+            msg = JsonSerializer.Serialize(sendingItem, this.js_option);
+            this.BroadcastAsync(msg);
+            Volatile.Write(ref this.sendingLogs, 0);
+        }
         public async Task BroadcastAsync(string message)
         {
             var data = Encoding.UTF8.GetBytes(message);

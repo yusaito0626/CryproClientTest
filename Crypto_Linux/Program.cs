@@ -40,6 +40,8 @@ namespace Crypto_Linux
         {
             WriteIndented = true
         };
+        static int logSize = 10000;
+        static Stack<logEntry> logEntryStack;
 
         static Strategy selected_stg;
         static Dictionary<string, Strategy> strategies;
@@ -89,6 +91,13 @@ namespace Crypto_Linux
 
             logQueue = new ConcurrentQueue<string>();
             filledOrderQueue = new ConcurrentQueue<DataFill>();
+            logEntryStack = new Stack<logEntry>();
+            int i = 0;
+            while(i < logSize)
+            {
+                logEntryStack.Push(new logEntry());
+                ++i;
+            }
 
             strategies = new Dictionary<string, Strategy>();
 
@@ -162,7 +171,7 @@ namespace Crypto_Linux
 
                 isRunning = true;
 
-            int i = 0;
+            i = 0;
             while (isRunning)
             {
 
@@ -203,6 +212,7 @@ namespace Crypto_Linux
                     }
                     msg += DateTime.UtcNow.ToString() + " - All -    Notional Volume:" + volumeAll.ToString("N2") + " Trading PnL:" + tradingPLAll.ToString("N2") + " Fee:" + feeAll.ToString("N2") + " Total:" + totalAll.ToString("N2") + "\n";
                     addLog(msg);
+                    //Console.WriteLine(msg);
                     await timer_PeriodicMsg_Tick();
                     i = 0;
                 }
@@ -906,6 +916,11 @@ namespace Crypto_Linux
                     break;
 
             }
+            
+            logEntry log = logEntryStack.Pop();
+            log.logtype = logtype.ToString();
+            log.msg = body;
+            ws_server.processLog(log);
         }
         static private void onError()
         {

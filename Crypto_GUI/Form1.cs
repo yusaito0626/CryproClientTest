@@ -706,6 +706,38 @@ namespace Crypto_GUI
                                         }
                                     }
                                     break;
+                                case "log":
+                                    var logs = JsonSerializer.Deserialize<List<logEntry>>(content);
+                                    logType lType = logType.NONE;
+                                    foreach (var l in logs)
+                                    {
+                                        switch (l.logtype)
+                                        {
+                                            case "INFO":
+                                                lType = logType.INFO;
+                                                this.addLog("[Trade Engine]" + l.msg, lType);
+                                                break;
+                                            case "WARNING":
+                                                lType = logType.WARNING;
+                                                this.addLog("[Trade Engine]" + l.msg, lType);
+                                                break;
+                                            case "ERROR":
+                                                lType = logType.ERROR;
+                                                this.addLog("[Trade Engine]" + l.msg, lType);
+                                                break;
+                                            case "FATAL":
+                                                lType = logType.FATAL;
+                                                this.addLog("[Trade Engine]" + l.msg, lType);
+                                                break;
+                                            default:
+                                                lType = logType.NONE;
+                                                this.addLog("[Trade Engine]" + l.msg, lType);
+                                                break;
+                                        }
+                                    }
+                                    break;
+                                case "fill":
+                                    break;
                             }
 
                             break;

@@ -6,6 +6,11 @@ using System.Threading.Tasks;
 
 namespace Utils
 {
+    public struct logEntry
+    {
+        public string logtype {  get; set; }
+        public string msg { get; set; }
+    }
     public struct strategyInfo
     {
         public string name { get; set; }
