@@ -11,6 +11,6 @@ namespace Utils
     {
         public const string ver_major = "0";
         public const string ver_minor = "5";
-        public const string ver_patch = "2";
+        public const string ver_patch = "3";
     }
 }

@@ -564,6 +564,7 @@ namespace Crypto_GUI
                 bool connected = false;
                 int trial = 0;
                 this.info_receiver = new ClientWebSocket();
+                
                 var uri = new Uri(this.tradeEngine);
                 while(!connected)
                 {
