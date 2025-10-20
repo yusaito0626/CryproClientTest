@@ -42,10 +42,13 @@ namespace Crypto_Linux
 
         public async Task StartAsync(CancellationToken token)
         {
-            _listener.Prefixes.Add("http://*:8080/");
+            string host = Environment.GetEnvironmentVariable("WS_HOST") ?? "http://127.0.0.1:8080/";
+            this.addLog("Host: " + host);
+            host = host.Trim('\"');
+            _listener.Prefixes.Add(host);
             _listener.Start();
-            this.addLog("WebSocket server started on ws://0.0.0.0:8080");
-            
+            this.addLog("WebSocket server started on " + host);
+
             while (!token.IsCancellationRequested)
             {
                 var context = await _listener.GetContextAsync();
