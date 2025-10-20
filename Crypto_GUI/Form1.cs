@@ -33,6 +33,7 @@ namespace Crypto_GUI
         string logPath = AppContext.BaseDirectory + "/crypto.log";
         string outputPath = AppContext.BaseDirectory;
         string APIsPath = "";
+        List<string> APIList = new List<string>();
         string discordTokenFile = "";
         string masterFile = "";
         string virtualBalanceFile = "";
@@ -154,7 +155,8 @@ namespace Crypto_GUI
             this.crypto_client.setAddLog(this.addLog);
             this.thManager._addLog = this.addLog;
 
-            this.readAPIFiles(this.APIsPath);
+            //this.readAPIFiles(this.APIsPath);
+            this.getAPIsFromEnv(this.live);
 
             this.qManager.initializeInstruments(this.masterFile);
             this.qManager.setQueues(this.crypto_client);
@@ -302,6 +304,14 @@ namespace Crypto_GUI
                 this.addLog("API path is not configured.", Enums.logType.ERROR);
                 return false;
             }
+            if (root.TryGetProperty("APIEnvList", out elem))
+            {
+                foreach (var env_name in elem.EnumerateArray())
+                {
+                    this.APIList.Add(env_name.GetString());
+                }
+
+            }
             if (root.TryGetProperty("masterFile", out elem))
             {
                 this.masterFile = elem.GetString();
@@ -401,6 +411,88 @@ namespace Crypto_GUI
                     this.addLog("API File:" + file);
                     this.crypto_client.readCredentials(file);
                 }
+            }
+        }
+        private void getAPIsFromEnv(bool tradable)
+        {
+            Dictionary<string, string> APIs = new Dictionary<string, string>();
+            List<string> mkts = new List<string>();
+            string tradeState;
+
+            System.Collections.IDictionary dict = Environment.GetEnvironmentVariables();
+            if (tradable)
+            {
+                tradeState = "TRADABLE";
+            }
+            else
+            {
+                tradeState = "VIEWONLY";
+            }
+
+            if(this.APIList.Count() == 0)
+            {
+                foreach(var mkt in this.qManager._markets.Keys)
+                {
+                    this.APIList.Add(mkt.ToUpper() + "_" + tradeState);
+                }
+            }
+
+            foreach (string env_name in APIList)
+            {
+                string env_name_all = env_name + "_KEY";
+                string api_content = Environment.GetEnvironmentVariable(env_name_all);
+                if (string.IsNullOrEmpty(api_content))
+                {
+                    this.addLog("API not found. env_name:" + env_name_all, Enums.logType.ERROR);
+                }
+                else
+                {
+                    string[] names = env_name_all.Split('_');
+                    if (!mkts.Contains(names[0].ToLower()))
+                    {
+                        mkts.Add(names[0].ToLower());
+                    }
+                    APIs[env_name_all] = api_content.Trim('\"');
+                }
+                env_name_all = env_name + "_NAME";
+                api_content = Environment.GetEnvironmentVariable(env_name_all);
+                if (string.IsNullOrEmpty(api_content))
+                {
+                    this.addLog("API not found. env_name:" + env_name_all, Enums.logType.ERROR);
+                }
+                else
+                {
+                    string[] names = env_name_all.Split('_');
+                    if (!mkts.Contains(names[0].ToLower()))
+                    {
+                        mkts.Add(names[0].ToLower());
+                    }
+                    APIs[env_name_all] = api_content.Trim('\"');
+                }
+            }
+
+            foreach (string mkt in mkts)
+            {
+                string env_name = mkt.ToUpper() + "_" + tradeState;
+                string api_name = "";
+                string api_key = "";
+                if (APIs.ContainsKey(env_name + "_NAME"))
+                {
+                    api_name = APIs[env_name + "_NAME"];
+                }
+                else
+                {
+                    this.addLog("The API name for " + mkt + "is not found", Enums.logType.ERROR);
+                }
+                if (APIs.ContainsKey(env_name + "_KEY"))
+                {
+                    api_key = APIs[env_name + "_KEY"];
+                }
+                else
+                {
+                    this.addLog("The API secret key for " + mkt + "is not found", Enums.logType.ERROR);
+                }
+                crypto_client.setCredentials(mkt, api_name, api_key);
             }
         }
         private void addLog(string body, Enums.logType logtype = Enums.logType.INFO)

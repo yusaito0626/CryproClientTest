@@ -193,26 +193,25 @@ namespace Crypto_Clients
             msg.init();
             this.ordUpdateStack.Push(msg);
         }
-        public void readCredentials(string market, string jsonfilename)
+
+        public void setCredentials(string market,string name, string key)
         {
-            string fileContent = File.ReadAllText(jsonfilename);
-
-            using JsonDocument doc = JsonDocument.Parse(fileContent);
-            var root = doc.RootElement;
-
             switch (market)
             {
                 case string value when value == Exchange.Bybit:
-                    this.creds.Bybit = new CryptoExchange.Net.Authentication.ApiCredentials(root.GetProperty("name").ToString(), root.GetProperty("privateKey").ToString());
+                    this.creds.Bybit = new CryptoExchange.Net.Authentication.ApiCredentials(name, key);
                     break;
                 case string value when value == Exchange.Coinbase:
-                    this.creds.Coinbase = new CryptoExchange.Net.Authentication.ApiCredentials(root.GetProperty("name").ToString(), root.GetProperty("privateKey").ToString());
+                    this.creds.Coinbase = new CryptoExchange.Net.Authentication.ApiCredentials(name, key);
                     break;
                 case "bitbank":
-                    this.bitbank_client.SetApiCredentials(root.GetProperty("name").ToString(), root.GetProperty("privateKey").ToString());
+                    this.bitbank_client.SetApiCredentials(name, key);
                     break;
                 case "coincheck":
-                    this.coincheck_client.SetApiCredentials(root.GetProperty("name").ToString(), root.GetProperty("privateKey").ToString());
+                    this.coincheck_client.SetApiCredentials(name, key);
+                    break;
+                case "bittrade":
+                    this.bittrade_client.SetApiCredentials(name, key);
                     break;
             }
             this._rest_client.SetApiCredentials(this.creds);
@@ -226,27 +225,31 @@ namespace Crypto_Clients
             var root = doc.RootElement;
 
             string market = root.GetProperty("market").GetString();
+            string name = root.GetProperty("name").GetString();
+            string key = root.GetProperty("privateKey").GetString();
 
-            switch (market)
-            {
-                case string value when value == Exchange.Bybit:
-                    this.creds.Bybit = new CryptoExchange.Net.Authentication.ApiCredentials(root.GetProperty("name").ToString(), root.GetProperty("privateKey").ToString());
-                    break;
-                case string value when value == Exchange.Coinbase:
-                    this.creds.Coinbase = new CryptoExchange.Net.Authentication.ApiCredentials(root.GetProperty("name").ToString(), root.GetProperty("privateKey").ToString());
-                    break;
-                case "bitbank":
-                    this.bitbank_client.SetApiCredentials(root.GetProperty("name").ToString(), root.GetProperty("privateKey").ToString());
-                    break;
-                case "coincheck":
-                    this.coincheck_client.SetApiCredentials(root.GetProperty("name").ToString(), root.GetProperty("privateKey").ToString());
-                    break;
-                case "bittrade":
-                    this.bittrade_client.SetApiCredentials(root.GetProperty("name").ToString(), root.GetProperty("privateKey").ToString());
-                    break;
-            }
-            this._rest_client.SetApiCredentials(this.creds);
-            this._client.SetApiCredentials(this.creds);
+            this.setCredentials(market, name, key);
+
+            //switch (market)
+            //{
+            //    case string value when value == Exchange.Bybit:
+            //        this.creds.Bybit = new CryptoExchange.Net.Authentication.ApiCredentials(root.GetProperty("name").ToString(), root.GetProperty("privateKey").ToString());
+            //        break;
+            //    case string value when value == Exchange.Coinbase:
+            //        this.creds.Coinbase = new CryptoExchange.Net.Authentication.ApiCredentials(root.GetProperty("name").ToString(), root.GetProperty("privateKey").ToString());
+            //        break;
+            //    case "bitbank":
+            //        this.bitbank_client.SetApiCredentials(root.GetProperty("name").ToString(), root.GetProperty("privateKey").ToString());
+            //        break;
+            //    case "coincheck":
+            //        this.coincheck_client.SetApiCredentials(root.GetProperty("name").ToString(), root.GetProperty("privateKey").ToString());
+            //        break;
+            //    case "bittrade":
+            //        this.bittrade_client.SetApiCredentials(root.GetProperty("name").ToString(), root.GetProperty("privateKey").ToString());
+            //        break;
+            //}
+            //this._rest_client.SetApiCredentials(this.creds);
+            //this._client.SetApiCredentials(this.creds);
         }
 
         //REST API

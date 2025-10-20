@@ -1,6 +1,7 @@
 ﻿using Crypto_Clients;
 using Crypto_Trading;
 using CryptoClients.Net.Enums;
+using CryptoExchange.Net.SharedApis;
 using Discord;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -21,6 +22,7 @@ namespace Crypto_Linux
         static string logPath = Path.Combine(AppContext.BaseDirectory, "crypto.log");
         static string outputPath = AppContext.BaseDirectory;
         static string APIsPath = "";
+        static List<string> APIList = new List<string>();
         static string discordTokenFile = "";
         static string masterFile = "";
         static string virtualBalanceFile = "";
@@ -131,14 +133,14 @@ namespace Crypto_Linux
 
             ws_server.StartAsync(CancellationToken.None);
 
-            readAPIFiles(APIsPath);
-
             qManager.initializeInstruments(masterFile);
             qManager.setQueues(crypto_client);
 
             oManager.setOrdLogPath(outputPath);
             oManager.setInstruments(qManager.instruments);
             oManager.filledOrderQueue = filledOrderQueue;
+
+            getAPIsFromEnv(live);
 
             foreach (var ins in qManager.instruments.Values)
             {
@@ -246,7 +248,7 @@ namespace Crypto_Linux
                     Instrument ins = qManager.instruments[fill.symbol_market];
                     if (fill.timestamp != null)
                     {
-                        fInfo.timestamp = ((DateTime)fill.timestamp).ToString("yyyy-MM-dd HH:mm:ss.fff");
+                        fInfo.timestamp = ((DateTime)fill.timestamp).ToString("HH:mm:ss.fff");
                     }
                     else
                     {
@@ -349,6 +351,14 @@ namespace Crypto_Linux
                 addLog("API path is not configured.", Enums.logType.ERROR);
                 return false;
             }
+            if(root.TryGetProperty("APIEnvList",out elem))
+            {
+                foreach(var env_name in elem.EnumerateArray())
+                {
+                    APIList.Add(env_name.GetString());
+                }
+                
+            }
             if (root.TryGetProperty("masterFile", out elem))
             {
                 masterFile = elem.GetString();
@@ -426,6 +436,89 @@ namespace Crypto_Linux
                     Console.WriteLine(file);
                     crypto_client.readCredentials(file);
                 }
+            }
+        }
+
+        static private void getAPIsFromEnv(bool tradable)
+        {
+            Dictionary<string, string> APIs = new Dictionary<string, string>();
+            List<string> mkts = new List<string>();
+            string tradeState;
+
+            System.Collections.IDictionary dict = Environment.GetEnvironmentVariables();
+            if (tradable)
+            {
+                tradeState = "TRADABLE";
+            }
+            else
+            {
+                tradeState = "VIEWONLY";
+            }
+
+            if (APIList.Count() == 0)
+            {
+                foreach (var mkt in qManager._markets.Keys)
+                {
+                    APIList.Add(mkt.ToUpper() + "_" + tradeState);
+                }
+            }
+
+            foreach (string env_name in APIList)
+            {
+                string env_name_all = env_name + "_KEY";
+                string api_content = Environment.GetEnvironmentVariable(env_name_all);
+                if (string.IsNullOrEmpty(api_content))
+                {
+                    addLog("API not found. env_name:" + env_name_all, Enums.logType.ERROR);
+                }
+                else
+                {
+                    string[] names = env_name_all.Split('_');
+                    if (!mkts.Contains(names[0].ToLower()))
+                    {
+                        mkts.Add(names[0].ToLower());
+                    }
+                    APIs[env_name_all] = api_content.Trim('\"');
+                }
+                env_name_all = env_name + "_NAME";
+                api_content = Environment.GetEnvironmentVariable(env_name_all);
+                if (string.IsNullOrEmpty(api_content))
+                {
+                    addLog("API not found. env_name:" + env_name_all, Enums.logType.ERROR);
+                }
+                else
+                {
+                    string[] names = env_name_all.Split('_');
+                    if (!mkts.Contains(names[0].ToLower()))
+                    {
+                        mkts.Add(names[0].ToLower());
+                    }
+                    APIs[env_name_all] = api_content.Trim('\"');
+                }
+            }
+
+            foreach (string mkt in mkts)
+            {
+                string env_name = mkt.ToUpper() + "_" + tradeState;
+                string api_name = "";
+                string api_key = "";
+                if (APIs.ContainsKey(env_name + "_NAME"))
+                {
+                    api_name = APIs[env_name + "_NAME"];
+                }
+                else
+                {
+                    addLog("The API name for " + mkt + "is not found", Enums.logType.ERROR);
+                }
+                if (APIs.ContainsKey(env_name + "_KEY"))
+                {
+                    api_key = APIs[env_name + "_KEY"];
+                }
+                else
+                {
+                    addLog("The API secret key for " + mkt + "is not found", Enums.logType.ERROR);
+                }
+                crypto_client.setCredentials(mkt, api_name, api_key);
             }
         }
         static private void setStrategies(string strategyFile)
