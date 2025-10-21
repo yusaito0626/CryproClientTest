@@ -162,6 +162,41 @@ namespace Crypto_Linux
                 addLog("Message configuration not found", Enums.logType.WARNING);
             }
             await tradePreparation(live);
+
+            addLog("Latency check");
+
+            i = 0;
+            int trial = 3;
+            Stopwatch sw = new Stopwatch();
+            Dictionary<string,double> avgLatency = new Dictionary<string,double>();
+            double latency = 0;
+            while(i < trial)
+            {
+                foreach(var m in qManager._markets)
+                {
+                    Thread.Sleep(1000);
+                    sw.Start();
+                    await crypto_client.getBalance([m.Key]);
+                    sw.Stop();
+                    latency = sw.Elapsed.TotalNanoseconds / 1000000;
+                    addLog(m.Key + " trial " + i.ToString() + ": " + latency.ToString("N3") + " ms");
+                    if(avgLatency.ContainsKey(m.Key))
+                    {
+                        avgLatency[m.Key] += latency;
+                    }
+                    else
+                    {
+                        avgLatency[m.Key] = latency;
+                    }
+                }
+                ++i;
+            }
+
+            foreach(var l in avgLatency)
+            {
+                addLog("Average Latency of " + l.Key + ": " + (l.Value / trial).ToString("N3") + " ms");
+            }
+
             Thread.Sleep(5000);
             startTrading();
 
@@ -174,7 +209,7 @@ namespace Crypto_Linux
                 addLog("Simulation Mode");
             }
 
-                isRunning = true;
+            isRunning = true;
 
             i = 0;
             while (isRunning)
@@ -186,7 +221,7 @@ namespace Crypto_Linux
                 setStrategyInfo();
                 broadcastInfos();
                 ++i;
-                if(i > 60)
+                if(i > 30)
                 {
                     decimal volume = 0;
                     decimal tradingPL = 0;
@@ -702,6 +737,44 @@ namespace Crypto_Linux
             return true;
         }
 
+        static private async Task EoDProcess()
+        {
+            stopStrategies();
+            if (threadsStarted)
+            {
+                if (oManager.ready)
+                {
+                    await oManager.cancelAllOrders();
+                    Thread.Sleep(1000);
+
+                    //Just in case
+                    foreach(var m in qManager._markets)
+                    {
+                        qManager.setBalance(await crypto_client.getBalance([m.Key]));
+                    }
+
+                    foreach(var stg in strategies.Values)
+                    {
+                        decimal baseBalance_diff = stg.baseCcyQuantity - (stg.maker.baseBalance.total + stg.taker.baseBalance.total);
+                        orderSide side = orderSide.Buy;
+                        if(baseBalance_diff < 0)
+                        {
+                            baseBalance_diff *= -1;
+                            side = orderSide.Sell;
+                        }
+                        addLog("EoD balance of " + stg.name + " BaseCcy:" + (stg.maker.baseBalance.total + stg.taker.baseBalance.total).ToString() + " QuoteCcy:" + (stg.maker.quoteBalance.total + stg.taker.quoteBalance.total).ToString());
+                        addLog("Adjustment at EoD: " + side.ToString() + " " + baseBalance_diff.ToString());
+                        await oManager.placeNewSpotOrder(stg.taker, side, orderType.Market, baseBalance_diff, 0);
+                    }
+                    Thread.Sleep(1000);
+                    foreach (var th in thManager.threads)
+                    {
+                        th.Value.isRunning = false;
+                    }
+                }
+            }
+        }
+
         static async Task statusCheck()
         {
             //Declare variables that store the latency and status.
@@ -1033,7 +1106,7 @@ namespace Crypto_Linux
             if (DateTime.UtcNow > endTime)
             {
                 addLog("Closing application at EoD.");
-                await stopTrading(false);
+                await EoDProcess();
                 isRunning = false;
             }
         }
