@@ -551,15 +551,15 @@ namespace Crypto_GUI
                     this.addLog("Message configuration not found", Enums.logType.WARNING);
                 }
             }
-                while (!this.aborting)
+            while (!this.aborting)
+            {
+                if (!this.updating)
                 {
-                    if (!this.updating)
-                    {
-                        this.updating = true;
-                        this.BeginInvoke(this._update);
-                        Thread.Sleep(1);
-                    }
+                    this.updating = true;
+                    this.BeginInvoke(this._update);
+                    Thread.Sleep(1);
                 }
+            }
         }
         private async Task connectTradeEngine()
         {

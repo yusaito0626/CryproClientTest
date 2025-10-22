@@ -659,6 +659,11 @@ namespace Crypto_Linux
                     {
                         return false;
                     }
+                    foreach(var stg in strategies)
+                    {
+                        stg.Value.taker.baseBalance.total = stg.Value.baseCcyQuantity / 2;
+                        stg.Value.maker.baseBalance.total = stg.Value.baseCcyQuantity / 2;
+                    }
                 }
                 else
                 {
@@ -865,7 +870,14 @@ namespace Crypto_Linux
                 }
                 threadStatus th_status = threadStates[th.Key];
                 th_status.isRunning = th.Value.isRunning;
-                th_status.avgProcessingTime = th.Value.totalElapsedTime / th.Value.count / 1000;
+                if(th.Value.count > 0)
+                {
+                    th_status.avgProcessingTime = th.Value.totalElapsedTime / th.Value.count / 1000;
+                }
+                else
+                {
+                    th_status.avgProcessingTime = 0;
+                }
                 threadStates[th.Key] = th_status;
             }
 
@@ -1062,31 +1074,37 @@ namespace Crypto_Linux
         {
             string msg;
             string json;
+            try
+            {
+                json = JsonSerializer.Serialize(instrumentInfos, js_option);
+                sendingItem["data_type"] = "instrument";
+                sendingItem["data"] = json;
+                msg = JsonSerializer.Serialize(sendingItem, js_option);
+                await ws_server.BroadcastAsync(msg);
 
-            json = JsonSerializer.Serialize(instrumentInfos, js_option);
-            sendingItem["data_type"] = "instrument";
-            sendingItem["data"] = json;
-            msg = JsonSerializer.Serialize(sendingItem, js_option);
-            ws_server.BroadcastAsync(msg);
+                json = JsonSerializer.Serialize(strategyInfos, js_option);
+                sendingItem["data_type"] = "strategy";
+                sendingItem["data"] = json;
+                msg = JsonSerializer.Serialize(sendingItem, js_option);
+                await ws_server.BroadcastAsync(msg);
 
-            json = JsonSerializer.Serialize(strategyInfos,js_option);
-            sendingItem["data_type"] = "strategy";
-            sendingItem["data"] = json;
-            msg = JsonSerializer.Serialize(sendingItem,js_option);
-            ws_server.BroadcastAsync(msg);
+                json = JsonSerializer.Serialize(threadStates, js_option);
+                sendingItem["data_type"] = "thread";
+                sendingItem["data"] = json;
+                msg = JsonSerializer.Serialize(sendingItem, js_option);
+                await ws_server.BroadcastAsync(msg);
 
-            json = JsonSerializer.Serialize(threadStates, js_option);
-            sendingItem["data_type"] = "thread";
-            sendingItem["data"] = json;
-            msg = JsonSerializer.Serialize(sendingItem, js_option);
-            ws_server.BroadcastAsync(msg);
+                json = JsonSerializer.Serialize(connectionStates, js_option);
+                sendingItem["data_type"] = "connection";
+                sendingItem["data"] = json;
+                msg = JsonSerializer.Serialize(sendingItem, js_option);
+                await ws_server.BroadcastAsync(msg);
 
-            json = JsonSerializer.Serialize(connectionStates, js_option);
-            sendingItem["data_type"] = "connection";
-            sendingItem["data"] = json;
-            msg = JsonSerializer.Serialize(sendingItem, js_option);
-            ws_server.BroadcastAsync(msg);
-
+            }
+            catch (Exception ex)
+            {
+                addLog(ex.Message);
+            }
         }
 
         static async Task timer_PeriodicMsg_Tick()
