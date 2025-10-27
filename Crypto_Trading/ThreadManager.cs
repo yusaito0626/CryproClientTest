@@ -2,7 +2,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Linq;
+using System.Threading;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -132,6 +134,11 @@ namespace Crypto_Trading
 
     public class thread
     {
+        [DllImport("libc", SetLastError = true)]
+        private static extern int prctl(int option, string name, ulong arg2, ulong arg3, ulong arg4);
+
+        private const int PR_SET_NAME = 15;
+
         public Thread threadObj;
         public bool isRunning;
         public string name;
@@ -156,11 +163,13 @@ namespace Crypto_Trading
             this.onError = onError;
             this.totalElapsedTime = 0;
             this.count = 0;
+            
         }
         public void start()
         {
             this.threadObj = new Thread(() =>
             {
+                prctl(PR_SET_NAME, this.name, 0, 0, 0);
                 this.loop();
             });
             this.isRunning = true;
