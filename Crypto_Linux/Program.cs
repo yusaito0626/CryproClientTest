@@ -17,8 +17,8 @@ namespace Crypto_Linux
 {
     internal class Program
     {
-        //static string defaultConfigPath = Path.Combine(AppContext.BaseDirectory, "config.json");
-        static string defaultConfigPath = "C:\\Users\\yusai\\Crypto_Project\\configs\\config_linuxtest.json";
+        static string defaultConfigPath = Path.Combine(AppContext.BaseDirectory, "config.json");
+        //static string defaultConfigPath = "C:\\Users\\yusai\\Crypto_Project\\configs\\config_linuxtest.json";
         static string logPath = Path.Combine(AppContext.BaseDirectory, "crypto.log");
         static string outputPath = AppContext.BaseDirectory;
         static string APIsPath = "";
@@ -263,12 +263,39 @@ namespace Crypto_Linux
                 ++i;
                 if(i > 30)
                 {
-                    string msg = "";
-                    foreach (var th in threadStates)
+                    //string msg = "";
+                    //foreach (var th in threadStates)
+                    //{
+                    //    msg += DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat) + " Thread Name:" + th.Key + "   Average Processing Time:" + th.Value.avgProcessingTime.ToString() + " ms\n";
+                    //}
+                    decimal volume = 0;
+                    decimal tradingPL = 0;
+                    decimal fee = 0;
+                    decimal total = 0;
+
+                    decimal volumeAll = 0;
+                    decimal tradingPLAll = 0;
+                    decimal feeAll = 0;
+                    decimal totalAll = 0;
+                    string msg = "EoD PnL";
+                    foreach (var stg in strategies.Values)
                     {
-                        msg += DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat) + " Thread Name:" + th.Key + "   Average Processing Time:" + th.Value.avgProcessingTime.ToString() + " ms\n";
+                        if (stg.maker != null && stg.taker != null)
+                        {
+                            volume = stg.maker.my_buy_notional + stg.maker.my_sell_notional;
+                            tradingPL = (stg.taker.my_sell_notional - stg.taker.my_sell_quantity * stg.taker.mid) + (stg.taker.my_buy_quantity * stg.taker.mid - stg.taker.my_buy_notional);
+                            tradingPL += (stg.maker.my_sell_notional - stg.maker.my_sell_quantity * stg.taker.mid) + (stg.maker.my_buy_quantity * stg.taker.mid - stg.maker.my_buy_notional);
+                            fee = stg.taker.base_fee * stg.taker.mid + stg.taker.quote_fee + stg.maker.base_fee * stg.taker.mid + stg.maker.quote_fee;
+                            total = tradingPL - fee;
+
+                            msg += DateTime.UtcNow.ToString() + " - Strategy " + stg.name + " -    Notional Volume:" + volume.ToString("N2") + " Trading PnL:" + tradingPL.ToString("N2") + " Fee:" + fee.ToString("N2") + " Total:" + total.ToString("N2") + "\n";
+                            volumeAll += volume;
+                            tradingPLAll += tradingPL;
+                            feeAll += fee;
+                            totalAll += total;
+                        }
                     }
-                    
+                    msg += DateTime.UtcNow.ToString() + " - All -    Notional Volume:" + volumeAll.ToString("N2") + " Trading PnL:" + tradingPLAll.ToString("N2") + " Fee:" + feeAll.ToString("N2") + " Total:" + totalAll.ToString("N2") + "\n";
                     Console.WriteLine(msg);
                     await timer_PeriodicMsg_Tick();
                     i = 0;

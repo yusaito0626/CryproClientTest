@@ -479,8 +479,8 @@ namespace Crypto_Trading
                     {
                         if(this.maker.symbol_market == ord.Value.symbol_market)
                         {
-                            this.addLog("Found an old order that is not cancelled",Enums.logType.WARNING);
-                            this.addLog(ord.Value.ToString(), Enums.logType.WARNING);
+                            //this.addLog("Found an old order that is not cancelled",Enums.logType.WARNING);
+                            //this.addLog(ord.Value.ToString(), Enums.logType.WARNING);
                             cancelling_ids.Add(ord.Key);
                             //await this.oManager.placeCancelSpotOrder(this.maker, ord.Key);
                         }
