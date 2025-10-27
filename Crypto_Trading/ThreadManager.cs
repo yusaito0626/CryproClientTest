@@ -7,6 +7,8 @@ using System.Linq;
 using System.Threading;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Serialization;
+using System.Runtime.Versioning;
 
 namespace Crypto_Trading
 {
@@ -134,10 +136,13 @@ namespace Crypto_Trading
 
     public class thread
     {
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        static extern int SetThreadDescription(IntPtr hThread, string lpThreadDescription);
+        [DllImport("kernel32.dll")]
+        static extern IntPtr GetCurrentThread();
         [DllImport("libc", SetLastError = true)]
-        private static extern int prctl(int option, string name, ulong arg2, ulong arg3, ulong arg4);
-
-        private const int PR_SET_NAME = 15;
+        static extern int prctl(int option, string name, ulong arg2, ulong arg3, ulong arg4);
+        const int PR_SET_NAME = 15;
 
         public Thread threadObj;
         public bool isRunning;
@@ -147,6 +152,9 @@ namespace Crypto_Trading
         public int count;
 
         public Func<Task<(bool,double)>> action;
+
+        public Func<Task<bool>> loopFunc;
+
         public Action onClosing;
         public Action onError;
 
@@ -163,17 +171,72 @@ namespace Crypto_Trading
             this.onError = onError;
             this.totalElapsedTime = 0;
             this.count = 0;
-            
+            this.loopFunc = null;
+        }
+        public thread(string name, Func<Task<bool>> _loop, Action onClosing = null,Action onError = null)
+        {
+            this.name = name;
+            this.loopFunc = _loop;
+            this.isRunning = false;
+            onClosing ??= () => { };
+            onError ??= () => { };
+            this.onClosing = onClosing;
+            this.onError = onError;
+            this.action = null;
+        }
+        private void SetOsThreadName(string name)
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                SetThreadDescription(GetCurrentThread(), name);
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                prctl(PR_SET_NAME, name, 0, 0, 0);
+            }
+            else
+            {
+                
+            }
         }
         public void start()
         {
-            this.threadObj = new Thread(() =>
+            if(this.action != null)
             {
-                prctl(PR_SET_NAME, this.name, 0, 0, 0);
-                this.loop();
-            });
-            this.isRunning = true;
-            this.threadObj.Start();
+                this.threadObj = new Thread(() =>
+                {
+                    this.SetOsThreadName(this.name);
+                    this.loop();
+                });
+                this.isRunning = true;
+                this.threadObj.Start();
+            }
+            else if(this.loopFunc != null)
+            {
+                this.threadObj = new Thread(async () =>
+                {
+                    this.SetOsThreadName(this.name);
+                    bool ret = false;
+                    ret = await this.loopFunc();
+                    if(ret)
+                    {
+                        this.addLog("The thread is Successfully stopping... name:" + this.name,logType.INFO);
+                        onClosing();
+                    }
+                    else
+                    {
+                        this.addLog("The thread is stopping with an error", logType.WARNING);
+                        onError();
+                    }
+                });
+                this.isRunning = true;
+                this.threadObj.Start();
+            }
+            else
+            {
+                this.addLog("Function is not set. thread name:" + this.name, logType.ERROR);
+            }
+
         }
 
         private async void loop()
@@ -208,8 +271,9 @@ namespace Crypto_Trading
             {
                 sw.Stop();
                 sw.Reset();
-                this.addLog("An error thrown within the thread:" + this.name,logType.ERROR);
-                this.addLog(e.Message, logType.ERROR);
+                this.addLog("An error thrown within the thread:" + this.name,logType.WARNING);
+                this.addLog(e.Message, logType.WARNING);
+                this.onError();
                 if(e.StackTrace != null)
                 {
                     this.addLog(e.StackTrace, logType.ERROR);

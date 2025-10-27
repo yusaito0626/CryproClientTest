@@ -913,100 +913,101 @@ namespace Crypto_Linux
                 threadStates[th.Key] = th_status;
             }
 
-            foreach (var stoppedTh in stoppedThreads)
+
+            if(stoppedThreads.Count > 0)
             {
-                if (stoppedTh.Contains("Public"))
-                {
-                    bool currentTradingState = enabled;
-                    stopStrategies();
-                    await oManager.cancelAllOrders();
-                    string market = stoppedTh.Replace("Public", "");
-                    addLog("Public Connection to " + market + " lost reconnecting in 5 sec", Enums.logType.WARNING);
-                    thManager.disposeThread(stoppedTh);
-                    Thread.Sleep(5000);
-                    await qManager.connectPublicChannel(market);
-                    Thread.Sleep(5000);
-                    foreach (var ins in qManager.instruments.Values)
-                    {
-                        string[] markets = [ins.market];
-                        if (market == ins.market)
-                        {
-                            if (ins.market == Exchange.Bybit)
-                            {
-                                await crypto_client.subscribeBybitOrderBook(ins.baseCcy, ins.quoteCcy);
-                            }
-                            else if (ins.market == Exchange.Coinbase)
-                            {
-                                await crypto_client.subscribeCoinbaseOrderBook(ins.baseCcy, ins.quoteCcy);
-                            }
-                            else
-                            {
-                                await crypto_client.subscribeOrderBook(markets, ins.baseCcy, ins.quoteCcy);
-                            }
-                            await crypto_client.subscribeTrades(markets, ins.baseCcy, ins.quoteCcy);
-                        }
-                    }
-                    if (oManager.getVirtualMode())
-                    {
-                        if (!qManager.setVirtualBalance(virtualBalanceFile))
-                        {
+                bool currentTradingState = enabled;
 
+                foreach (var stoppedTh in stoppedThreads)
+                {
+                    if (stoppedTh.Contains("Public"))
+                    {
+                        stopStrategies();
+                        await oManager.cancelAllOrders();
+                        string market = stoppedTh.Replace("Public", "");
+                        addLog("Public Connection to " + market + " lost reconnecting in 5 sec", Enums.logType.WARNING);
+                        thManager.disposeThread(stoppedTh);
+                        Thread.Sleep(5000);
+                        await qManager.connectPublicChannel(market);
+                        Thread.Sleep(5000);
+                        foreach (var ins in qManager.instruments.Values)
+                        {
+                            string[] markets = [ins.market];
+                            if (market == ins.market)
+                            {
+                                if (ins.market == Exchange.Bybit)
+                                {
+                                    await crypto_client.subscribeBybitOrderBook(ins.baseCcy, ins.quoteCcy);
+                                }
+                                else if (ins.market == Exchange.Coinbase)
+                                {
+                                    await crypto_client.subscribeCoinbaseOrderBook(ins.baseCcy, ins.quoteCcy);
+                                }
+                                else
+                                {
+                                    await crypto_client.subscribeOrderBook(markets, ins.baseCcy, ins.quoteCcy);
+                                }
+                                await crypto_client.subscribeTrades(markets, ins.baseCcy, ins.quoteCcy);
+                            }
                         }
+                        if (oManager.getVirtualMode())
+                        {
+                            if (!qManager.setVirtualBalance(virtualBalanceFile))
+                            {
+
+                            }
+                        }
+                        else
+                        {
+                            if (!qManager.setBalance(await crypto_client.getBalance(qManager._markets.Keys)))
+                            {
+
+                            }
+                        }
+                        addLog("Reconnection completed.");
+                    }
+                    else if (stoppedTh.Contains("Private"))
+                    {
+                        stopStrategies();
+                        await oManager.cancelAllOrders();
+                        string market = stoppedTh.Replace("Private", "");
+                        addLog("Private Connection to " + market + " lost reconnecting in 5 sec", Enums.logType.WARNING);
+                        thManager.disposeThread(stoppedTh);
+                        Thread.Sleep(5000);
+                        await oManager.connectPrivateChannel(market);
+                        Thread.Sleep(5000);
+                        string[] markets = [market];
+                        if (live || privateConnect)
+                        {
+                            await crypto_client.subscribeSpotOrderUpdates(markets);
+                        }
+                        if (oManager.getVirtualMode())
+                        {
+                            if (!qManager.setVirtualBalance(virtualBalanceFile))
+                            {
+
+                            }
+                        }
+                        else
+                        {
+                            if (!qManager.setBalance(await crypto_client.getBalance(qManager._markets.Keys)))
+                            {
+
+                            }
+                        }
+                        addLog("Reconnection completed.");
                     }
                     else
                     {
-                        if (!qManager.setBalance(await crypto_client.getBalance(qManager._markets.Keys)))
-                        {
-
-                        }
-                    }
-                    addLog("Reconnection completed.");
-                    if (currentTradingState)
-                    {
-                        startTrading();
+                        addLog("Updating thread stopped. Stopping all the process", Enums.logType.ERROR);
                     }
                 }
-                else if (stoppedTh.Contains("Private"))
+                if (currentTradingState)
                 {
-                    bool currentTradingState = enabled;
-                    stopStrategies();
-                    await oManager.cancelAllOrders();
-                    string market = stoppedTh.Replace("Private", "");
-                    addLog("Private Connection to " + market + " lost reconnecting in 5 sec", Enums.logType.WARNING);
-                    thManager.disposeThread(stoppedTh);
-                    Thread.Sleep(5000);
-                    await oManager.connectPrivateChannel(market);
-                    Thread.Sleep(5000);
-                    string[] markets = [market];
-                    if (live || privateConnect)
-                    {
-                        await crypto_client.subscribeSpotOrderUpdates(markets);
-                    }
-                    if (oManager.getVirtualMode())
-                    {
-                        if (!qManager.setVirtualBalance(virtualBalanceFile))
-                        {
-
-                        }
-                    }
-                    else
-                    {
-                        if (!qManager.setBalance(await crypto_client.getBalance(qManager._markets.Keys)))
-                        {
-
-                        }
-                    }
-                    addLog("Reconnection completed.");
-                    if (currentTradingState)
-                    {
-                        startTrading();
-                    }
-                }
-                else
-                {
-                    addLog("Updating thread stopped. Stopping all the process", Enums.logType.ERROR);
+                    startTrading();
                 }
             }
+            
             if (qManager.ordBookQueue.Count() > 1000)
             {
                 addLog("The order book queue count exceeds 1000.", Enums.logType.WARNING);
