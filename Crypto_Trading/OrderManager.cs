@@ -945,7 +945,7 @@ namespace Crypto_Trading
                 this.sw_updateOrders.Start();
 
                 this.ordLogQueue.Enqueue(ord.ToString());
-                
+
                 if (this.Instruments.ContainsKey(ord.symbol_market))
                 {
                     ins = this.Instruments[ord.symbol_market];
@@ -994,7 +994,22 @@ namespace Crypto_Trading
                     if (this.orders.ContainsKey(ord.client_order_id))
                     {
                         prevord = this.orders[ord.client_order_id];
-                        if(ord.status < prevord.status || ord.filled_quantity < prevord.filled_quantity)
+                        if(ord.status == orderStatus.Filled)
+                        {
+                            foreach (var stg in this.strategies)
+                            {
+                                if (stg.Value.enabled)
+                                {
+                                    if(ord.symbol_market == stg.Value.maker.symbol_market)
+                                    {
+                                        stg.Value.onOrdUpdate(ord,prevord);
+                                    }
+                                }
+
+                            }
+                        }
+                        
+                        if (ord.status < prevord.status || ord.filled_quantity < prevord.filled_quantity)
                         {
                             ord.init();
                             this.ord_client.ordUpdateStack.Push(ord);
@@ -1134,6 +1149,20 @@ namespace Crypto_Trading
                         }
                         else
                         {
+                            if (ord.status == orderStatus.Filled)
+                            {
+                                foreach (var stg in this.strategies)
+                                {
+                                    if (stg.Value.enabled)
+                                    {
+                                        if (ord.symbol_market == stg.Value.maker.symbol_market)
+                                        {
+                                            stg.Value.onOrdUpdate(ord, ord);
+                                        }
+                                    }
+
+                                }
+                            }
                             if (ins != null)
                             {
                                 decimal filled_quantity = ord.order_quantity;
@@ -1388,10 +1417,15 @@ namespace Crypto_Trading
             if (this.ordLogQueue.TryDequeue(out line))
             {
                 this.sw.WriteLine(line);
-                this.sw.Flush();
+                //this.sw.Flush();
                 this.ord_logged = true;
             }
-            return (true,0);
+            else
+            {
+                this.sw.Flush();
+                Thread.Sleep(1000);
+            }
+            return (true, 0);
         }
         public void ordLoggingOnClosing()
         {

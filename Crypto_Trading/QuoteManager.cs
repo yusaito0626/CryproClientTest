@@ -342,13 +342,21 @@ namespace Crypto_Trading
                     ins.updateQuotes(msg);
                     foreach(var stg in this.strategies)
                     {
-                        if(symbol_market == stg.Value.taker.symbol_market && stg.Value.enabled)
+                        if(stg.Value.enabled)
                         {
-                            if(Interlocked.CompareExchange(ref stg.Value.updating,1,0) == 0)
+                            if (symbol_market == stg.Value.taker.symbol_market)
                             {
-                                this.optQueue.Enqueue(stg.Value);
+                                if (Interlocked.CompareExchange(ref stg.Value.updating, 1, 0) == 0)
+                                {
+                                    this.optQueue.Enqueue(stg.Value);
+                                }
+                            }
+                            else if (symbol_market == stg.Value.maker.symbol_market)
+                            {
+                                stg.Value.onMakerQuotes(msg);
                             }
                         }
+                        
                     }
                     this.oManager.checkVirtualOrders(ins);
                 }
@@ -446,6 +454,17 @@ namespace Crypto_Trading
             {
                 this.sw_updateTrades.Start();
                 symbol_market = msg.symbol + "@" + msg.market;
+                foreach (var stg in this.strategies)
+                {
+                    if (stg.Value.enabled)
+                    {
+                        if (symbol_market == stg.Value.maker.symbol_market)
+                        {
+                            stg.Value.onTrades(msg);
+                        }
+                    }
+
+                }
                 if (this.instruments.ContainsKey(symbol_market))
                 {
                     ins = instruments[symbol_market];
