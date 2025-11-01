@@ -367,6 +367,7 @@ namespace Crypto_GUI
             }
             this.outputPath = newpath;
             this.logPath = this.outputPath + "/crypto.log";
+            this.txtBox_URL.Text = this.tradeEngine;
 
             return true;
 
@@ -1247,6 +1248,10 @@ namespace Crypto_GUI
                 }
                 else
                 {
+                    if(this.txtBox_URL.Text != "")
+                    {
+                        this.tradeEngine = this.txtBox_URL.Text;
+                    }
                     await connectTradeEngine();
                     this.oManager.setVirtualMode(true);
                     while(this.masterInfoReceived == false || this.strategySettingReceived == false)
@@ -1397,8 +1402,6 @@ namespace Crypto_GUI
         }
         private async void test_Click(object sender, EventArgs e)
         {
-
-
             await tradeTest(this.qManager.instruments["eth_jpy@coincheck"],true);
         }
         private async Task onErrorCheck()
@@ -1418,12 +1421,21 @@ namespace Crypto_GUI
             this.addLog("Placing a new order");
             string ordid;
             sw.Start();
-            ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.01, 600000);
+            ordid = this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.01, 600000);
             sw.Stop();
-            if (ord != null)
+            if (ordid != "")
             {
-                ordid = ord.order_id;
-                this.addLog(ord.ToString());
+                Thread.Sleep(1000);
+                if(this.oManager.orders.ContainsKey(ordid))
+                {
+                    ord = this.oManager.orders[ordid];
+                    ordid = ord.order_id;
+                    this.addLog(ord.ToString());
+                }
+                else
+                {
+                    this.addLog("Order not found id:" + ordid);
+                }
             }
             else
             {
@@ -1438,12 +1450,21 @@ namespace Crypto_GUI
             Thread.Sleep(3000);
             this.addLog("modifing a order");
             sw.Start();
-            ord = await this.oManager.placeModSpotOrder(ins, ordid, (decimal)0.01, 570000, false);
+            ordid = this.oManager.placeModSpotOrder(ins, ordid, (decimal)0.01, 570000, false);
             sw.Stop();
-            if (ord != null)
+            if (ordid != "")
             {
-                ordid = ord.order_id;
-                this.addLog(ord.ToString());
+                Thread.Sleep(1000);
+                if (this.oManager.orders.ContainsKey(ordid))
+                {
+                    ord = this.oManager.orders[ordid];
+                    ordid = ord.order_id;
+                    this.addLog(ord.ToString());
+                }
+                else
+                {
+                    this.addLog("Order not found id:" + ordid);
+                }
             }
             else
             {
@@ -1461,12 +1482,21 @@ namespace Crypto_GUI
                 //ord = this.oManager.live_orders.Values.First();
                 //this.addLog(ord.ToString());
                 sw.Start();
-                ord = await this.oManager.placeCancelSpotOrder(ins, ordid);
+                ordid = this.oManager.placeCancelSpotOrder(ins, ordid);
                 sw.Stop();
-                if (ord != null)
+                if (ordid != "")
                 {
-                    ordid = ord.client_order_id;
-                    this.addLog(ord.ToString());
+                    Thread.Sleep(1000);
+                    if (this.oManager.orders.ContainsKey(ordid))
+                    {
+                        ord = this.oManager.orders[ordid];
+                        ordid = ord.order_id;
+                        this.addLog(ord.ToString());
+                    }
+                    else
+                    {
+                        this.addLog("Order not found id:" + ordid);
+                    }
                 }
                 else
                 {
@@ -1485,10 +1515,27 @@ namespace Crypto_GUI
                 this.addLog("Fill Check");
                 sw.Start();
                 this.addLog("Using limit order");
-                await this.crypto_client.coincheck_client.placeNewOrder(ins.symbol, "buy", (decimal)700000, (decimal)0.01);
-                //ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.01, 700000);
+                ordid = this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.01, 700000);
                 sw.Stop();
-                this.addLog(ord.ToString());
+                if (ordid != "")
+                {
+                    Thread.Sleep(1000);
+                    if (this.oManager.orders.ContainsKey(ordid))
+                    {
+                        ord = this.oManager.orders[ordid];
+                        ordid = ord.order_id;
+                        this.addLog(ord.ToString());
+                    }
+                    else
+                    {
+                        this.addLog("Order not found id:" + ordid);
+                    }
+                }
+                else
+                {
+                    this.addLog("Failed to place a new order");
+                    return;
+                }
                 latency = sw.Elapsed.TotalMilliseconds;
                 this.addLog("Round trip latency:" + latency.ToString("N3"));
                 sw.Reset();
@@ -1497,18 +1544,29 @@ namespace Crypto_GUI
 
                 this.addLog("Market Order");
                 sw.Start();
-                ord = await this.oManager.placeNewSpotOrder(ins, orderSide.Sell, orderType.Market, (decimal)0.01, 700000);
-                latency = sw.Elapsed.TotalMilliseconds;
-                this.addLog("Round trip latency:" + latency.ToString("N3"));
-                sw.Reset();
-                if (ord != null)
+                ordid = this.oManager.placeNewSpotOrder(ins, orderSide.Sell, orderType.Market, (decimal)0.01, 700000);
+                if (ordid != "")
                 {
-                    this.addLog(ord.ToString());
+                    Thread.Sleep(1000);
+                    if (this.oManager.orders.ContainsKey(ordid))
+                    {
+                        ord = this.oManager.orders[ordid];
+                        ordid = ord.order_id;
+                        this.addLog(ord.ToString());
+                    }
+                    else
+                    {
+                        this.addLog("Order not found id:" + ordid);
+                    }
                 }
                 else
                 {
-                    this.addLog("Market order failed.");
+                    this.addLog("Failed to place a new order");
+                    return;
                 }
+                latency = sw.Elapsed.TotalMilliseconds;
+                this.addLog("Round trip latency:" + latency.ToString("N3"));
+                sw.Reset();
                 Thread.Sleep(1000);
                 this.addLog("Live Order Count " + this.oManager.live_orders.Count.ToString());
             }

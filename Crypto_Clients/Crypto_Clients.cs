@@ -1329,7 +1329,7 @@ namespace Crypto_Clients
         public decimal fee_unknown;
         public string maker_taker;
         public string order_id;
-        public string client_order_id;
+        public string internal_order_id;
         public string symbol;
         public decimal price;
         public orderSide side;
@@ -1352,7 +1352,7 @@ namespace Crypto_Clients
             this.fee_unknown = 0;
             this.maker_taker = "";
             this.order_id = "";
-            this.client_order_id = "";
+            this.internal_order_id = "";
             this.symbol = "";
             this.price = 0;
             this.side = orderSide.NONE;
@@ -1372,7 +1372,7 @@ namespace Crypto_Clients
             this.symbol = js.GetProperty("pair").GetString();
             this.market = "coincheck";
             this.symbol_market = this.symbol + "@" + this.market;
-            this.client_order_id = this.market + this.order_id;
+            this.internal_order_id = this.market + this.order_id;
             string maker_taker = js.GetProperty("liquidity").GetString();
             if (maker_taker == "M")
             {
@@ -1432,7 +1432,7 @@ namespace Crypto_Clients
             this.symbol = js.GetProperty("pair").GetString();
             this.market = "bitbank";
             this.symbol_market = this.symbol + "@" + this.market;
-            this.client_order_id = this.market + this.order_id;
+            this.internal_order_id = this.market + this.order_id;
             this.price = decimal.Parse(js.GetProperty("price").GetString());
             string side = js.GetProperty("side").GetString();
             if(side == "buy")
@@ -1469,7 +1469,7 @@ namespace Crypto_Clients
             this.symbol = js.GetProperty("symbol").GetString();
             this.market = "bittrade";
             this.symbol_market = this.symbol + "@" + this.market;
-            this.client_order_id = this.market + this.order_id;
+            this.internal_order_id = this.market + this.order_id;
             this.order_id = js.GetProperty("orderId").GetInt64().ToString();
             bool aggressor = js.GetProperty("aggressor").GetBoolean();
             if(aggressor)
@@ -1521,7 +1521,7 @@ namespace Crypto_Clients
             {
                 line = "";
             }
-            line += "," + this.trade_id + "," + this.order_id + "," + this.market + "," + this.symbol + "," + this.order_type.ToString() + "," + this.side.ToString() + "," + this.price.ToString() + "," + this.quantity.ToString() + "," + this.maker_taker + "," + this.fee_base.ToString() + "," + this.fee_quote.ToString() + "," + this.profit_loss.ToString() + "," + this.interest + "," + this.client_order_id + ",";
+            line += "," + this.trade_id + "," + this.order_id + "," + this.market + "," + this.symbol + "," + this.order_type.ToString() + "," + this.side.ToString() + "," + this.price.ToString() + "," + this.quantity.ToString() + "," + this.maker_taker + "," + this.fee_base.ToString() + "," + this.fee_quote.ToString() + "," + this.profit_loss.ToString() + "," + this.interest + "," + this.internal_order_id + ",";
             if (this.filled_time != null)
             {
                 line += ((DateTime)this.filled_time).ToString("yyyy-MM-dd HH:mm:ss.fff");
@@ -1547,7 +1547,7 @@ namespace Crypto_Clients
             this.maker_taker = "";
             this.order_id = "";
             this.symbol = "";
-            this.client_order_id = "";
+            this.internal_order_id = "";
             this.price = 0;
             this.side = orderSide.NONE;
             this.trade_id = "";
@@ -1577,7 +1577,7 @@ namespace Crypto_Clients
         public decimal current_traded_quantity;
         public decimal current_traded_price;
 
-        public string client_order_id;
+        public string internal_order_id;
 
         public string? fee_asset;
         public decimal fee;
@@ -1609,7 +1609,7 @@ namespace Crypto_Clients
             this.average_price = -1;
             this.current_traded_quantity = 0;
             this.current_traded_price = -1;
-            this.client_order_id = "";
+            this.internal_order_id = "";
             this.fee_asset = "";
             this.fee = 0;
             this.create_time = null;
@@ -1636,14 +1636,14 @@ namespace Crypto_Clients
                     this.status = orderStatus.Open;
                     break;
                 case "FILL":
-                case "PARTIALLY_FILLED_CANCELED":
-                case "PARTIALLY_FILLED_EXPIRED":
                     this.status = orderStatus.Filled;
                     break;
                 case "EXPIRY":
+                case "PARTIALLY_FILLED_EXPIRED":
                     this.status = orderStatus.INVALID;
                     break;
                 case "CANCEL":
+                case "PARTIALLY_FILLED_CANCELED":
                     this.status = orderStatus.Canceled;
                     break;
                 default:
@@ -1698,7 +1698,6 @@ namespace Crypto_Clients
                     this.time_in_force = timeInForce.NONE;
                     break;
             }
-            this.client_order_id = this.market + this.order_id;
             this.fee_asset = "";
             this.fee = 0;
             this.last_trade = "";
@@ -1753,7 +1752,7 @@ namespace Crypto_Clients
                     this.update_time = DateTimeOffset.FromUnixTimeMilliseconds(js.GetProperty("executed_at").GetInt64()).UtcDateTime;
                     break;
                 case "CANCELED_PARTIALLY_FILLED":
-                    this.status = orderStatus.Filled;
+                    this.status = orderStatus.Canceled;
                     this.update_time = DateTimeOffset.FromUnixTimeMilliseconds(js.GetProperty("canceled_at").GetInt64()).UtcDateTime;
                     break;
                 case "CANCELED_UNFILLED":
@@ -1776,7 +1775,6 @@ namespace Crypto_Clients
             this.order_quantity = decimal.Parse(js.GetProperty("start_amount").GetString());
             this.filled_quantity = decimal.Parse(js.GetProperty("executed_amount").GetString());
             this.average_price = decimal.Parse(js.GetProperty("average_price").GetString());
-            this.client_order_id = this.market + this.order_id;
             this.fee_asset = "";
             this.fee = 0;
             this.create_time = DateTimeOffset.FromUnixTimeMilliseconds(js.GetProperty("ordered_at").GetInt64()).UtcDateTime;
@@ -1986,7 +1984,6 @@ namespace Crypto_Clients
                     break;
             }
             this.average_price = 0;
-            this.client_order_id = this.market + this.order_id;// js.GetProperty("clientOrderId").GetString();
             this.fee_asset = "";
             this.fee = 0;
             this.last_trade = "";
@@ -2191,7 +2188,6 @@ namespace Crypto_Clients
             {
                 this.average_price = 0;
             }
-            this.client_order_id = this.market + this.order_id; //update.ClientOrderId;
             this.fee_asset = update.FeeAsset.ToUpper();
             if(update.Fee != null)
             {
@@ -2230,7 +2226,7 @@ namespace Crypto_Clients
             this.filled_quantity = 0;
             this.order_price = -1;
             this.average_price = -1;
-            this.client_order_id = "";
+            this.internal_order_id = "";
             this.fee_asset = "";
             this.fee = 0;
             this.create_time = null;
@@ -2252,7 +2248,7 @@ namespace Crypto_Clients
             {
                 line = "";
             }
-            line += "," + this.order_id + "," + this.market + "," + this.symbol + "," + this.order_type.ToString() + "," + this.side.ToString() + "," + this.status.ToString() + "," + this.time_in_force.ToString() + "," + this.order_price.ToString() + "," + this.order_quantity.ToString() + "," + this.filled_quantity.ToString() + "," + this.average_price.ToString() + "," + this.client_order_id + "," + this.fee_asset + "," + this.fee.ToString();
+            line += "," + this.order_id + "," + this.market + "," + this.symbol + "," + this.order_type.ToString() + "," + this.side.ToString() + "," + this.status.ToString() + "," + this.time_in_force.ToString() + "," + this.order_price.ToString() + "," + this.order_quantity.ToString() + "," + this.filled_quantity.ToString() + "," + this.average_price.ToString() + "," + this.internal_order_id + "," + this.fee_asset + "," + this.fee.ToString();
             if (this.create_time != null)
             {
                 line += "," + ((DateTime)this.create_time).ToString("yyyy-MM-dd HH:mm:ss.fff");
@@ -2410,6 +2406,13 @@ namespace Crypto_Clients
         LimitMaker = 2,
         Market = 3,
         Other = 4
+    }
+    public enum orderAction
+    {
+        NONE = -1,
+        New = 1,
+        Mod = 2,
+        Can = 3
     }
     public enum orderSide
     {

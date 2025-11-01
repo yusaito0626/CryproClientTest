@@ -261,6 +261,10 @@ namespace Crypto_Linux
                 setInstrumentInfo();
                 setStrategyInfo();
                 broadcastInfos();
+                if(oManager.taskCount > 10)
+                {
+                    addLog("# of tasks: " + oManager.taskCount.ToString());
+                }
                 ++i;
                 if(i > 30)
                 {
@@ -800,7 +804,7 @@ namespace Crypto_Linux
                         }
                         addLog("EoD balance of " + stg.name + " BaseCcy:" + (stg.maker.baseBalance.total + stg.taker.baseBalance.total).ToString() + " QuoteCcy:" + (stg.maker.quoteBalance.total + stg.taker.quoteBalance.total).ToString());
                         addLog("Adjustment at EoD: " + side.ToString() + " " + baseBalance_diff.ToString());
-                        await oManager.placeNewSpotOrder(stg.taker, side, orderType.Market, baseBalance_diff, 0);
+                        oManager.placeNewSpotOrder(stg.taker, side, orderType.Market, baseBalance_diff, 0);
                     }
 
                     Thread.Sleep(1000);
@@ -1035,28 +1039,45 @@ namespace Crypto_Linux
             {
                 strategyInfo stginfo = strategyInfos[stg.name];
                 DataSpotOrderUpdate? ord;
-                ord = stg.live_buyorder;
-                if(ord != null)
+                if(oManager.orders.ContainsKey(stg.live_buyorder_id))
                 {
-                    stginfo.bid= ord.order_price;
-                    stginfo.bidSize = ord.order_quantity;
+                    ord = oManager.orders[stg.live_buyorder_id];
+                    if(ord.status == orderStatus.Open)
+                    {
+                        stginfo.bid = ord.order_price;
+                        stginfo.bidSize = ord.order_quantity;
+                    }
+                    else
+                    {
+                        stginfo.bid = stg.live_bidprice;
+                        stginfo.bidSize = 0;
+                    }
                 }
                 else
                 {
-                    stginfo.bid = 0;
+                    stginfo.bid = stg.live_bidprice;
                     stginfo.bidSize = 0;
                 }
-                ord = stg.live_sellorder;
-                if(ord != null)
+                if (oManager.orders.ContainsKey(stg.live_sellorder_id))
                 {
-                    stginfo.ask= ord.order_price;
-                    stginfo.askSize = ord.order_quantity;
+                    ord = oManager.orders[stg.live_sellorder_id];
+                    if (ord.status == orderStatus.Open)
+                    {
+                        stginfo.ask = ord.order_price;
+                        stginfo.askSize = ord.order_quantity;
+                    }
+                    else
+                    {
+                        stginfo.ask = stg.live_askprice;
+                        stginfo.askSize = 0;
+                    }
                 }
                 else
                 {
-                    stginfo.ask = 0;
+                    stginfo.ask = stg.live_askprice;
                     stginfo.askSize = 0;
                 }
+
                 stginfo.liquidity_ask = stg.taker.adjusted_bestask.Item1;
                 stginfo.liquidity_ask = stg.taker.adjusted_bestbid.Item1;
                 stginfo.notionalVolume = stg.maker.my_buy_notional + stg.maker.my_sell_notional;

@@ -351,7 +351,7 @@ namespace Crypto_Trading
                                     this.optQueue.Enqueue(stg.Value);
                                 }
                             }
-                            else if (symbol_market == stg.Value.maker.symbol_market)
+                            else if (symbol_market == stg.Value.maker.symbol_market && !this.oManager.getVirtualMode())
                             {
                                 stg.Value.onMakerQuotes(msg);
                             }
