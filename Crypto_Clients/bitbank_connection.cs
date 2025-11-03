@@ -348,7 +348,130 @@ namespace Crypto_Clients
             }
         }
 
-        public async Task<(bool,double)> onListen(Action<string> onMsg)
+        public async Task<bool> Listening(Action start, Action end, CancellationToken ct,int spinningMax)//This function doesn't require to count the spinning as the receiver wait until it receives something.
+        {
+            WebSocketReceiveResult result;
+            string msg;
+            bool abort = false;
+            try
+            {
+                while (true)
+                {
+                    switch (this.websocket_client.State)
+                    {
+                        case WebSocketState.Open:
+                            do
+                            {
+                                result = await this.websocket_client.ReceiveAsync(new ArraySegment<byte>(this.ws_buffer), ct);
+                                this.ws_memory.Write(this.ws_buffer, 0, result.Count);
+                            } while ((!result.EndOfMessage) && this.websocket_client.State != WebSocketState.Aborted && this.websocket_client.State != WebSocketState.Closed);
+                            start();
+                            switch (result.MessageType)
+                            {
+                                case WebSocketMessageType.Text:
+                                    msg = Encoding.UTF8.GetString(this.ws_memory.ToArray());
+                                    int idx = msg.IndexOf("{");
+                                    int idx_temp = msg.IndexOf("[");
+                                    if (idx_temp != -1 && idx_temp < idx)
+                                    {
+                                        idx = idx_temp;
+                                    }
+                                    if (idx != -1)
+                                    {
+                                        string num = msg.Substring(0, idx);
+                                        switch (num)
+                                        {
+                                            case "0":
+                                                await this.websocket_client.SendAsync(Encoding.UTF8.GetBytes("40"), WebSocketMessageType.Text, true, CancellationToken.None);
+                                                break;
+                                            case "2":
+                                                await this.websocket_client.SendAsync(Encoding.UTF8.GetBytes("3"), WebSocketMessageType.Text, true, CancellationToken.None);
+                                                break;
+                                            case "40":
+                                                this.addLog("Hand shake completed");
+                                                break;
+                                            case "42"://Actual Message
+                                                if (result.EndOfMessage)
+                                                {
+                                                    string msg_body = msg.Substring(idx);
+                                                    this.onMessage(msg_body);
+                                                }
+                                                break;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (msg == "2")
+                                        {
+                                            await this.websocket_client.SendAsync(Encoding.UTF8.GetBytes("3"), WebSocketMessageType.Text, true, CancellationToken.None);
+                                        }
+                                    }
+                                    break;
+                                case WebSocketMessageType.Binary:
+                                    this.addLog("Binary type is not expected", Enums.logType.WARNING);
+                                    this.ws_memory.Position = 0;
+                                    using (var gzipStream = new GZipStream(this.ws_memory, CompressionMode.Decompress, leaveOpen: true))
+                                    {
+                                        gzipStream.CopyTo(this.result_memory);
+                                    }
+                                    msg = Encoding.UTF8.GetString(this.result_memory.ToArray());
+                                    this.addLog(msg, Enums.logType.WARNING);
+                                    //onMsg(msg);
+                                    break;
+                                case WebSocketMessageType.Close:
+                                    this.addLog("Closed by server");
+                                    abort = true;
+                                    msg = "Closing message[onListen]:" + Encoding.UTF8.GetString(this.ws_memory.ToArray());
+                                    break;
+                                default:
+                                    msg = "";
+                                    break;
+                            }
+                            if (this.logging)
+                            {
+                                this.msgLog.WriteLine(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   " + msg);
+                                //this.logFilePublic.Flush();
+                            }
+                            this.ws_memory.SetLength(0);
+                            this.ws_memory.Position = 0;
+                            break;
+                        case WebSocketState.None:
+                        case WebSocketState.Connecting:
+                            //Do nothing
+                            break;
+                        case WebSocketState.CloseReceived:
+                        case WebSocketState.CloseSent:
+                        case WebSocketState.Closed:
+                        case WebSocketState.Aborted:
+                        default:
+                            this.addLog("Websocket Closed. bitbank public listening",Enums.logType.WARNING);
+                            abort = true;
+                            break;
+                    }
+                    if(abort)
+                    {
+                        return true;
+                    }
+                    end();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                this.addLog("Cancel Requested. bitbank public listening", Enums.logType.WARNING);
+                return true;
+            }
+            catch (WebSocketException ex)
+            {
+                Console.WriteLine($"WebSocket Error: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Unexpacted Error: {ex.Message}");
+            }
+            return false;
+        }
+
+        public async Task<(bool,double)> onListen()
         {
             WebSocketReceiveResult result;
             string msg;
@@ -391,7 +514,7 @@ namespace Crypto_Clients
                                         if (result.EndOfMessage)
                                         {
                                             string msg_body = msg.Substring(idx);
-                                            onMsg(msg_body);
+                                            this.onMessage(msg_body);
                                         }
                                         break;
                                 }

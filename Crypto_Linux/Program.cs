@@ -692,12 +692,12 @@ namespace Crypto_Linux
 
                 oManager.ready = true;
 
-                thManager.addThread("updateQuotes", qManager._updateQuotes, qManager.updateQuotesOnClosing, qManager.updateQuotesOnError);
-                thManager.addThread("updateTrades", qManager._updateTrades, qManager.updateTradesOnClosing, qManager.updateTradesOnClosing);
-                thManager.addThread("updateOrders", oManager._updateOrders, oManager.updateOrdersOnClosing, oManager.updateOrdersOnError);
-                thManager.addThread("updateFill", oManager._updateFill, oManager.updateFillOnClosing);
-                thManager.addThread("optimize", qManager._optimize, qManager.optimizeOnClosing, qManager.optimizeOnError);
-                thManager.addThread("orderLogging", oManager._orderLogging, oManager.ordLoggingOnClosing, oManager.ordLoggingOnError);
+                thManager.addThread("updateQuotes", qManager.updateQuotes, qManager.updateQuotesOnClosing, qManager.updateQuotesOnError, 1000);
+                thManager.addThread("updateTrades", qManager.updateTrades, qManager.updateTradesOnClosing, qManager.updateTradesOnClosing, 1000);
+                thManager.addThread("updateOrders", oManager.updateOrders, oManager.updateOrdersOnClosing, oManager.updateOrdersOnError,1000);
+                thManager.addThread("updateFill", oManager.updateFills, oManager.updateFillOnClosing, null, 0);
+                thManager.addThread("optimize", qManager.optimize, qManager.optimizeOnClosing, qManager.optimizeOnError,100);
+                thManager.addThread("orderLogging", oManager.orderLogging, oManager.ordLoggingOnClosing, oManager.ordLoggingOnError,1);
 
                 foreach(var th in thManager.threads)
                 {

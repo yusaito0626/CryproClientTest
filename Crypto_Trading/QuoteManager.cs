@@ -78,41 +78,32 @@ namespace Crypto_Trading
             {
                 case "bitbank":
                     await this.crypto_client.bitbank_client.connectPublicAsync();
-                    onMsg = async () =>
-                    {
-                        return await this.crypto_client.bitbank_client.onListen(this.crypto_client.onBitbankMessage);
-                    };
+                    this.crypto_client.bitbank_client.onMessage = this.crypto_client.onBitbankMessage;
                     onClosing = async () =>
                     {
                         await this.crypto_client.bitbank_client.onClosing(this.crypto_client.onBitbankMessage);
                     };
-                    thManager.addThread(market + "Public", onMsg,onClosing,this.crypto_client.bitbank_client.onListenOnError);
+                    thManager.addThread(market + "Public", this.crypto_client.bitbank_client.Listening,onClosing,this.crypto_client.bitbank_client.onListenOnError);
                     this._markets[market] = this.crypto_client.bitbank_client.GetSocketStatePublic();
                     break;
                 case "coincheck":
                     await this.crypto_client.coincheck_client.connectPublicAsync();
-                    onMsg = async () =>
-                    {
-                        return await this.crypto_client.coincheck_client.onListen(this.crypto_client.onCoincheckMessage);
-                    };
+                    this.crypto_client.coincheck_client.onMessage = this.crypto_client.onCoincheckMessage;
                     onClosing = async () =>
                     {
                         await this.crypto_client.coincheck_client.onClosing(this.crypto_client.onCoincheckMessage);
                     };
-                    thManager.addThread(market + "Public", onMsg,onClosing,this.crypto_client.coincheck_client.onListenOnError);
+                    thManager.addThread(market + "Public", this.crypto_client.coincheck_client.Listening,onClosing,this.crypto_client.coincheck_client.onListenOnError);
                     this._markets[market] = this.crypto_client.coincheck_client.GetSocketStatePublic();
                     break;
                 case "bittrade":
                     await this.crypto_client.bittrade_client.connectPublicAsync();
-                    onMsg = async () =>
-                    {
-                        return await this.crypto_client.bittrade_client.onListen(this.crypto_client.onBitTradeMessage);
-                    };
+                    this.crypto_client.bittrade_client.onMessage = this.crypto_client.onBitTradeMessage;
                     onClosing = async () =>
                     {
                         await this.crypto_client.bittrade_client.onClosing(this.crypto_client.onBitTradeMessage);
                     };
-                    thManager.addThread(market + "Public", onMsg,onClosing,this.crypto_client.bittrade_client.onListenOnError);
+                    thManager.addThread(market + "Public", this.crypto_client.bittrade_client.Listening,onClosing,this.crypto_client.bittrade_client.onListenOnError);
                     this._markets[market] = this.crypto_client.bittrade_client.GetSocketStatePublic();
                     break;
             }
@@ -325,7 +316,81 @@ namespace Crypto_Trading
             }
             return output;
         }
+        public async Task<bool> updateQuotes(Action start, Action end, CancellationToken ct, int spinningMax)
+        {
+            Instrument ins;
+            DataOrderBook msg;
+            string symbol_market;
+            var spinner = new SpinWait();
+            bool ret = true;
+            try
+            {
+                while (true)
+                {
+                    while (this.ordBookQueue.TryDequeue(out msg))
+                    {
+                        start();
+                        symbol_market = msg.symbol + "@" + msg.market;
+                        if (this.instruments.ContainsKey(symbol_market))
+                        {
+                            ins = instruments[symbol_market];
+                            ins.updateQuotes(msg);
+                            foreach (var stg in this.strategies)
+                            {
+                                if (stg.Value.enabled)
+                                {
+                                    if (symbol_market == stg.Value.taker.symbol_market)
+                                    {
+                                        if (Interlocked.CompareExchange(ref stg.Value.updating, 1, 0) == 0)
+                                        {
+                                            this.optQueue.Enqueue(stg.Value);
+                                        }
+                                    }
+                                    else if (symbol_market == stg.Value.maker.symbol_market && !this.oManager.getVirtualMode())
+                                    {
+                                        stg.Value.onMakerQuotes(msg);
+                                    }
+                                }
 
+                            }
+                            this.oManager.checkVirtualOrders(ins);
+                        }
+                        else
+                        {
+                            this.addLog("The symbol doesn't exist. Instrument:" + symbol_market, Enums.logType.WARNING);
+                        }
+                        msg.init();
+                        this.ordBookStack.Push(msg);
+                        end();
+                    }
+                    if (ct.IsCancellationRequested)
+                    {
+                        this.addLog("Cancel requested. updateQuotes", Enums.logType.WARNING);
+                        break;
+                    }
+                    spinner.SpinOnce();
+                    if (spinningMax > 0 && spinner.Count >= spinningMax)
+                    {
+                        Thread.Yield();
+                        spinner.Reset();
+                    }
+
+                    // 2) まだ空ならイベント待機（低CPU）
+                    //if (_queue.IsEmpty)
+                    //{
+                    //    _signal.Wait();
+                    //    _signal.Reset();
+                    //}
+                }
+            }
+            catch (Exception ex)
+            {
+                this.addLog(ex.Message, Enums.logType.WARNING);
+                ret = false;
+            }
+            return ret;
+            
+        }
         public async Task<(bool,double)> _updateQuotes()
         {
             Instrument ins;
@@ -407,7 +472,49 @@ namespace Crypto_Trading
             }
             this.oManager.virtual_order_lock = 0;
         }
+        public async Task<bool> optimize(Action start, Action end, CancellationToken ct, int spinningMax)
+        {
+            Strategy stg;
+            var spinner = new SpinWait();
+            bool ret = true;
+            try
+            {
+                while (true)
+                {
+                    while (this.optQueue.TryDequeue(out stg))
+                    {
+                        start();
+                        await stg.updateOrders();
+                        end();
+                    }
+                    if (ct.IsCancellationRequested)
+                    {
+                        this.addLog("Cancel requested. optimize", Enums.logType.WARNING);
+                        break;
+                    }
+                    spinner.SpinOnce();
+                    if (spinningMax > 0 && spinner.Count >= spinningMax)
+                    {
+                        Thread.Yield();
+                        spinner.Reset();
+                    }
 
+                    // 2) まだ空ならイベント待機（低CPU）
+                    //if (_queue.IsEmpty)
+                    //{
+                    //    _signal.Wait();
+                    //    _signal.Reset();
+                    //}
+                }
+            }
+            catch (Exception ex)
+            {
+                this.addLog(ex.Message, Enums.logType.WARNING);
+                ret = false;
+            }
+            return ret;
+
+        }
         public async Task<(bool,double)> _optimize()
         {
             Strategy stg;
@@ -443,6 +550,76 @@ namespace Crypto_Trading
                 stg.maker.quotes_lock = 0;
             }
             this.oManager.order_lock = 0;
+        }
+        public async Task<bool> updateTrades(Action start, Action end, CancellationToken ct, int spinningMax)
+        {
+            Instrument ins;
+            DataTrade msg;
+            string symbol_market;
+            var spinner = new SpinWait();
+            bool ret = true;
+            try
+            {
+                while (true)
+                {
+                    while (this.tradeQueue.TryDequeue(out msg))
+                    {
+                        start();
+                        this.sw_updateTrades.Start();
+                        symbol_market = msg.symbol + "@" + msg.market;
+                        foreach (var stg in this.strategies)
+                        {
+                            if (stg.Value.enabled)
+                            {
+                                if (symbol_market == stg.Value.maker.symbol_market)
+                                {
+                                    stg.Value.onTrades(msg);
+                                }
+                            }
+
+                        }
+                        if (this.instruments.ContainsKey(symbol_market))
+                        {
+                            ins = instruments[symbol_market];
+                            ins.updateTrade(msg);
+
+                            this.oManager.checkVirtualOrders(ins, msg);
+                        }
+                        else
+                        {
+                            this.addLog("The symbol doesn't exist. Instrument:" + symbol_market, Enums.logType.WARNING);
+                        }
+                        msg.init();
+                        this.tradeStack.Push(msg);
+                        end();
+                    }
+                    if (ct.IsCancellationRequested)
+                    {
+                        this.addLog("Cancel requested. updateTrades", Enums.logType.WARNING);
+                        break;
+                    }
+
+                    spinner.SpinOnce();
+                    if (spinningMax > 0 && spinner.Count >= spinningMax)
+                    {
+                        Thread.Yield();
+                        spinner.Reset();
+                    }
+
+                    // 2) まだ空ならイベント待機（低CPU）
+                    //if (_queue.IsEmpty)
+                    //{
+                    //    _signal.Wait();
+                    //    _signal.Reset();
+                    //}
+                }
+            }
+            catch (Exception ex)
+            {
+                this.addLog(ex.Message, Enums.logType.WARNING);
+                ret = false;
+            }
+            return ret;
         }
         public async Task<(bool,double)> _updateTrades()
         {

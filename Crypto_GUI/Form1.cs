@@ -1295,16 +1295,24 @@ namespace Crypto_GUI
 
                 this.oManager.ready = true;
 
-
-                this.thManager.addThread("updateQuotes", this.qManager._updateQuotes,this.qManager.updateQuotesOnClosing,this.qManager.updateQuotesOnError);
-                this.thManager.addThread("updateTrades", this.qManager._updateTrades,this.qManager.updateTradesOnClosing,this.qManager.updateTradesOnClosing);
-                if(!this.monitoringMode)
+                this.thManager.addThread("updateQuotes", this.qManager.updateQuotes, this.qManager.updateQuotesOnClosing, this.qManager.updateQuotesOnError,1000);
+                this.thManager.addThread("updateTrades", this.qManager.updateTrades, this.qManager.updateTradesOnClosing, this.qManager.updateTradesOnClosing,1000);
+                if (!this.monitoringMode)
                 {
-                    this.thManager.addThread("updateOrders", this.oManager._updateOrders, this.oManager.updateOrdersOnClosing, this.oManager.updateOrdersOnError);
-                    this.thManager.addThread("updateFill", this.oManager._updateFill, this.oManager.updateFillOnClosing);
-                    this.thManager.addThread("optimize", this.qManager._optimize, this.qManager.optimizeOnClosing, this.qManager.optimizeOnError);
-                    this.thManager.addThread("orderLogging", this.oManager._orderLogging, this.oManager.ordLoggingOnClosing, this.oManager.ordLoggingOnError);
+                    this.thManager.addThread("updateOrders", this.oManager.updateOrders, this.oManager.updateOrdersOnClosing, this.oManager.updateOrdersOnError,1000);
+                    this.thManager.addThread("updateFill", this.oManager.updateFills, this.oManager.updateFillOnClosing, null, 0);
+                    this.thManager.addThread("optimize", this.qManager.optimize, this.qManager.optimizeOnClosing, this.qManager.optimizeOnError,100);
+                    this.thManager.addThread("orderLogging", this.oManager.orderLogging, this.oManager.ordLoggingOnClosing, this.oManager.ordLoggingOnError,1);
                 }
+                //this.thManager.addThread("updateQuotes", this.qManager._updateQuotes,this.qManager.updateQuotesOnClosing,this.qManager.updateQuotesOnError);
+                //this.thManager.addThread("updateTrades", this.qManager._updateTrades,this.qManager.updateTradesOnClosing,this.qManager.updateTradesOnClosing);
+                //if(!this.monitoringMode)
+                //{
+                //    this.thManager.addThread("updateOrders", this.oManager._updateOrders, this.oManager.updateOrdersOnClosing, this.oManager.updateOrdersOnError);
+                //    this.thManager.addThread("updateFill", this.oManager._updateFill, this.oManager.updateFillOnClosing);
+                //    this.thManager.addThread("optimize", this.qManager._optimize, this.qManager.optimizeOnClosing, this.qManager.optimizeOnError);
+                //    this.thManager.addThread("orderLogging", this.oManager._orderLogging, this.oManager.ordLoggingOnClosing, this.oManager.ordLoggingOnError);
+                //}
                 this.threadsStarted = true;
             }
             catch (Exception ex)

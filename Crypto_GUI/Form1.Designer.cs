@@ -48,6 +48,8 @@
             button_receiveFeed = new Button();
             tabControl = new TabControl();
             tabPage1 = new TabPage();
+            txtBox_URL = new TextBox();
+            label43 = new Label();
             button_stopTrading = new Button();
             gridView_PnL = new DataGridView();
             col_strategyName = new DataGridViewTextBoxColumn();
@@ -199,8 +201,6 @@
             col_roundTrip = new DataGridViewTextBoxColumn();
             timer_statusCheck = new System.Windows.Forms.Timer(components);
             timer_PeriodicMsg = new System.Windows.Forms.Timer(components);
-            label43 = new Label();
-            txtBox_URL = new TextBox();
             tabControl.SuspendLayout();
             tabPage1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)gridView_PnL).BeginInit();
@@ -265,6 +265,22 @@
             tabPage1.TabIndex = 0;
             tabPage1.Text = "Main";
             // 
+            // txtBox_URL
+            // 
+            txtBox_URL.Location = new Point(108, 28);
+            txtBox_URL.Name = "txtBox_URL";
+            txtBox_URL.Size = new Size(246, 27);
+            txtBox_URL.TabIndex = 10;
+            // 
+            // label43
+            // 
+            label43.AutoSize = true;
+            label43.Location = new Point(19, 31);
+            label43.Name = "label43";
+            label43.Size = new Size(83, 20);
+            label43.TabIndex = 9;
+            label43.Text = "Target URL:";
+            // 
             // button_stopTrading
             // 
             button_stopTrading.Location = new Point(830, 252);
@@ -289,7 +305,7 @@
             gridView_PnL.ColumnHeadersHeight = 30;
             gridView_PnL.Columns.AddRange(new DataGridViewColumn[] { col_strategyName, col_volume, col_tradingPL, col_feeAmount, col_totalPnL });
             gridView_PnL.GridColor = SystemColors.Menu;
-            gridView_PnL.Location = new Point(19, 129);
+            gridView_PnL.Location = new Point(19, 73);
             gridView_PnL.Margin = new Padding(2);
             gridView_PnL.Name = "gridView_PnL";
             gridView_PnL.RowHeadersBorderStyle = DataGridViewHeaderBorderStyle.Sunken;
@@ -1897,22 +1913,6 @@
             // 
             timer_PeriodicMsg.Interval = 60000;
             timer_PeriodicMsg.Tick += timer_PeriodicMsg_Tick;
-            // 
-            // label43
-            // 
-            label43.AutoSize = true;
-            label43.Location = new Point(19, 47);
-            label43.Name = "label43";
-            label43.Size = new Size(83, 20);
-            label43.TabIndex = 9;
-            label43.Text = "Target URL:";
-            // 
-            // txtBox_URL
-            // 
-            txtBox_URL.Location = new Point(108, 44);
-            txtBox_URL.Name = "txtBox_URL";
-            txtBox_URL.Size = new Size(246, 27);
-            txtBox_URL.TabIndex = 10;
             // 
             // Form1
             // 

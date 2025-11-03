@@ -342,6 +342,93 @@ namespace Crypto_Clients
                 this.msgLog.Flush();
             }
         }
+        public async Task<bool> Listening(Action start, Action end, CancellationToken ct, int spinningMax)//This function doesn't require to count the spinning as the receiver wait until it receives something.
+        {
+            WebSocketReceiveResult result;
+            string msg = "";
+            bool abort = false;
+            try
+            {
+                while (true)
+                {
+                    switch (this.websocket_client.State)
+                    {
+                        case WebSocketState.Open:
+                            do
+                            {
+                                result = await this.websocket_client.ReceiveAsync(new ArraySegment<byte>(this.ws_buffer), ct);
+                                this.ws_memory.Write(this.ws_buffer, 0, result.Count);
+
+                            } while ((!result.EndOfMessage) && this.websocket_client.State != WebSocketState.Aborted && this.websocket_client.State != WebSocketState.Closed);
+                            start();
+                            switch (result.MessageType)
+                            {
+                                case WebSocketMessageType.Text:
+                                    msg = Encoding.UTF8.GetString(this.ws_memory.ToArray());
+                                    this.onMessage(msg);
+                                    break;
+                                case WebSocketMessageType.Binary:
+                                    this.addLog("Binary type is not expected", Enums.logType.WARNING);
+                                    this.ws_memory.Position = 0;
+                                    using (var gzipStream = new GZipStream(this.ws_memory, CompressionMode.Decompress, leaveOpen: true))
+                                    {
+                                        gzipStream.CopyTo(this.result_memory);
+                                    }
+                                    msg = Encoding.UTF8.GetString(this.result_memory.ToArray());
+
+                                    this.addLog(msg, Enums.logType.WARNING);
+                                    break;
+                                case WebSocketMessageType.Close:
+                                    this.addLog("Closed by server");
+                                    abort = true;
+                                    msg = "Closing message[onListen]:" + Encoding.UTF8.GetString(this.ws_memory.ToArray());
+                                    break;
+                                default:
+                                    msg = "";
+                                    break;
+                            }
+                            if (this.logging)
+                            {
+                                this.msgLog.WriteLine(DateTime.UtcNow.ToString() + "   " + msg);
+                                //this.logFilePublic.Flush();
+                            }
+                            this.ws_memory.SetLength(0);
+                            this.ws_memory.Position = 0;
+                            break;
+                        case WebSocketState.None:
+                        case WebSocketState.Connecting:
+                            //Do nothing
+                            break;
+                        case WebSocketState.CloseReceived:
+                        case WebSocketState.CloseSent:
+                        case WebSocketState.Closed:
+                        case WebSocketState.Aborted:
+                        default:
+                            abort = true;
+                            break;
+                    }
+                    if (abort)
+                    {
+                        return true;
+                    }
+                    end();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                this.addLog("Cancel Requested. bitbank public listening", Enums.logType.WARNING);
+                return true;
+            }
+            catch (WebSocketException ex)
+            {
+                Console.WriteLine($"WebSocket Error: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Unexpacted Error: {ex.Message}");
+            }
+            return false;
+        }
         public async Task<(bool,double)> onListen(Action<string> onMsg)
         {
             WebSocketReceiveResult result;
@@ -618,6 +705,95 @@ namespace Crypto_Clients
             {
                 this.msgLog.Flush();
             }
+        }
+        public async Task<bool> ListeningPrivate(Action start, Action end, CancellationToken ct, int spinningMax)//This function doesn't require to count the spinning as the receiver wait until it receives something.
+        {
+            WebSocketReceiveResult result;
+            string msg = "";
+            bool abort = false;
+            try
+            {
+                while (true)
+                {
+                    switch (this.private_client.State)
+                    {
+                        case WebSocketState.Open:
+
+                            do
+                            {
+                                result = await this.private_client.ReceiveAsync(new ArraySegment<byte>(this.pv_buffer), ct);
+                                this.pv_memory.Write(this.pv_buffer, 0, result.Count);
+
+                            } while (!result.EndOfMessage && this.private_client.State != WebSocketState.Aborted && this.private_client.State != WebSocketState.Closed);
+                            start();
+                            switch (result.MessageType)
+                            {
+                                case WebSocketMessageType.Text:
+                                    msg = Encoding.UTF8.GetString(this.pv_memory.ToArray());
+                                    this.onPrivateMessage(msg);
+                                    break;
+                                case WebSocketMessageType.Binary:
+                                    this.addLog("Binary message is not expected.", Enums.logType.WARNING);
+                                    this.pv_memory.Position = 0;
+                                    using (var gzipStream = new GZipStream(this.pv_memory, CompressionMode.Decompress, leaveOpen: true))
+                                    {
+                                        gzipStream.CopyTo(this.pv_result_memory);
+                                    }
+                                    msg = Encoding.UTF8.GetString(this.pv_result_memory.ToArray());
+                                    this.addLog(msg, Enums.logType.WARNING);
+                                    this.pv_result_memory.SetLength(0);
+                                    this.pv_result_memory.Position = 0;
+                                    break;
+                                case WebSocketMessageType.Close:
+                                    this.addLog("Closed by server");
+                                    abort = true;
+                                    msg = "Closing message[onListen]:" + Encoding.UTF8.GetString(this.pv_memory.ToArray());
+                                    break;
+                                default:
+                                    msg = "";
+                                    break;
+                            }
+                            if (this.logging)
+                            {
+                                this.msgLog.WriteLine(DateTime.UtcNow.ToString() + "   " + msg);
+                                //this.logFilePrivate.Flush();
+                            }
+                            this.pv_memory.SetLength(0);
+                            this.pv_memory.Position = 0;
+                            break;
+                        case WebSocketState.None:
+                        case WebSocketState.Connecting:
+                            //Do nothing
+                            break;
+                        case WebSocketState.CloseReceived:
+                        case WebSocketState.CloseSent:
+                        case WebSocketState.Closed:
+                        case WebSocketState.Aborted:
+                        default:
+                            abort = true;
+                            break;
+                    }
+                    if (abort)
+                    {
+                        return true;
+                    }
+                    end();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                this.addLog("Cancel Requested. bitbank public listening", Enums.logType.WARNING);
+                return true;
+            }
+            catch (WebSocketException ex)
+            {
+                Console.WriteLine($"WebSocket Error: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Unexpacted Error: {ex.Message}");
+            }
+            return false;
         }
         public async Task<(bool,double)> onListenPrivate(Action<string> onMsg)
         {

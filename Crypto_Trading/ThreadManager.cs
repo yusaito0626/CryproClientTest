@@ -41,6 +41,22 @@ namespace Crypto_Trading
             }
         }
 
+        public void addThread(string name, Func<Action,Action,CancellationToken,int,Task<bool>> loop, Action onClosing = null, Action onError = null,int spinningMax = 0)
+        {
+            if (this.threads.ContainsKey(name))
+            {
+                this.addLog("The thread name already exists. name:" + name, Enums.logType.ERROR);
+            }
+            else
+            {
+                thread t = new thread(name, loop, onClosing, onError,spinningMax);
+                t.addLog = this.addLog;
+                this.threads[name] = t;
+                t.start();
+                this.addLog("The thread started. name:" + name);
+            }
+        }
+
         public bool startThread(string name)
         {
             if (this.threads.ContainsKey(name))
@@ -153,7 +169,10 @@ namespace Crypto_Trading
 
         public Func<Task<(bool,double)>> action;
 
-        public Func<Task<bool>> loopFunc;
+        public CancellationTokenSource ct;
+        public Func<Action,Action,CancellationToken,int,Task<bool>> loopFunc;
+        public int spinnerMaxCount;
+
 
         public Action onClosing;
         public Action onError;
@@ -173,7 +192,7 @@ namespace Crypto_Trading
             this.count = 0;
             this.loopFunc = null;
         }
-        public thread(string name, Func<Task<bool>> _loop, Action onClosing = null,Action onError = null)
+        public thread(string name, Func<Action, Action,CancellationToken,int, Task<bool>> _loop, Action onClosing = null,Action onError = null, int _spinnerMax = 0)
         {
             this.name = name;
             this.loopFunc = _loop;
@@ -183,6 +202,7 @@ namespace Crypto_Trading
             this.onClosing = onClosing;
             this.onError = onError;
             this.action = null;
+            this.spinnerMaxCount = _spinnerMax;
         }
         private void SetOsThreadName(string name)
         {
@@ -213,11 +233,29 @@ namespace Crypto_Trading
             }
             else if(this.loopFunc != null)
             {
+                this.ct = new CancellationTokenSource();
                 this.threadObj = new Thread(async () =>
                 {
+                    Stopwatch sw = new Stopwatch();
+                    for(int i = 0; i < 3;++i)
+                    {
+                        sw.Start();
+                        sw.Stop();
+                        sw.Reset();
+                    }
                     this.SetOsThreadName(this.name);
                     bool ret = false;
-                    ret = await this.loopFunc();
+                    ret = await this.loopFunc(
+                        ()=>sw.Start(),
+                        ()=>
+                        {
+                            sw.Stop();
+                            ++this.count;
+                            this.totalElapsedTime += sw.Elapsed.TotalNanoseconds / 1000;
+                            sw.Reset();
+                        },
+                        ct.Token,
+                        this.spinnerMaxCount);
                     if(ret)
                     {
                         this.addLog("The thread is Successfully stopping... name:" + this.name,logType.INFO);
@@ -287,6 +325,10 @@ namespace Crypto_Trading
             if (isRunning)
             {
                 isRunning = false;
+            }
+            if(ct != null)
+            {
+                ct.Cancel();
             }
         }
     }
