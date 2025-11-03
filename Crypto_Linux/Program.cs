@@ -261,10 +261,14 @@ namespace Crypto_Linux
                 setInstrumentInfo();
                 setStrategyInfo();
                 broadcastInfos();
-                if(oManager.taskCount > 10)
+                ThreadPool.GetAvailableThreads(out int worker, out int io);
+                ThreadPool.GetMaxThreads(out int maxWorker, out int maxIo);
+
+                if(maxWorker - worker > 20)
                 {
-                    addLog("# of tasks: " + oManager.taskCount.ToString());
+                    addLog($"Worker Threads: {maxWorker - worker}/{maxWorker}");
                 }
+
                 ++i;
                 if(i > 30)
                 {
@@ -804,7 +808,7 @@ namespace Crypto_Linux
                         }
                         addLog("EoD balance of " + stg.name + " BaseCcy:" + (stg.maker.baseBalance.total + stg.taker.baseBalance.total).ToString() + " QuoteCcy:" + (stg.maker.quoteBalance.total + stg.taker.quoteBalance.total).ToString());
                         addLog("Adjustment at EoD: " + side.ToString() + " " + baseBalance_diff.ToString());
-                        oManager.placeNewSpotOrder(stg.taker, side, orderType.Market, baseBalance_diff, 0);
+                        oManager.placeNewSpotOrder(stg.taker, side, orderType.Market, baseBalance_diff, 0,null,true,false);
                     }
 
                     Thread.Sleep(1000);

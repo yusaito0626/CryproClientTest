@@ -41,7 +41,6 @@ namespace Crypto_Trading
         public ConcurrentStack<sendingOrder> sendingOrdersStack;
         Thread processingOrdTh;
         CancellationTokenSource OrderProcessingStop;
-        public int taskCount;
         public Dictionary<string, string> ordIdMapping;
 
         public volatile int virtual_order_lock;
@@ -116,7 +115,6 @@ namespace Crypto_Trading
                 this.sendingOrdersStack.Push(new sendingOrder());
                 ++i;
             }
-            this.taskCount = 0;
             this.ordIdMapping = new Dictionary<string, string>();
 
             i = 0;
@@ -212,7 +210,7 @@ namespace Crypto_Trading
             this.Instruments = dic;
         }
 
-        public string placeNewSpotOrder(Instrument ins, orderSide side, orderType ordtype, decimal quantity, decimal price, timeInForce? timeinforce = null,bool sendNow = false)
+        public async Task<string> placeNewSpotOrder(Instrument ins, orderSide side, orderType ordtype, decimal quantity, decimal price, timeInForce? timeinforce = null,bool sendNow = true,bool wait = false)
         {
             sendingOrder ord;
             string ordid;
@@ -231,7 +229,14 @@ namespace Crypto_Trading
             ord.time_in_force = timeinforce;
             if(sendNow)
             {
-                this.processNewOrder(ord);
+                if(wait)
+                {
+                    await this.processNewOrder(ord);
+                }
+                else
+                {
+                    this.processNewOrder(ord);
+                }
             }
             else
             {
@@ -241,7 +246,7 @@ namespace Crypto_Trading
 
             return ordid;
         }
-        public string placeCancelSpotOrder(Instrument ins, string orderId, bool sendNow = false)
+        public async Task<string> placeCancelSpotOrder(Instrument ins, string orderId, bool sendNow = true, bool wait = false)
         {
             sendingOrder ord;
             while (!this.sendingOrdersStack.TryPop(out ord))
@@ -257,7 +262,14 @@ namespace Crypto_Trading
 
             if(sendNow)
             {
-                this.processCanOrder(ord);
+                if(wait)
+                {
+                    await this.processCanOrder(ord);
+                }
+                else
+                {
+                    this.processCanOrder(ord);
+                }
             }
             else
             {
@@ -267,7 +279,7 @@ namespace Crypto_Trading
 
             return orderId;
         }
-        public string placeModSpotOrder(Instrument ins, string orderId, decimal quantity, decimal price,bool waitCancel, bool sendNow = false)
+        public async Task<string> placeModSpotOrder(Instrument ins, string orderId, decimal quantity, decimal price,bool waitCancel, bool sendNow = true,bool wait = false)
         {
             sendingOrder ord;
             string ordid;
@@ -285,7 +297,14 @@ namespace Crypto_Trading
             ord.waitCancel = waitCancel;
             if(sendNow)
             {
-                this.processModOrder(ord);
+                if(wait)
+                {
+                    await this.processModOrder(ord);
+                }
+                else
+                {
+                    this.processModOrder(ord);
+                }
             }
             else
             {
@@ -298,7 +317,6 @@ namespace Crypto_Trading
 
         async public Task<DataSpotOrderUpdate?> processNewOrder(sendingOrder sndOrd)
         {
-            Interlocked.Increment(ref this.taskCount);
             DataSpotOrderUpdate? output = null;
             JsonDocument js;
             decimal quantity;
@@ -874,12 +892,10 @@ namespace Crypto_Trading
                 }
             }
 
-            Interlocked.Decrement(ref this.taskCount);
             return output;
         }
         async public Task<DataSpotOrderUpdate?> processModOrder(sendingOrder sndOrd)
         {
-            Interlocked.Increment(ref this.taskCount);
             DataSpotOrderUpdate ord;
             modifingOrd mod;
             DataSpotOrderUpdate? output = null;
@@ -903,12 +919,10 @@ namespace Crypto_Trading
                     this.modifingOrders[sndOrd.ref_IntOrdId] = mod;
                     output = await this.processCanOrder(sndOrd);
 
-                    Interlocked.Decrement(ref this.taskCount);
                     return output;
                 }
                 else
                 {
-                    Interlocked.Decrement(ref this.taskCount);
                     return null;
                 }
             }
@@ -931,20 +945,17 @@ namespace Crypto_Trading
                     {
                         output = null;
                     }
-                    Interlocked.Decrement(ref this.taskCount);
                     return output;
                 }
                 else
                 {
                     addLog("Order not found. order id:" + sndOrd.ref_IntOrdId);
-                    Interlocked.Decrement(ref this.taskCount);
                     return null;
                 }
             }
         }
         async public Task<DataSpotOrderUpdate?> processCanOrder(sendingOrder sndOrd)
         {
-            Interlocked.Increment(ref this.taskCount);
             DataSpotOrderUpdate? output = null;
             JsonDocument js;
             if (this.virtualMode)
@@ -1080,7 +1091,6 @@ namespace Crypto_Trading
                     this.ord_client.ordUpdateQueue.Enqueue(output);
                 }
             }
-            Interlocked.Decrement(ref this.taskCount);
             return output;
         }
 
@@ -1135,7 +1145,7 @@ namespace Crypto_Trading
             foreach (var ord in this.live_orders.Values)
             {
                 ins = this.Instruments[ord.symbol_market];
-                this.placeCancelSpotOrder(ins, ord.order_id);
+                this.placeCancelSpotOrder(ins, ord.order_id,true);
             }
             Volatile.Write(ref this.order_lock, 0);
         }
@@ -1437,7 +1447,7 @@ namespace Crypto_Trading
 
                                             if (ord.status == orderStatus.Canceled)
                                             {
-                                                this.placeNewSpotOrder(mod.ins, mod.side, mod.order_type, mod.newQuantity, mod.newPrice, mod.time_in_force);
+                                                this.placeNewSpotOrder(mod.ins, mod.side, mod.order_type, mod.newQuantity, mod.newPrice, mod.time_in_force,true);
                                                 this.modifingOrders.Remove(ord.internal_order_id);
                                                 mod.init();
                                                 this.modifingOrdStack.Push(mod);
@@ -1727,7 +1737,7 @@ namespace Crypto_Trading
 
                                     if (ord.status == orderStatus.Canceled)
                                     {
-                                        this.placeNewSpotOrder(mod.ins, mod.side, mod.order_type, mod.newQuantity, mod.newPrice, mod.time_in_force);
+                                        this.placeNewSpotOrder(mod.ins, mod.side, mod.order_type, mod.newQuantity, mod.newPrice, mod.time_in_force,true);
                                         this.modifingOrders.Remove(ord.internal_order_id);
                                         mod.init();
                                         this.modifingOrdStack.Push(mod);

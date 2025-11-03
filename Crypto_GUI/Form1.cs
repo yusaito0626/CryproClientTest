@@ -1427,9 +1427,9 @@ namespace Crypto_GUI
             this.addLog("Testing orderManager");
             Thread.Sleep(3000);
             this.addLog("Placing a new order");
-            string ordid;
+            string ordid = "";
             sw.Start();
-            ordid = this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.01, 600000);
+            //ordid = this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.01, 600000);
             sw.Stop();
             if (ordid != "")
             {
@@ -1458,7 +1458,7 @@ namespace Crypto_GUI
             Thread.Sleep(3000);
             this.addLog("modifing a order");
             sw.Start();
-            ordid = this.oManager.placeModSpotOrder(ins, ordid, (decimal)0.01, 570000, false);
+            //ordid = this.oManager.placeModSpotOrder(ins, ordid, (decimal)0.01, 570000, false);
             sw.Stop();
             if (ordid != "")
             {
@@ -1490,7 +1490,7 @@ namespace Crypto_GUI
                 //ord = this.oManager.live_orders.Values.First();
                 //this.addLog(ord.ToString());
                 sw.Start();
-                ordid = this.oManager.placeCancelSpotOrder(ins, ordid);
+                //ordid = this.oManager.placeCancelSpotOrder(ins, ordid);
                 sw.Stop();
                 if (ordid != "")
                 {
@@ -1523,7 +1523,7 @@ namespace Crypto_GUI
                 this.addLog("Fill Check");
                 sw.Start();
                 this.addLog("Using limit order");
-                ordid = this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.01, 700000);
+                //ordid = this.oManager.placeNewSpotOrder(ins, orderSide.Buy, orderType.Limit, (decimal)0.01, 700000);
                 sw.Stop();
                 if (ordid != "")
                 {
@@ -1552,7 +1552,7 @@ namespace Crypto_GUI
 
                 this.addLog("Market Order");
                 sw.Start();
-                ordid = this.oManager.placeNewSpotOrder(ins, orderSide.Sell, orderType.Market, (decimal)0.01, 700000);
+                //ordid = this.oManager.placeNewSpotOrder(ins, orderSide.Sell, orderType.Market, (decimal)0.01, 700000);
                 if (ordid != "")
                 {
                     Thread.Sleep(1000);
