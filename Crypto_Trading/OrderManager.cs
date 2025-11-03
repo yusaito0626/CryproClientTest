@@ -10,6 +10,7 @@ using PubnubApi;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlTypes;
 using System.Diagnostics;
 using System.Drawing;
@@ -35,6 +36,9 @@ namespace Crypto_Trading
         public volatile int order_lock;
         public Dictionary<string, DataSpotOrderUpdate> orders;
         public Dictionary<string, DataSpotOrderUpdate> live_orders;
+
+        public Queue<DataSpotOrderUpdate> order_pool;
+        public int orderLifeTime = 60; 
 
         const int SENDINGORD_STACK_SIZE = 1000;
         public ConcurrentQueue<sendingOrder> sendingOrders;
@@ -91,6 +95,8 @@ namespace Crypto_Trading
             this.live_orders = new Dictionary<string, DataSpotOrderUpdate>();
             this.virtual_order_lock = 0;
             this.virtual_liveorders = new Dictionary<string, DataSpotOrderUpdate>();
+
+            this.order_pool = new Queue<DataSpotOrderUpdate>();
 
             this.strategies = new Dictionary<string, Strategy>();
 
@@ -1341,13 +1347,17 @@ namespace Crypto_Trading
                                         this.live_orders[ord.internal_order_id] = ord;
                                     }
                                 }
-                                prevord.init();
-                                this.ord_client.ordUpdateStack.Push(prevord);
+                                prevord.update_time = DateTime.UtcNow;
+                                this.order_pool.Enqueue(prevord);
+                                //prevord.init();
+                                //this.ord_client.ordUpdateStack.Push(prevord);
                             }
                             else
                             {
-                                ord.init();
-                                this.ord_client.ordUpdateStack.Push(ord);
+                                ord.update_time = DateTime.UtcNow;
+                                this.order_pool.Enqueue(ord);
+                                //ord.init();
+                                //this.ord_client.ordUpdateStack.Push(ord);
                             }
                         }
                         else
@@ -1372,8 +1382,10 @@ namespace Crypto_Trading
 
                                     if (ord.status < prevord.status || ord.filled_quantity < prevord.filled_quantity)
                                     {
-                                        ord.init();
-                                        this.ord_client.ordUpdateStack.Push(ord);
+                                        ord.update_time = DateTime.UtcNow;
+                                        this.order_pool.Enqueue(ord);
+                                        //ord.init();
+                                        //this.ord_client.ordUpdateStack.Push(ord);
                                     }
                                     else
                                     {
@@ -1459,8 +1471,11 @@ namespace Crypto_Trading
                                                 this.modifingOrdStack.Push(mod);
                                             }
                                         }
-                                        prevord.init();
-                                        this.ord_client.ordUpdateStack.Push(prevord);
+
+                                        prevord.update_time = DateTime.UtcNow;
+                                        this.order_pool.Enqueue(prevord);
+                                        //prevord.init();
+                                        //this.ord_client.ordUpdateStack.Push(prevord);
                                     }
 
                                 }
@@ -1541,6 +1556,22 @@ namespace Crypto_Trading
                         if (ins != null)
                         {
                             Volatile.Write(ref ins.orders_lock, 0);
+                        }
+
+                        DateTime currentTime = DateTime.UtcNow;
+                        while(this.order_pool.Count > 0)
+                        {
+                            ord = this.order_pool.Peek();
+                            if(currentTime - ord.update_time > TimeSpan.FromSeconds(this.orderLifeTime))
+                            {
+                                ord = this.order_pool.Dequeue();
+                                ord.init();
+                                this.ord_client.ordUpdateStack.Push(ord);
+                            }
+                            else
+                            {
+                                break;
+                            }
                         }
                         end();
                     }
