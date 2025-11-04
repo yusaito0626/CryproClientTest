@@ -361,6 +361,7 @@ namespace Crypto_Trading
                         }
                         msg.init();
                         this.ordBookStack.Push(msg);
+                        spinner.Reset();
                         end();
                     }
                     if (ct.IsCancellationRequested)
@@ -371,6 +372,7 @@ namespace Crypto_Trading
                     spinner.SpinOnce();
                     if (spinningMax > 0 && spinner.Count >= spinningMax)
                     {
+                        this.addLog("Yield called on update quotes");
                         Thread.Yield();
                         spinner.Reset();
                     }
@@ -485,6 +487,7 @@ namespace Crypto_Trading
                     {
                         start();
                         await stg.updateOrders();
+                        spinner.Reset();
                         end();
                     }
                     if (ct.IsCancellationRequested)
@@ -591,6 +594,7 @@ namespace Crypto_Trading
                         }
                         msg.init();
                         this.tradeStack.Push(msg);
+                        spinner.Reset();
                         end();
                     }
                     if (ct.IsCancellationRequested)

@@ -1201,6 +1201,7 @@ namespace Crypto_Trading
                             }
                             this.ordLogQueue.Enqueue(fill.ToString());
                             this.filledOrderQueue.Enqueue(fill);
+                            spinner.Reset();
                             end();
 
                         }
@@ -1573,6 +1574,7 @@ namespace Crypto_Trading
                                 break;
                             }
                         }
+                        spinner.Reset();
                         end();
                     }
                     if (ct.IsCancellationRequested)

@@ -123,4 +123,9 @@ namespace Utils
         public bool isRunning { get; set; }
         public double avgProcessingTime { get; set; }
     }
+    public struct queueInfo
+    {
+        public string name { get; set; }
+        public int count { get; set; }
+    }
 }

@@ -781,6 +781,10 @@ namespace Crypto_GUI
                                     var thinfos = JsonSerializer.Deserialize<Dictionary<string, threadStatus>>(content);
                                     this.BeginInvoke(this.updateThreadStatus, thinfos);
                                     break;
+                                case "queue":
+                                    var queueinfos = JsonSerializer.Deserialize<Dictionary<string, queueInfo>>(content);
+                                    this.BeginInvoke(this.updateQueueInfo, queueinfos);
+                                    break;
                                 case "log":
                                     var logs = JsonSerializer.Deserialize<List<logEntry>>(content);
                                     logType lType = logType.NONE;
@@ -861,6 +865,34 @@ namespace Crypto_GUI
                 this.gridView_orders.Rows[0].Cells[4].Value = f.fill_price;
                 this.gridView_orders.Rows[0].Cells[5].Value = f.quantity;
                 this.gridView_orders.Rows[0].Cells[7].Value = f.fee;
+            }
+        }
+        private void updateQueueInfo(Dictionary<string, queueInfo> queueInfos)
+        {
+            foreach(var q in queueInfos)
+            {
+                bool found = false;
+                foreach (DataGridViewRow row in this.gridView_QueueInfo.Rows)
+                {
+                    if (row.IsNewRow)
+                    {
+                        continue;
+                    }
+                    if (row.Cells[0] != null && row.Cells[0].Value.ToString() == q.Key)
+                    {
+                        row.Cells[1].Value = q.Value.count.ToString();
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    this.gridView_QueueInfo.Rows.Add(q.Key, q.Value.count.ToString());
+                }
+                if(q.Value.count > 0)
+                {
+                    addLog("Got non zero value!! " + q.Value.name + " " + q.Value.count.ToString());
+                }
             }
         }
         private void updateConnectionStatus(Dictionary<string,connecitonStatus> conninfos)
@@ -1372,7 +1404,8 @@ namespace Crypto_GUI
 
                         foreach (var th in this.thManager.threads)
                         {
-                            th.Value.isRunning = false;
+                            th.Value.stop();
+                            //th.Value.isRunning = false;
                         }
                     }
                 }
@@ -1812,10 +1845,10 @@ namespace Crypto_GUI
             {
                 this.addLog("The fill queue count exceeds 1000.", Enums.logType.WARNING);
             }
-            this.lbl_quoteUpdateCount.Text = this.qManager.ordBookQueue.Count().ToString();
-            this.lbl_orderUpdateCount.Text = this.crypto_client.ordUpdateQueue.Count().ToString();
-            this.lbl_fillUpdateCount.Text = this.crypto_client.fillQueue.Count().ToString();
-            this.lbl_optCount.Text = this.qManager.optQueue.Count().ToString();
+            //this.lbl_quoteUpdateCount.Text = this.qManager.ordBookQueue.Count().ToString();
+            //this.lbl_orderUpdateCount.Text = this.crypto_client.ordUpdateQueue.Count().ToString();
+            //this.lbl_fillUpdateCount.Text = this.crypto_client.fillQueue.Count().ToString();
+            //this.lbl_optCount.Text = this.qManager.optQueue.Count().ToString();
 
         }
 

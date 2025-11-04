@@ -715,6 +715,10 @@ namespace Crypto_Trading
                     case CryptoExchange.Net.SharedApis.SharedOrderSide.Buy:
 
                         ord_id = this.live_sellorder_id;
+                        while (Interlocked.CompareExchange(ref this.fill_lock, 1, 0) != 0)
+                        {
+
+                        }
                         if (this.oManager.orders.ContainsKey(ord_id))
                         {
                             ord = this.oManager.orders[ord_id];
@@ -743,9 +747,14 @@ namespace Crypto_Trading
                                 }
                             }
                         }
+                        Volatile.Write(ref this.fill_lock, 0);
                         break;
                     case CryptoExchange.Net.SharedApis.SharedOrderSide.Sell:
                         ord_id = this.live_buyorder_id;
+                        while (Interlocked.CompareExchange(ref this.fill_lock, 1, 0) != 0)
+                        {
+
+                        }
                         if (this.oManager.orders.ContainsKey(ord_id))
                         {
                             ord = this.oManager.orders[ord_id];
@@ -775,6 +784,7 @@ namespace Crypto_Trading
                                 }
                             }
                         }
+                        Volatile.Write(ref this.fill_lock, 0);
                         break;
                 }
                 Volatile.Write(ref this.updating, 0);
@@ -784,7 +794,8 @@ namespace Crypto_Trading
         {
             if(this.predictFill && quote.symbol + "@" + quote.market == this.maker.symbol_market)
             {
-                while(Interlocked.CompareExchange(ref this.updating,1,0) != 0)
+                decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity;
+                while (Interlocked.CompareExchange(ref this.updating,1,0) != 0)
                 {
 
                 }
@@ -803,6 +814,10 @@ namespace Crypto_Trading
                 {
                     if(ord.update_time < quote.orderbookTime && quote.asks.ContainsKey(ord.order_price) && quote.asks[ord.order_price] == 0)
                     {
+                        while (Interlocked.CompareExchange(ref this.fill_lock, 1, 0) != 0)
+                        {
+
+                        }
                         if (this.executed_Orders.ContainsKey(ord.internal_order_id))
                         {
                             //Do nothing
@@ -810,13 +825,23 @@ namespace Crypto_Trading
                         else
                         {
                             decimal filled_quantity = ord.order_quantity - ord.filled_quantity;
+                            switch (ord.side)
+                            {
+                                case orderSide.Buy://taker order will be sell
+                                    filled_quantity += diff_amount;
+                                    break;
+                                case orderSide.Sell:
+                                    filled_quantity -= diff_amount;
+                                    break;
 
+                            }
                             this.oManager.placeNewSpotOrder(this.taker, orderSide.Buy, orderType.Market, filled_quantity, 0, null, true);
                             this.last_filled_time_sell = DateTime.UtcNow;
                             this.executed_Orders[ord.internal_order_id] = ord;
                             ord.msg += "  onMakerQuotes at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat);
                             addLog(ord.ToString());
                         }
+                        Volatile.Write(ref this.fill_lock, 0);
                     }
                 }
 
@@ -863,6 +888,8 @@ namespace Crypto_Trading
             {
                 if(ord.status == orderStatus.Filled && this.stg_orders.Contains(ord.internal_order_id))
                 {
+                    decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity;
+                    
                     while (Interlocked.CompareExchange(ref this.fill_lock, 1, 0) != 0)
                     {
 
@@ -881,6 +908,16 @@ namespace Crypto_Trading
                         else
                         {
                             filled_quantity = ord.filled_quantity - prev.filled_quantity;
+                        }
+                        switch (ord.side)
+                        {
+                            case orderSide.Buy://taker order will be sell
+                                filled_quantity += diff_amount;
+                                break;
+                            case orderSide.Sell:
+                                filled_quantity -= diff_amount;
+                                break;
+
                         }
                         switch (ord.side)
                         {

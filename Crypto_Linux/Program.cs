@@ -5,6 +5,7 @@ using CryptoExchange.Net.Logging.Extensions;
 using CryptoExchange.Net.SharedApis;
 using Discord;
 using System.Collections.Concurrent;
+using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Drawing;
 using System.Net.WebSockets;
@@ -76,6 +77,7 @@ namespace Crypto_Linux
         static Dictionary<string, instrumentInfo> instrumentInfos = new Dictionary<string, instrumentInfo>();
         static Dictionary<string, connecitonStatus> connectionStates = new Dictionary<string, connecitonStatus>();
         static Dictionary<string , threadStatus> threadStates = new Dictionary<string, threadStatus>();
+        static Dictionary<string, queueInfo> queueInfos = new Dictionary<string, queueInfo>();
 
         Thread ws_thread;
 
@@ -696,11 +698,11 @@ namespace Crypto_Linux
 
                 oManager.ready = true;
 
-                thManager.addThread("updateQuotes", qManager.updateQuotes, qManager.updateQuotesOnClosing, qManager.updateQuotesOnError, 1000);
-                thManager.addThread("updateTrades", qManager.updateTrades, qManager.updateTradesOnClosing, qManager.updateTradesOnClosing, 1000);
-                thManager.addThread("updateOrders", oManager.updateOrders, oManager.updateOrdersOnClosing, oManager.updateOrdersOnError,1000);
+                thManager.addThread("updateQuotes", qManager.updateQuotes, qManager.updateQuotesOnClosing, qManager.updateQuotesOnError, 10000);
+                thManager.addThread("updateTrades", qManager.updateTrades, qManager.updateTradesOnClosing, qManager.updateTradesOnClosing, 10000);
+                thManager.addThread("updateOrders", oManager.updateOrders, oManager.updateOrdersOnClosing, oManager.updateOrdersOnError,10000);
                 thManager.addThread("updateFill", oManager.updateFills, oManager.updateFillOnClosing, null, 0);
-                thManager.addThread("optimize", qManager.optimize, qManager.optimizeOnClosing, qManager.optimizeOnError,100);
+                thManager.addThread("optimize", qManager.optimize, qManager.optimizeOnClosing, qManager.optimizeOnError,1000);
                 thManager.addThread("orderLogging", oManager.orderLogging, oManager.ordLoggingOnClosing, oManager.ordLoggingOnError,1);
 
                 foreach(var th in thManager.threads)
@@ -708,6 +710,11 @@ namespace Crypto_Linux
                     Console.WriteLine(th.Key);
                     threadStates[th.Key] = new threadStatus() { name = th.Key, isRunning = false };
                 }
+                queueInfos["updateQuotes"] = new queueInfo() { name = "updateQuotes", count = 0};
+                queueInfos["updateTrades"] = new queueInfo() { name = "updateTrades", count = 0 };
+                queueInfos["updateOrders"] = new queueInfo() { name = "updateOrders", count = 0 };
+                queueInfos["updateFills"] = new queueInfo() { name = "updateFills", count = 0 };
+                queueInfos["optimize"] = new queueInfo() { name = "optimize", count = 0 };
 
                 threadsStarted = true;
             }
@@ -1017,22 +1024,47 @@ namespace Crypto_Linux
                     startTrading();
                 }
             }
-            
-            if (qManager.ordBookQueue.Count() > 1000)
-            {
-                addLog("The order book queue count exceeds 1000.", Enums.logType.WARNING);
-                if (qManager.ordBookQueue.Count() > 10000)
-                {
 
-                }
-            }
-            if (crypto_client.ordUpdateQueue.Count() > 1000)
+
+            queueInfo qi;
+            qi = queueInfos["updateQuotes"];
+            qi.count = qManager.ordBookQueue.Count();
+            queueInfos["updateQuotes"] = qi;
+            if(qManager.ordBookQueue.Count() > 10)
             {
-                addLog("The order update queue count exceeds 1000.", Enums.logType.WARNING);
+                addLog("updateQuotes  " + queueInfos["updateQuotes"].count.ToString());
             }
-            if (crypto_client.fillQueue.Count() > 1000)
+
+            qi = queueInfos["updateTrades"];
+            qi.count = qManager.tradeQueue.Count();
+            queueInfos["updateTrades"] = qi;
+            if (qManager.tradeQueue.Count() > 10)
             {
-                addLog("The fill queue count exceeds 1000.", Enums.logType.WARNING);
+                addLog("updateTrades  " + queueInfos["updateTrades"].count.ToString());
+            }
+
+            qi = queueInfos["updateOrders"];
+            qi.count = crypto_client.ordUpdateQueue.Count();
+            queueInfos["updateOrders"] = qi;
+            if (crypto_client.ordUpdateQueue.Count() > 10)
+            {
+                addLog("updateOrders  " + queueInfos["updateOrders"].count.ToString());
+            }
+
+            qi = queueInfos["updateFills"];
+            qi.count = crypto_client.fillQueue.Count();
+            queueInfos["updateFills"] = qi;
+            if (crypto_client.fillQueue.Count() > 10)
+            {
+                addLog("updateFills  " + queueInfos["updateFills"].count.ToString());
+            }
+
+            qi = queueInfos["optimize"];
+            qi.count = qManager.optQueue.Count();
+            queueInfos["optimize"] = qi;
+            if (qManager.optQueue.Count() > 10)
+            {
+                addLog("optimize  " + queueInfos["optimize"].count.ToString());
             }
 
         }
@@ -1156,6 +1188,12 @@ namespace Crypto_Linux
 
                 json = JsonSerializer.Serialize(connectionStates, js_option);
                 sendingItem["data_type"] = "connection";
+                sendingItem["data"] = json;
+                msg = JsonSerializer.Serialize(sendingItem, js_option);
+                await ws_server.BroadcastAsync(msg);
+
+                json = JsonSerializer.Serialize(queueInfos, js_option);
+                sendingItem["data_type"] = "queue";
                 sendingItem["data"] = json;
                 msg = JsonSerializer.Serialize(sendingItem, js_option);
                 await ws_server.BroadcastAsync(msg);
