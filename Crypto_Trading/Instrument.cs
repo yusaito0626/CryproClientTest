@@ -219,32 +219,36 @@ namespace Crypto_Trading
 
                     if (this.quoteSeqNo > 0 && update.seqNo <= this.quoteSeqNo)
                     {
-                        break;
+                        
                     }
-                    this.quoteSeqNo = update.seqNo;
-                    foreach (var item in update.asks)
+                    else
                     {
-                        if (item.Value == 0)
+                        this.quoteSeqNo = update.seqNo;
+                        foreach (var item in update.asks)
                         {
-                            this.asks.Remove(item.Key);
+                            if (item.Value == 0)
+                            {
+                                this.asks.Remove(item.Key);
+                            }
+                            else
+                            {
+                                this.asks[item.Key] = item.Value;
+                            }
                         }
-                        else
+                        foreach (var item in update.bids)
                         {
-                            this.asks[item.Key] = item.Value;
+                            if (item.Value == 0)
+                            {
+                                this.bids.Remove(item.Key);
+                            }
+                            else
+                            {
+                                this.bids[item.Key] = item.Value;
+                            }
                         }
+                        this.updateBeskAskBid(this.ToBsize);
                     }
-                    foreach (var item in update.bids)
-                    {
-                        if (item.Value == 0)
-                        {
-                            this.bids.Remove(item.Key);
-                        }
-                        else
-                        {
-                            this.bids[item.Key] = item.Value;
-                        }
-                    }
-                    this.updateBeskAskBid(this.ToBsize);
+                        
                     Volatile.Write(ref this.quotes_lock, 0);
                     break;
             }

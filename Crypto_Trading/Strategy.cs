@@ -53,6 +53,7 @@ namespace Crypto_Trading
         public int num_of_layers;
 
         public volatile int updating;
+        public volatile int queued;
 
         //public DataSpotOrderUpdate? live_sellorder;
         //public DataSpotOrderUpdate? live_buyorder;
@@ -106,6 +107,7 @@ namespace Crypto_Trading
             this.num_of_layers = 1;
 
             this.updating = 0;
+            this.queued= 0;
 
             this.live_sellorder_id = "";
             this.live_buyorder_id = "";
@@ -201,9 +203,10 @@ namespace Crypto_Trading
             {
                 bool buyFirst = true;
                 this.skew_point = this.skew();
+                int i = 0;
                 while (Interlocked.CompareExchange(ref this.taker.quotes_lock, 1, 0) != 0)
                 {
-
+                   
                 }
                 decimal taker_bid = this.taker.adjusted_bestbid.Item1;
                 decimal taker_ask = this.taker.adjusted_bestask.Item1;
@@ -231,7 +234,6 @@ namespace Crypto_Trading
                 }
                 while (Interlocked.CompareExchange(ref this.maker.quotes_lock, 1, 0) != 0)
                 {
-
                 }
                 decimal maker_bid = this.maker.bestbid.Item1;
                 decimal maker_ask = this.maker.bestask.Item1;
@@ -282,6 +284,11 @@ namespace Crypto_Trading
                 {
                     this.taker_last_updated_mid = this.taker.adj_mid;
                     this.maker_last_updated_mid = this.maker.adj_mid;
+                }
+
+                while (Interlocked.CompareExchange(ref this.updating, 1, 0) != 0)
+                {
+
                 }
 
                 DataSpotOrderUpdate ord;
@@ -364,6 +371,7 @@ namespace Crypto_Trading
                     buyFirst = false;
                 }
 
+
                 if(buyFirst)
                 {
                     if (this.live_buyorder_id != "")
@@ -375,11 +383,6 @@ namespace Crypto_Trading
                             {
                                 this.live_buyorder_id = "";
                                 this.oManager.placeCancelSpotOrder(this.maker, ord.internal_order_id, true);
-                                //if (ord != null)
-                                //{
-                                //    this.stg_orders[ord.internal_order_id] = ord;
-                                //    this.live_bidprice = 0;
-                                //}
                                 this.live_bidprice = 0;
                             }
                             else if (isPriceChanged && ord.status == orderStatus.Open && ord.order_price != bid_price)
@@ -388,17 +391,6 @@ namespace Crypto_Trading
                                 this.live_buyorder_id = await this.oManager.placeModSpotOrder(this.maker, ord.internal_order_id, this.ToBsize, bid_price, false, true, false);
                                 this.live_bidprice = bid_price;
                                 this.stg_orders.Add(this.live_buyorder_id);
-                                //if (ord != null)
-                                //{
-                                //    this.live_buyorder_id = ord.internal_order_id;
-                                //    this.stg_orders[ord.internal_order_id] = ord;
-                                //    this.live_bidprice = bid_price;
-                                //}
-                                //else
-                                //{
-                                //    this.live_buyorder_id = "";
-                                //    this.live_bidprice = 0;
-                                //}
                             }
                         }
                     }
@@ -414,17 +406,6 @@ namespace Crypto_Trading
                             this.live_buyorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, this.ToBsize, bid_price, null, true, false);
                             this.stg_orders.Add(this.live_buyorder_id);
                             this.live_bidprice = bid_price;
-                            //if (ord != null)
-                            //{
-                            //    this.live_buyorder_id = ord.internal_order_id;
-                            //    this.stg_orders[ord.internal_order_id] = ord;
-                            //    this.live_bidprice = bid_price;
-                            //}
-                            //else
-                            //{
-                            //    this.live_buyorder_id = "";
-                            //    this.live_bidprice = 0;
-                            //}
                         }
                     }
 
@@ -438,11 +419,6 @@ namespace Crypto_Trading
                                 this.live_sellorder_id = "";
                                 this.oManager.placeCancelSpotOrder(this.maker, ord.internal_order_id, true, false);
                                 this.live_askprice = 0;
-                                //if (ord != null)
-                                //{
-                                //    this.stg_orders[ord.internal_order_id] = ord;
-                                //    this.live_askprice = 0;
-                                //}
                             }
                             else if (isPriceChanged && ord.status == orderStatus.Open && ord.order_price != ask_price)
                             {
@@ -450,17 +426,6 @@ namespace Crypto_Trading
                                 this.live_sellorder_id = await this.oManager.placeModSpotOrder(this.maker, ord.internal_order_id, this.ToBsize, ask_price, false, true, false);
                                 this.stg_orders.Add(this.live_sellorder_id);
                                 this.live_askprice = ask_price;
-                                //if (ord != null)
-                                //{
-                                //    this.live_sellorder_id = ord.internal_order_id;
-                                //    this.stg_orders[ord.internal_order_id] = ord;
-                                //    this.live_askprice = ask_price;
-                                //}
-                                //else
-                                //{
-                                //    this.live_sellorder_id = "";
-                                //    this.live_askprice = 0;
-                                //}
                             }
                         }
 
@@ -477,17 +442,6 @@ namespace Crypto_Trading
                             this.live_sellorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, this.ToBsize, ask_price, null, true, false);
                             this.stg_orders.Add(this.live_sellorder_id);
                             this.live_askprice = ask_price;
-                            //if (ord != null)
-                            //{
-                            //    this.live_sellorder_id = ord.internal_order_id;
-                            //    this.stg_orders[ord.internal_order_id] = ord;
-                            //    this.live_askprice = ask_price;
-                            //}
-                            //else
-                            //{
-                            //    this.live_sellorder_id = "";
-                            //    this.live_askprice = 0;
-                            //}
                         }
                     }
                 }
@@ -503,11 +457,6 @@ namespace Crypto_Trading
                                 this.live_sellorder_id = "";
                                 this.oManager.placeCancelSpotOrder(this.maker, ord.internal_order_id, true, false);
                                 this.live_askprice = 0;
-                                //if (ord != null)
-                                //{
-                                //    this.stg_orders[ord.internal_order_id] = ord;
-                                //    this.live_askprice = 0;
-                                //}
                             }
                             else if (isPriceChanged && ord.status == orderStatus.Open && ord.order_price != ask_price)
                             {
@@ -515,17 +464,6 @@ namespace Crypto_Trading
                                 this.live_sellorder_id = await this.oManager.placeModSpotOrder(this.maker, ord.internal_order_id, this.ToBsize, ask_price, false, true, false);
                                 this.stg_orders.Add(this.live_sellorder_id);
                                 this.live_askprice = ask_price;
-                                //if (ord != null)
-                                //{
-                                //    this.live_sellorder_id = ord.internal_order_id;
-                                //    this.stg_orders[ord.internal_order_id] = ord;
-                                //    this.live_askprice = ask_price;
-                                //}
-                                //else
-                                //{
-                                //    this.live_sellorder_id = "";
-                                //    this.live_askprice = 0;
-                                //}
                             }
                         }
 
@@ -542,17 +480,6 @@ namespace Crypto_Trading
                             this.live_sellorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, this.ToBsize, ask_price, null, true, false);
                             this.stg_orders.Add(this.live_sellorder_id);
                             this.live_askprice = ask_price;
-                            //if (ord != null)
-                            //{
-                            //    this.live_sellorder_id = ord.internal_order_id;
-                            //    this.stg_orders[ord.internal_order_id] = ord;
-                            //    this.live_askprice = ask_price;
-                            //}
-                            //else
-                            //{
-                            //    this.live_sellorder_id = "";
-                            //    this.live_askprice = 0;
-                            //}
                         }
                     }
 
@@ -565,11 +492,6 @@ namespace Crypto_Trading
                             {
                                 this.live_buyorder_id = "";
                                 this.oManager.placeCancelSpotOrder(this.maker, ord.internal_order_id, true);
-                                //if (ord != null)
-                                //{
-                                //    this.stg_orders[ord.internal_order_id] = ord;
-                                //    this.live_bidprice = 0;
-                                //}
                                 this.live_bidprice = 0;
                             }
                             else if (isPriceChanged && ord.status == orderStatus.Open && ord.order_price != bid_price)
@@ -578,17 +500,6 @@ namespace Crypto_Trading
                                 this.live_buyorder_id = await this.oManager.placeModSpotOrder(this.maker, ord.internal_order_id, this.ToBsize, bid_price, false, true, false);
                                 this.live_bidprice = bid_price;
                                 this.stg_orders.Add(this.live_buyorder_id);
-                                //if (ord != null)
-                                //{
-                                //    this.live_buyorder_id = ord.internal_order_id;
-                                //    this.stg_orders[ord.internal_order_id] = ord;
-                                //    this.live_bidprice = bid_price;
-                                //}
-                                //else
-                                //{
-                                //    this.live_buyorder_id = "";
-                                //    this.live_bidprice = 0;
-                                //}
                             }
                         }
                     }
@@ -604,24 +515,11 @@ namespace Crypto_Trading
                             this.live_buyorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, this.ToBsize, bid_price, null, true, false);
                             this.stg_orders.Add(this.live_buyorder_id);
                             this.live_bidprice = bid_price;
-                            //if (ord != null)
-                            //{
-                            //    this.live_buyorder_id = ord.internal_order_id;
-                            //    this.stg_orders[ord.internal_order_id] = ord;
-                            //    this.live_bidprice = bid_price;
-                            //}
-                            //else
-                            //{
-                            //    this.live_buyorder_id = "";
-                            //    this.live_bidprice = 0;
-                            //}
                         }
                     }
                 }
-
-                
+                Volatile.Write(ref this.updating, 0);
             }
-            Volatile.Write(ref this.updating, 0);
         }
 
         public bool checkPriceChange()
@@ -638,7 +536,6 @@ namespace Crypto_Trading
                 List<string> cancelling_ids = new List<string>();
                 while (Interlocked.CompareExchange(ref this.oManager.order_lock, 1, 0) != 0)
                 {
-
                 }
                 foreach(var ord in this.oManager.live_orders)
                 {
@@ -702,10 +599,19 @@ namespace Crypto_Trading
         {
             if(this.predictFill && trade.symbol + "@" + trade.market == this.maker.symbol_market)
             {
-
-                while (Interlocked.CompareExchange(ref this.updating, 1, 0) != 0)
+                int i = 0;
+                while (Interlocked.CompareExchange(ref this.updating, 2, 0) != 0)
                 {
-
+                    ++i;
+                    if(i > 1000000000)
+                    {
+                        addLog("Locked in updating. value:" + this.updating.ToString());
+                        addLog("sendingOrder Stack. " + this.oManager.sendingOrdersStack.Count().ToString());
+                        addLog("Push count:" + this.oManager.push_count.ToString() + "   Pop count:" + this.oManager.pop_count.ToString());
+                        Thread.Sleep(1);
+                        //return;
+                        i = 0;
+                    }
                 }
                 string ord_id;
                 DataSpotOrderUpdate ord = null;
@@ -717,7 +623,6 @@ namespace Crypto_Trading
                         ord_id = this.live_sellorder_id;
                         while (Interlocked.CompareExchange(ref this.fill_lock, 1, 0) != 0)
                         {
-
                         }
                         if (this.oManager.orders.ContainsKey(ord_id))
                         {
@@ -751,9 +656,9 @@ namespace Crypto_Trading
                         break;
                     case CryptoExchange.Net.SharedApis.SharedOrderSide.Sell:
                         ord_id = this.live_buyorder_id;
+                        i = 0;
                         while (Interlocked.CompareExchange(ref this.fill_lock, 1, 0) != 0)
                         {
-
                         }
                         if (this.oManager.orders.ContainsKey(ord_id))
                         {
@@ -795,7 +700,7 @@ namespace Crypto_Trading
             if(this.predictFill && quote.symbol + "@" + quote.market == this.maker.symbol_market)
             {
                 decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity;
-                while (Interlocked.CompareExchange(ref this.updating,1,0) != 0)
+                while (Interlocked.CompareExchange(ref this.updating,3,0) != 0)
                 {
 
                 }

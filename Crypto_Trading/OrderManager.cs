@@ -1,4 +1,5 @@
-﻿using Coinbase.Net.Objects.Models;
+﻿using Bybit.Net.Enums;
+using Coinbase.Net.Objects.Models;
 using Crypto_Clients;
 using CryptoClients.Net;
 using CryptoClients.Net.Enums;
@@ -43,6 +44,8 @@ namespace Crypto_Trading
         const int SENDINGORD_STACK_SIZE = 1000;
         public ConcurrentQueue<sendingOrder> sendingOrders;
         public ConcurrentStack<sendingOrder> sendingOrdersStack;
+        public volatile int push_count;
+        public volatile int pop_count;
         Thread processingOrdTh;
         CancellationTokenSource OrderProcessingStop;
         public Dictionary<string, string> ordIdMapping;
@@ -115,6 +118,8 @@ namespace Crypto_Trading
 
             this.sendingOrders = new ConcurrentQueue<sendingOrder>();
             this.sendingOrdersStack = new ConcurrentStack<sendingOrder>();
+            this.push_count = 0;
+            this.pop_count = 0;
 
             while(i < SENDINGORD_STACK_SIZE)
             {
@@ -224,6 +229,7 @@ namespace Crypto_Trading
             {
 
             }
+            Interlocked.Increment(ref this.pop_count);
             ordid = this.getInternalOrdId(ins.market);
             ord.internalOrdId = ordid;
             ord.action = orderAction.New;
@@ -259,6 +265,7 @@ namespace Crypto_Trading
             {
 
             }
+            Interlocked.Increment(ref this.pop_count);
             //ordid = this.getInternalOrdId(ins.market);
             //ord.internalOrdId = ordid;
             ord.action = orderAction.Can;
@@ -285,6 +292,38 @@ namespace Crypto_Trading
 
             return orderId;
         }
+        public async Task<List<string>> placeCancelSpotOrders(Instrument ins,List<string> order_ids,bool sendNow = true,bool wait = false)
+        {
+            sendingOrder ord;
+            while (!this.sendingOrdersStack.TryPop(out ord))
+            {
+
+            }
+            Interlocked.Increment(ref this.pop_count);
+            ord.action = orderAction.Can;
+            ord.ins = ins;
+
+            ord.order_ids = order_ids;
+
+            if (sendNow)
+            {
+                if (wait)
+                {
+                    await this.processCanOrder(ord);
+                }
+                else
+                {
+                    this.processCanOrder(ord);
+                }
+            }
+            else
+            {
+                this.addLog("This feature is not temporarily supported", Enums.logType.ERROR);
+                this.sendingOrders.Enqueue(ord);
+            }
+
+            return order_ids;
+        }
         public async Task<string> placeModSpotOrder(Instrument ins, string orderId, decimal quantity, decimal price,bool waitCancel, bool sendNow = true,bool wait = false)
         {
             sendingOrder ord;
@@ -293,6 +332,7 @@ namespace Crypto_Trading
             {
 
             }
+            Interlocked.Increment(ref this.pop_count);
             ordid = this.getInternalOrdId(ins.market);
             ord.internalOrdId = ordid;
             ord.ref_IntOrdId = orderId;
@@ -897,7 +937,9 @@ namespace Crypto_Trading
                     this.ord_client.ordUpdateQueue.Enqueue(output);
                 }
             }
-
+            sndOrd.init();
+            this.sendingOrdersStack.Push(sndOrd);
+            Interlocked.Increment(ref this.push_count);
             return output;
         }
         async public Task<DataSpotOrderUpdate?> processModOrder(sendingOrder sndOrd)
@@ -905,6 +947,7 @@ namespace Crypto_Trading
             DataSpotOrderUpdate ord;
             modifingOrd mod;
             DataSpotOrderUpdate? output = null;
+            sendingOrder sndOrd2;
 
             if (sndOrd.waitCancel)
             {
@@ -929,6 +972,9 @@ namespace Crypto_Trading
                 }
                 else
                 {
+                    sndOrd.init();
+                    this.sendingOrdersStack.Push(sndOrd);
+                    Interlocked.Increment(ref this.push_count);
                     return null;
                 }
             }
@@ -942,13 +988,22 @@ namespace Crypto_Trading
                     sndOrd.time_in_force = ord.time_in_force;
                     if(ord.status == orderStatus.Open)
                     {
+                        while(!this.sendingOrdersStack.TryPop(out sndOrd2))
+                        {
+
+                        }
+                        Interlocked.Increment(ref this.pop_count);
+                        sndOrd2.copy(sndOrd);
+                        sndOrd2.msg += " ModOrder from " + sndOrd.ref_IntOrdId + " ";
                         this.processCanOrder(sndOrd);
                         Thread.Sleep(1);
-                        sndOrd.msg += " ModOrder from " + sndOrd.ref_IntOrdId + " ";
-                        output = await this.processNewOrder(sndOrd);
+                        output = await this.processNewOrder(sndOrd2);
                     }
                     else
                     {
+                        sndOrd.init();
+                        this.sendingOrdersStack.Push(sndOrd);
+                        Interlocked.Increment(ref this.push_count);
                         output = null;
                     }
                     return output;
@@ -956,6 +1011,9 @@ namespace Crypto_Trading
                 else
                 {
                     addLog("Order not found. order id:" + sndOrd.ref_IntOrdId);
+                    sndOrd.init();
+                    this.sendingOrdersStack.Push(sndOrd);
+                    Interlocked.Increment(ref this.push_count);
                     return null;
                 }
             }
@@ -966,6 +1024,7 @@ namespace Crypto_Trading
             JsonDocument js;
             if (this.virtualMode)
             {
+                Thread.Sleep(this.latency);
                 while (!this.ord_client.ordUpdateStack.TryPop(out output))
                 {
 
@@ -977,7 +1036,7 @@ namespace Crypto_Trading
                 output.market = sndOrd.ins.market;
                 output.symbol_market = sndOrd.ins.symbol_market;
                 output.internal_order_id = sndOrd.ref_IntOrdId;
-                if (prev.filled_quantity > 0)
+                if (prev.filled_quantity == prev.order_quantity)
                 {
                     output.status = orderStatus.Filled;
                 }
@@ -1000,7 +1059,6 @@ namespace Crypto_Trading
                 output.timestamp = DateTime.UtcNow;
                 output.trigger_price = prev.trigger_price;
                 output.update_time = DateTime.UtcNow;
-                Thread.Sleep(this.latency);
                 while (Interlocked.CompareExchange(ref this.virtual_order_lock, 1, 0) != 0)
                 {
 
@@ -1038,6 +1096,44 @@ namespace Crypto_Trading
                     output.internal_order_id = sndOrd.ref_IntOrdId;
                     output.filled_quantity = 0;
                     output.status = orderStatus.WaitCancel;
+                    this.ord_client.ordUpdateQueue.Enqueue(output);
+                }
+                else
+                {
+                    int code = js.RootElement.GetProperty("data").GetProperty("code").GetInt32();
+                    switch (code)
+                    {
+                        case 10009:
+                            this.addLog("Cancel order failed. Too many request.", Enums.logType.WARNING);
+                            break;
+                        case 50026://Already Canceled
+                        case 50027://Already filled
+                            break;
+                        default:
+                            this.addLog("Cancel Order Failed", Enums.logType.ERROR);
+                            this.addLog(js.RootElement.GetRawText(), Enums.logType.ERROR);
+                            break;
+                    }
+                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    {
+
+                    }
+                    output.status = orderStatus.INVALID;
+                    output.timestamp = sendTime;
+                    output.internal_order_id = sndOrd.internalOrdId;
+                    output.side = sndOrd.side;
+                    output.symbol = sndOrd.ins.symbol;
+                    output.market = sndOrd.ins.market;
+                    output.symbol_market = sndOrd.ins.symbol_market;
+                    output.order_quantity = sndOrd.quantity;
+                    output.order_price = sndOrd.price;
+                    output.filled_quantity = 0;
+                    output.average_price = 0;
+                    output.fee = 0;
+                    output.fee_asset = "";
+                    output.is_trigger_order = true;
+                    output.last_trade = "";
+                    output.msg = sndOrd.msg;
                     this.ord_client.ordUpdateQueue.Enqueue(output);
                 }
             }
@@ -1097,9 +1193,255 @@ namespace Crypto_Trading
                     this.ord_client.ordUpdateQueue.Enqueue(output);
                 }
             }
+            sndOrd.init();
+            this.sendingOrdersStack.Push(sndOrd);
+            Interlocked.Increment(ref this.push_count);
             return output;
         }
 
+        async public Task<List<DataSpotOrderUpdate>> processCanOrders(sendingOrder sndOrd)
+        {
+            List<DataSpotOrderUpdate> output = new List<DataSpotOrderUpdate>();
+            DataSpotOrderUpdate? ordObj = null;
+            List<JsonDocument> js;
+            if (this.virtualMode)
+            {
+                Thread.Sleep(this.latency);
+                foreach (var ordid in sndOrd.order_ids)
+                {
+                    while (!this.ord_client.ordUpdateStack.TryPop(out ordObj))
+                    {
+
+                    }
+                    DataSpotOrderUpdate prev = this.orders[sndOrd.ref_IntOrdId];
+                    ordObj.isVirtual = true;
+                    ordObj.order_id = prev.order_id;
+                    ordObj.symbol = sndOrd.ins.symbol;
+                    ordObj.market = sndOrd.ins.market;
+                    ordObj.symbol_market = sndOrd.ins.symbol_market;
+                    ordObj.internal_order_id = ordid;
+                    if (prev.filled_quantity == prev.order_quantity)
+                    {
+                        ordObj.status = orderStatus.Filled;
+                    }
+                    else
+                    {
+                        ordObj.status = orderStatus.Canceled;
+                    }
+                    ordObj.side = prev.side;
+                    ordObj.order_type = prev.order_type;
+                    ordObj.order_quantity = prev.order_quantity;
+                    ordObj.filled_quantity = prev.filled_quantity;
+                    ordObj.order_price = prev.order_price;
+                    ordObj.average_price = prev.average_price;
+                    ordObj.create_time = prev.create_time;
+                    ordObj.fee = prev.fee;
+                    ordObj.fee_asset = prev.fee_asset;
+                    ordObj.is_trigger_order = prev.is_trigger_order;
+                    ordObj.last_trade = prev.last_trade;
+                    ordObj.time_in_force = prev.time_in_force;
+                    ordObj.timestamp = DateTime.UtcNow;
+                    ordObj.trigger_price = prev.trigger_price;
+                    ordObj.update_time = DateTime.UtcNow;
+
+                    while (Interlocked.CompareExchange(ref this.virtual_order_lock, 1, 0) != 0)
+                    {
+
+                    }
+                    if (this.virtual_liveorders.ContainsKey(prev.internal_order_id))
+                    {
+                        output.Add(ordObj);
+                        this.virtual_liveorders.Remove(prev.internal_order_id);
+                        this.ord_client.ordUpdateQueue.Enqueue(ordObj);
+                    }
+                    else
+                    {
+                        ordObj.init();
+                        this.ord_client.ordUpdateStack.Push(ordObj);
+                        ordObj = null;
+                    }
+                    Volatile.Write(ref this.virtual_order_lock, 0);
+                }
+            }
+            else if (sndOrd.ins.market == "bitbank")
+            {
+                DateTime sendTime = DateTime.UtcNow;
+                List<string> ord_ids = new List<string>();
+                foreach(string order_id in sndOrd.order_ids)
+                {
+                    if(this.orders.ContainsKey(order_id))
+                    {
+                        ord_ids.Add(this.orders[order_id].order_id);
+                    }
+                }
+                js = await this.ord_client.bitbank_client.placeCanOrders(sndOrd.ins.symbol, ord_ids);
+                foreach (var elem in js)
+                {
+                    if (elem.RootElement.GetProperty("success").GetUInt16() == 1)
+                    {
+                        var ord_objs = elem.RootElement.GetProperty("data").GetProperty("orders").EnumerateArray();
+                        foreach(var ord_obj in ord_objs)
+                        {
+                            while (!this.ord_client.ordUpdateStack.TryPop(out ordObj))
+                            {
+                            }
+                            ordObj.order_id = ord_obj.GetProperty("order_id").GetInt64().ToString();
+                            ordObj.timestamp = sendTime;
+                            ordObj.order_price = -1;
+                            ordObj.order_quantity = 0;
+                            ordObj.market = sndOrd.ins.market;
+                            ordObj.symbol = sndOrd.ins.symbol;
+                            ordObj.internal_order_id = this.ordIdMapping[ordObj.market + ordObj.order_id];
+                            ordObj.filled_quantity = 0;
+                            ordObj.status = orderStatus.WaitCancel;
+                            this.ord_client.ordUpdateQueue.Enqueue(ordObj);
+                            output.Add(ordObj);
+                        }
+                        
+                    }
+                    else
+                    {
+                        int code = elem.RootElement.GetProperty("data").GetProperty("code").GetInt32();
+                        switch (code)
+                        {
+                            case 10009:
+                                this.addLog("Cancel order failed. Too many request.", Enums.logType.WARNING);
+                                break;
+                            case 50026://Already Canceled
+                            case 50027://Already filled
+                                this.addLog("Cancel Order Failed", Enums.logType.ERROR);
+                                this.addLog(elem.RootElement.GetRawText(), Enums.logType.ERROR);
+                                break;
+                            default:
+                                this.addLog("Cancel Order Failed", Enums.logType.ERROR);
+                                this.addLog(elem.RootElement.GetRawText(), Enums.logType.ERROR);
+                                break;
+                        }
+                        foreach(string ordid in sndOrd.order_ids)
+                        {
+                            while (!this.ord_client.ordUpdateStack.TryPop(out ordObj))
+                            {
+
+                            }
+                            DataSpotOrderUpdate prev = this.orders[ordid];
+
+                            ordObj.status = orderStatus.INVALID;
+                            ordObj.timestamp = sendTime;
+                            ordObj.internal_order_id = ordid;
+                            ordObj.side = prev.side;
+                            ordObj.symbol = prev.symbol;
+                            ordObj.market = prev.market;
+                            ordObj.symbol_market = prev.symbol_market;
+                            ordObj.order_quantity = prev.order_quantity;
+                            ordObj.order_price = prev.order_price;
+                            ordObj.filled_quantity = 0;
+                            ordObj.average_price = 0;
+                            ordObj.fee = 0;
+                            ordObj.fee_asset = "";
+                            ordObj.is_trigger_order = true;
+                            ordObj.last_trade = "";
+                            ordObj.msg = sndOrd.msg;
+                            this.ord_client.ordUpdateQueue.Enqueue(ordObj);
+                        }
+                        
+                    }
+                }
+                    
+            }
+            else if (sndOrd.ins.market == "coincheck")
+            {
+                DateTime sendTime = DateTime.UtcNow;
+                List<string> ord_ids = new List<string>();
+                foreach (string order_id in sndOrd.order_ids)
+                {
+                    if (this.orders.ContainsKey(order_id))
+                    {
+                        ord_ids.Add(this.orders[order_id].order_id);
+                    }
+                }
+                
+                js = await this.ord_client.coincheck_client.placeCanOrders(ord_ids);
+                foreach (var elem in js)
+                {
+                    if (elem.RootElement.GetProperty("success").GetBoolean())
+                    {
+                        var ord_obj = elem.RootElement;
+                        while (!this.ord_client.ordUpdateStack.TryPop(out ordObj))
+                        {
+                        }
+                        ordObj.order_id = ord_obj.GetProperty("id").GetInt64().ToString();
+                        ordObj.timestamp = sendTime;
+                        ordObj.order_price = -1;
+                        ordObj.order_quantity = 0;
+                        ordObj.market = sndOrd.ins.market;
+                        ordObj.symbol = sndOrd.ins.symbol;
+                        ordObj.internal_order_id = this.ordIdMapping[ordObj.market + ordObj.order_id];
+                        ordObj.filled_quantity = 0;
+                        ordObj.status = orderStatus.WaitCancel;
+                        output.Add(ordObj);
+                        this.ord_client.ordUpdateQueue.Enqueue(ordObj);
+                    }
+                }
+                
+            }
+            else if (sndOrd.ins.market == "bittrade")
+            {
+                DateTime sendTime = DateTime.UtcNow;
+                List<string> ord_ids = new List<string>();
+                foreach (string order_id in sndOrd.order_ids)
+                {
+                    if (this.orders.ContainsKey(order_id))
+                    {
+                        ord_ids.Add(this.orders[order_id].order_id);
+                    }
+                }
+                js = await this.ord_client.bittrade_client.placeCanOrders(ord_ids);
+                foreach(var elem in js)
+                {
+                    if (elem.RootElement.GetProperty("status").GetString() == "ok")
+                    {
+                        while (!this.ord_client.ordUpdateStack.TryPop(out ordObj))
+                        {
+                        }
+                        ordObj.order_id = elem.RootElement.GetProperty("data").GetString();
+                        ordObj.timestamp = sendTime;
+                        ordObj.order_price = -1;
+                        ordObj.order_quantity = 0;
+                        ordObj.market = sndOrd.ins.market;
+                        ordObj.symbol = sndOrd.ins.symbol;
+                        ordObj.internal_order_id = this.ordIdMapping[ordObj.market + ordObj.order_id];
+                        ordObj.filled_quantity = 0;
+                        ordObj.status = orderStatus.WaitCancel;
+                        output.Add(ordObj);
+                        this.ord_client.ordUpdateQueue.Enqueue(ordObj);
+                    }
+                }
+                
+            }
+            else
+            {
+                DateTime sendTime = DateTime.UtcNow;
+                List<string> ord_ids = new List<string>();
+                foreach (string order_id in sndOrd.order_ids)
+                {
+                    if (this.orders.ContainsKey(order_id))
+                    {
+                        ordObj = await this.ord_client.placeCancelSpotOrder(sndOrd.ins.market, sndOrd.ins.baseCcy, sndOrd.ins.quoteCcy, this.orders[order_id].order_id);
+                        if (ordObj != null)
+                        {
+                            ordObj.symbol_market = sndOrd.ins.symbol_market;
+                            ordObj.internal_order_id = order_id;
+                            output.Add(ordObj);
+                            this.ord_client.ordUpdateQueue.Enqueue(ordObj);
+                        }
+                    }
+                }
+            }
+            sndOrd.init();
+            this.sendingOrdersStack.Push(sndOrd);
+            Interlocked.Increment(ref this.push_count);
+            return output;
+        }
         public void processingOrders(CancellationToken cancellationToken)
         {
             int i = 0;
@@ -1120,8 +1462,8 @@ namespace Crypto_Trading
                             this.processCanOrder(ord);
                             break;
                     }
-                    ord.init();
-                    this.sendingOrdersStack.Push(ord);
+                    //ord.init();
+                    //this.sendingOrdersStack.Push(ord);
                     i = 0;
                 }
                 else
@@ -2254,10 +2596,10 @@ namespace Crypto_Trading
         }
     }
 
-    public struct sendingOrder
+    public class sendingOrder
     {
-        public string internalOrdId;
-        public string ref_IntOrdId;
+        public string? internalOrdId;
+        public string? ref_IntOrdId;
         public orderAction action;
         //public string ordId;
         public orderSide side;
@@ -2268,8 +2610,13 @@ namespace Crypto_Trading
         public Instrument ins;
         public bool waitCancel;
         public string msg;
+
+        public List<string> order_ids = new List<string>();
+
         public void init()
         {
+            this.internalOrdId = "";
+            this.ref_IntOrdId = "";
             this.action = orderAction.NONE;
             //this.ordId = "";
             this.side = orderSide.NONE;
@@ -2280,6 +2627,27 @@ namespace Crypto_Trading
             this.ins = null;
             this.waitCancel = false;
             this.msg = "";
+            if(this.order_ids.Count > 0)
+            {
+                this.order_ids.Clear();
+            }
+        }
+
+        public void copy(sendingOrder org)
+        {
+            this.internalOrdId = org.internalOrdId;
+            this.ref_IntOrdId = org.ref_IntOrdId;
+            this.action = org.action;
+            this.side = org.side;
+            this.order_type = org.order_type;
+            this.time_in_force = org.time_in_force;
+            this.price = org.price;
+            this.quantity = org.quantity;
+            this.ins = org.ins;
+            this.waitCancel = org.waitCancel;
+            this.msg = org.msg;
+
+            this.order_ids = new List<string>(org.order_ids);
         }
     }
 

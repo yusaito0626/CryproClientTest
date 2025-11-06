@@ -889,10 +889,6 @@ namespace Crypto_GUI
                 {
                     this.gridView_QueueInfo.Rows.Add(q.Key, q.Value.count.ToString());
                 }
-                if(q.Value.count > 0)
-                {
-                    addLog("Got non zero value!! " + q.Value.name + " " + q.Value.count.ToString());
-                }
             }
         }
         private void updateConnectionStatus(Dictionary<string,connecitonStatus> conninfos)
@@ -1070,7 +1066,7 @@ namespace Crypto_GUI
                 this.lbl_baseCcyName.Text = this.selected_ins.baseCcy;
                 this.lbl_quoteCcyName.Text = this.selected_ins.quoteCcy;
                 this.lbl_market.Text = this.selected_ins.market;
-                this.lbl_lastprice.Text = this.selected_ins.last_price.ToString();
+                this.lbl_lastprice.Text = this.selected_ins.last_price.ToString("N" + this.selected_ins.price_scale);
                 this.lbl_notional.Text = (this.selected_ins.buy_notional + this.selected_ins.sell_notional).ToString("N2");
                 this.lbl_baseCcyTotal.Text = this.selected_ins.baseBalance.total.ToString("N" + this.selected_ins.quantity_scale);
                 this.lbl_quoteCcyTotal.Text = this.selected_ins.quoteBalance.total.ToString("N2");

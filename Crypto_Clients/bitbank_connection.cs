@@ -1,5 +1,6 @@
 ﻿using Bitget.Net.Objects.Models.V2;
 using CryptoExchange.Net.SharedApis;
+using Discord;
 using PubnubApi;
 using System;
 using System.Collections.Concurrent;
@@ -674,6 +675,34 @@ namespace Crypto_Clients
             var resString = await this.postAsync("/v1/user/spot/cancel_order", jsonBody);
 
             return JsonDocument.Parse(resString);
+        }
+
+        public async Task<List<JsonDocument>> placeCanOrders(string symbol,List<string> order_ids)
+        {
+            int i = 0;
+            int pageSize = 30;
+            List<JsonDocument> list = new List<JsonDocument>();
+            while (i < order_ids.Count)
+            {
+                List<int> subList;
+                if (i + pageSize >= order_ids.Count)
+                {
+                    subList = order_ids.GetRange(i, order_ids.Count - i).Select(s => int.Parse(s)).ToList();
+                }
+                else
+                {
+                    subList = order_ids.GetRange(i, pageSize).Select(s => int.Parse(s)).ToList();
+                }
+                var body = new
+                {
+                    pair = symbol,
+                    order_ids = subList
+                };
+                var json = JsonSerializer.Serialize(body);
+                var resString = await this.postAsync("/v1/user/spot/cancel_orders", json);
+                list.Add(JsonDocument.Parse(resString));
+            }
+            return list;
         }
 
         private async Task<(string channel, string token)> GetChannelAndToken()
