@@ -1032,6 +1032,14 @@ namespace Crypto_Trading
                                     if (this.oManager.orders.ContainsKey(fill.internal_order_id))
                                     {
                                         ord = this.oManager.orders[fill.internal_order_id];
+                                        if (ord.order_quantity - ord.filled_quantity <= fill.quantity || ord.status == orderStatus.Filled)
+                                        {
+                                            this.executed_Orders[ord.internal_order_id] = ord;
+                                            ord.msg += "  onFill at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat) + fill.internal_order_id;
+                                            addLog(ord.ToString());
+                                            fill.msg = ord.msg;
+                                            this.last_filled_time_buy = DateTime.UtcNow;
+                                        }
                                     }
                                     else
                                     {
@@ -1042,14 +1050,6 @@ namespace Crypto_Trading
                                             this.last_filled_time_sell = DateTime.UtcNow;
                                             fill.msg = "  onFill at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat) + fill.internal_order_id;
                                         }
-                                    }
-                                    if (ord.order_quantity - ord.filled_quantity <= fill.quantity || ord.status == orderStatus.Filled)
-                                    {
-                                        this.executed_Orders[ord.internal_order_id] = ord;
-                                        ord.msg += "  onFill at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat) + fill.internal_order_id;
-                                        addLog(ord.ToString());
-                                        fill.msg = ord.msg;
-                                        this.last_filled_time_buy = DateTime.UtcNow;
                                     }
                                     break;
                                 case orderSide.Sell:
