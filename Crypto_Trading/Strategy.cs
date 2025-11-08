@@ -75,6 +75,9 @@ namespace Crypto_Trading
         public DateTime? last_filled_time_buy;
         public DateTime? last_filled_time_sell;
 
+        public decimal SoD_baseCcyPos;
+        public decimal SoD_price;
+        public decimal netExposure;
         public decimal notionalVolume;
         public decimal tradingPnL;
         public decimal totalFee;
@@ -123,6 +126,9 @@ namespace Crypto_Trading
             this.taker_last_updated_mid = 0;
             this.maker_last_updated_mid = 0;
 
+            this.netExposure = 0;
+            this.SoD_baseCcyPos = 0;
+            this.SoD_price = 0;
             this.notionalVolume = 0;
             this.tradingPnL = 0;
             this.totalFee = 0;

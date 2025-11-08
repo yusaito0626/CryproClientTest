@@ -43,6 +43,8 @@ namespace Crypto_Trading
         public decimal adj_mid;
         public decimal adj_prev;
 
+        public decimal open_mid;
+
         public decimal sell_quantity;
         public decimal buy_quantity;
         public decimal sell_notional;
@@ -97,6 +99,8 @@ namespace Crypto_Trading
             this.prev_mid = -1;
             this.adj_mid = -1;
             this.adj_prev = -1;
+
+            this.open_mid = -1;
 
             this.last_price = 0;
             this.sell_quantity = 0;
@@ -394,6 +398,11 @@ namespace Crypto_Trading
                 this.mid = 0;
             }
 
+            if(this.open_mid < 0 && this.mid > 0)
+            {
+                this.open_mid = this.mid;
+            }
+            
         }
         public void updateFills(DataSpotOrderUpdate prev_ord,DataSpotOrderUpdate new_ord)
         {

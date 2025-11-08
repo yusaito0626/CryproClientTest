@@ -270,7 +270,6 @@ namespace Crypto_Linux
             {
                 sendFills();
                 await statusCheck();
-                updateLog();
                 setInstrumentInfo();
                 setStrategyInfo();
                 broadcastInfos();
@@ -285,45 +284,44 @@ namespace Crypto_Linux
                 ++i;
                 if (i > 30)
                 {
-                    //string msg = "";
-                    //foreach (var th in threadStates)
-                    //{
-                    //    msg += DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat) + " Thread Name:" + th.Key + "   Average Processing Time:" + th.Value.avgProcessingTime.ToString() + " ms\n";
-                    //}
-                    decimal volume = 0;
-                    decimal tradingPL = 0;
-                    decimal fee = 0;
-                    decimal total = 0;
-
-                    decimal volumeAll = 0;
-                    decimal tradingPLAll = 0;
-                    decimal feeAll = 0;
-                    decimal totalAll = 0;
-                    string msg = "";
-                    foreach (var stg in strategies.Values)
-                    {
-                        if (stg.maker != null && stg.taker != null)
-                        {
-                            volume = stg.maker.my_buy_notional + stg.maker.my_sell_notional;
-                            tradingPL = (stg.taker.my_sell_notional - stg.taker.my_sell_quantity * stg.taker.mid) + (stg.taker.my_buy_quantity * stg.taker.mid - stg.taker.my_buy_notional);
-                            tradingPL += (stg.maker.my_sell_notional - stg.maker.my_sell_quantity * stg.taker.mid) + (stg.maker.my_buy_quantity * stg.taker.mid - stg.maker.my_buy_notional);
-                            fee = stg.taker.base_fee * stg.taker.mid + stg.taker.quote_fee + stg.maker.base_fee * stg.taker.mid + stg.maker.quote_fee;
-                            total = tradingPL - fee;
-
-                            msg += DateTime.UtcNow.ToString() + " - Strategy " + stg.name + " -    Notional Volume:" + volume.ToString("N2") + " Trading PnL:" + tradingPL.ToString("N2") + " Fee:" + fee.ToString("N2") + " Total:" + total.ToString("N2") + "\n";
-                            volumeAll += volume;
-                            tradingPLAll += tradingPL;
-                            feeAll += fee;
-                            totalAll += total;
-                        }
-                    }
-                    msg += DateTime.UtcNow.ToString() + " - All -    Notional Volume:" + volumeAll.ToString("N2") + " Trading PnL:" + tradingPLAll.ToString("N2") + " Fee:" + feeAll.ToString("N2") + " Total:" + totalAll.ToString("N2") + "\n";
+                    string msg = stgPnLMsg();
                     Console.WriteLine(msg);
                     await timer_PeriodicMsg_Tick();
                     i = 0;
                 }
+                updateLog();
                 Thread.Sleep(1000);
             }
+        }
+
+        static private string stgPnLMsg()
+        {
+            decimal volumeAll = 0;
+            decimal tradingPLAll = 0;
+            decimal feeAll = 0;
+            decimal totalAll = 0;
+            string msg = "";
+            foreach (var stg in strategies.Values)
+            {
+                if (stg.maker != null && stg.taker != null)
+                {
+                    stg.netExposure = stg.maker.baseBalance.total + stg.taker.baseBalance.total - stg.baseCcyQuantity;
+                    stg.notionalVolume = stg.maker.my_buy_notional + stg.maker.my_sell_notional;
+                    stg.tradingPnL = stg.SoD_baseCcyPos * (stg.taker.mid - stg.taker.open_mid);
+                    stg.tradingPnL += (stg.taker.my_sell_notional - stg.taker.my_sell_quantity * stg.taker.mid) + (stg.taker.my_buy_quantity * stg.taker.mid - stg.taker.my_buy_notional);
+                    stg.tradingPnL += (stg.maker.my_sell_notional - stg.maker.my_sell_quantity * stg.taker.mid) + (stg.maker.my_buy_quantity * stg.taker.mid - stg.maker.my_buy_notional);
+                    stg.totalFee = stg.taker.base_fee * stg.taker.mid + stg.taker.quote_fee + stg.maker.base_fee * stg.taker.mid + stg.maker.quote_fee;
+                    stg.totalPnL = stg.tradingPnL - stg.totalFee;
+
+                    msg += DateTime.UtcNow.ToString() + " - Strategy " + stg.name + " -    \nNotional Volume:" + stg.notionalVolume.ToString("N2") + "\nNet Exposure:" + stg.netExposure.ToString("N2") + "\nTrading PnL:" + stg.tradingPnL.ToString("N2") + "\nFee:" + stg.totalFee.ToString("N2") + "\nTotal:" + stg.totalPnL.ToString("N2") + "\n";
+                    volumeAll += stg.notionalVolume;
+                    tradingPLAll += stg.tradingPnL;
+                    feeAll += stg.totalFee;
+                    totalAll += stg.totalPnL;
+                }
+            }
+            msg += DateTime.UtcNow.ToString() + " - All -    \nNotional Volume:" + volumeAll.ToString("N2") + "\nTrading PnL:" + tradingPLAll.ToString("N2") + "\nFee:" + feeAll.ToString("N2") + "\nTotal:" + totalAll.ToString("N2") + "\n";
+            return msg;
         }
 
         static private async Task testFunc()
@@ -835,6 +833,7 @@ namespace Crypto_Linux
                     foreach (var stg in strategies.Values)
                     {
                         decimal baseBalance_diff = stg.baseCcyQuantity - (stg.maker.baseBalance.total + stg.taker.baseBalance.total);
+                        stg.SoD_baseCcyPos = - baseBalance_diff;
                         orderSide side = orderSide.Buy;
                         if (baseBalance_diff < 0)
                         {
@@ -953,39 +952,15 @@ namespace Crypto_Linux
                     }
 
                     Thread.Sleep(1000);
-                    decimal volume = 0;
-                    decimal tradingPL = 0;
-                    decimal fee = 0;
-                    decimal total = 0;
 
-                    decimal volumeAll = 0;
-                    decimal tradingPLAll = 0;
-                    decimal feeAll = 0;
-                    decimal totalAll = 0;
-                    string msg = "EoD PnL";
-                    foreach (var stg in strategies.Values)
-                    {
-                        if (stg.maker != null && stg.taker != null)
-                        {
-                            volume = stg.maker.my_buy_notional + stg.maker.my_sell_notional;
-                            tradingPL = (stg.taker.my_sell_notional - stg.taker.my_sell_quantity * stg.taker.mid) + (stg.taker.my_buy_quantity * stg.taker.mid - stg.taker.my_buy_notional);
-                            tradingPL += (stg.maker.my_sell_notional - stg.maker.my_sell_quantity * stg.taker.mid) + (stg.maker.my_buy_quantity * stg.taker.mid - stg.maker.my_buy_notional);
-                            fee = stg.taker.base_fee * stg.taker.mid + stg.taker.quote_fee + stg.maker.base_fee * stg.taker.mid + stg.maker.quote_fee;
-                            total = tradingPL - fee;
+                    string msg = "EoD PnL\n" + stgPnLMsg();
 
-                            msg += DateTime.UtcNow.ToString() + " - Strategy " + stg.name + " -    Notional Volume:" + volume.ToString("N2") + " Trading PnL:" + tradingPL.ToString("N2") + " Fee:" + fee.ToString("N2") + " Total:" + total.ToString("N2") + "\n";
-                            volumeAll += volume;
-                            tradingPLAll += tradingPL;
-                            feeAll += fee;
-                            totalAll += total;
-                        }
-                    }
-                    msg += DateTime.UtcNow.ToString() + " - All -    Notional Volume:" + volumeAll.ToString("N2") + " Trading PnL:" + tradingPLAll.ToString("N2") + " Fee:" + feeAll.ToString("N2") + " Total:" + totalAll.ToString("N2") + "\n";
                     await MsgDeliverer.sendMessage(msg);
-                    //addLog(msg);
+                    addLog(msg);
+                    Thread.Sleep(1000);
                     foreach (var th in thManager.threads)
                     {
-                        th.Value.isRunning = false;
+                        th.Value.stop();
                     }
                 }
             }
@@ -1360,7 +1335,7 @@ namespace Crypto_Linux
                     }
                 }
                 msg += DateTime.UtcNow.ToString() + " - All -    Notional Volume:" + volumeAll.ToString("N2") + " Trading PnL:" + tradingPLAll.ToString("N2") + " Fee:" + feeAll.ToString("N2") + " Total:" + totalAll.ToString("N2") + "\n";
-
+                
                 await MsgDeliverer.sendMessage(msg);
                 nextMsgTime += TimeSpan.FromMinutes(msg_Interval);
             }

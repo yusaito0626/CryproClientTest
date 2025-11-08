@@ -279,8 +279,8 @@ namespace Crypto_Clients
                         }
                         else
                         {
-                            this.addLog("Failed to get the balance information. Exchange:" + m,Enums.logType.ERROR);
-                            this.addLog(JsonSerializer.Serialize(js), Enums.logType.ERROR);
+                            this.addLog("Failed to get the balance information. Exchange:" + m,Enums.logType.WARNING);
+                            this.addLog(JsonSerializer.Serialize(js), Enums.logType.WARNING);
                         }
                         break;
                     case "coincheck":
@@ -335,8 +335,8 @@ namespace Crypto_Clients
                         }
                         else
                         {
-                            this.addLog("Failed to get the balance information. Exchange:" + m, Enums.logType.ERROR);
-                            this.addLog(JsonSerializer.Serialize(js), Enums.logType.ERROR);
+                            this.addLog("Failed to get the balance information. Exchange:" + m, Enums.logType.WARNING);
+                            this.addLog(JsonSerializer.Serialize(js), Enums.logType.WARNING);
                         }
                         break;
                     case "bittrade":
@@ -388,8 +388,8 @@ namespace Crypto_Clients
                         }
                         else
                         {
-                            this.addLog("Failed to get the balance information. Exchange:" + m, Enums.logType.ERROR);
-                            this.addLog(JsonSerializer.Serialize(js), Enums.logType.ERROR);
+                            this.addLog("Failed to get the balance information. Exchange:" + m, Enums.logType.WARNING);
+                            this.addLog(JsonSerializer.Serialize(js), Enums.logType.WARNING);
                         }
                         break;
                     default:
@@ -408,7 +408,7 @@ namespace Crypto_Clients
                         }
                         else
                         {
-                            this.addLog("Failed to get the balance information. Exchange:" + m, Enums.logType.ERROR);
+                            this.addLog("Failed to get the balance information. Exchange:" + m, Enums.logType.WARNING);
                         }
                         break;
                 }
