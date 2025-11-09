@@ -1339,6 +1339,7 @@ namespace Crypto_Clients
         public decimal interest;
 
         public string msg;
+        public int queued_count;
 
         public DataFill()
         {
@@ -1361,6 +1362,7 @@ namespace Crypto_Clients
             this.profit_loss = 0;
             this.interest = 0;
             this.msg = "";
+            this.queued_count = 0;
         }
 
         public void setCoincheckFill(JsonElement js)
@@ -1555,6 +1557,7 @@ namespace Crypto_Clients
             this.profit_loss = 0;
             this.interest = 0;
             this.msg = "";
+            this.queued_count = 0;
         }
     }
     public class DataSpotOrderUpdate
@@ -1592,6 +1595,8 @@ namespace Crypto_Clients
         public bool isVirtual;
         public string msg;
 
+        public int queued_count;
+
         public DataSpotOrderUpdate()
         {
             this.timestamp = null;
@@ -1619,6 +1624,7 @@ namespace Crypto_Clients
             this.is_trigger_order = false;
             this.isVirtual = false;
             this.msg = "";
+            this.queued_count = 0;
         }
 
         public void setCoincheckSpotOrder(JsonElement js)
@@ -2236,6 +2242,7 @@ namespace Crypto_Clients
             this.is_trigger_order = false;
             this.isVirtual = false;
             this.msg = "";
+            this.queued_count = 0;
         }
         public string ToString()
         {

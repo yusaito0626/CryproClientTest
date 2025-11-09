@@ -1433,9 +1433,15 @@ namespace Crypto_GUI
         }
         private async void button_stopTrading_Click(object sender, EventArgs e)
         {
-            await this.stopTrading();
-            this.button_startTrading.Enabled = false;
-            this.button_receiveFeed.Enabled = true;
+            string msg = "exit"; 
+            var bytes = Encoding.UTF8.GetBytes(msg);
+            if (this.info_receiver.State == WebSocketState.Open)
+            {
+                await this.info_receiver.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+            }
+            //await this.stopTrading();
+            //this.button_startTrading.Enabled = false;
+            //this.button_receiveFeed.Enabled = true;
         }
         private async void test_Click(object sender, EventArgs e)
         {

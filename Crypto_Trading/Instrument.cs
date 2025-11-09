@@ -1,8 +1,9 @@
-﻿using System.Runtime.CompilerServices;
-using System.Threading;
-
-using Crypto_Clients;
+﻿using Crypto_Clients;
 using CryptoExchange.Net.Objects.Options;
+using Discord;
+using Discord.Audio.Streams;
+using System.Runtime.CompilerServices;
+using System.Threading;
 using Utils;
 
 namespace Crypto_Trading
@@ -189,8 +190,6 @@ namespace Crypto_Trading
 
         public void updateQuotes(DataOrderBook update)
         {
-            int desired = 1;
-            int expected = 0;
             this.last_quote_updated_time = update.timestamp;
             switch (update.updateType)
             {
@@ -274,7 +273,7 @@ namespace Crypto_Trading
             }
         }
 
-        public void updateBeskAskBid(decimal quantity)
+        private void updateBeskAskBid(decimal quantity)
         {
             if(quantity > 0)
             {
@@ -403,6 +402,98 @@ namespace Crypto_Trading
                 this.open_mid = this.mid;
             }
             
+        }
+        public decimal getPriceAfterSweep(orderSide side, decimal quantity)
+        {
+            
+            decimal price = 0;
+            decimal qtAtPrice = 0;
+            decimal cumQuantity = 0;
+            Dictionary<decimal,decimal> ordAtPrice = new Dictionary<decimal,decimal>();
+            while (Interlocked.CompareExchange(ref this.order_lock, 1, 0) != 0)
+            {
+
+            }
+            foreach (var ord in this.live_orders.Values)
+            {
+                if(ordAtPrice.ContainsKey(ord.order_price))
+                {
+                    switch (ord.side)
+                    {
+                        case orderSide.Buy:
+                            ordAtPrice[ord.order_price] += ord.order_quantity - ord.filled_quantity;
+                            break;
+                        case orderSide.Sell:
+                            ordAtPrice[ord.order_price] -= ord.order_quantity - ord.filled_quantity;
+                            break;
+                    }
+                }
+                else
+                {
+                    switch (ord.side)
+                    {
+                        case orderSide.Buy:
+                            ordAtPrice[ord.order_price] = ord.order_quantity - ord.filled_quantity;
+                            break;
+                        case orderSide.Sell:
+                            ordAtPrice[ord.order_price] = - (ord.order_quantity - ord.filled_quantity);
+                            break;
+                    }
+                }
+            }
+            Volatile.Write(ref this.order_lock, 0);
+            while (Interlocked.CompareExchange(ref this.quotes_lock,1,0) != 0)
+            {
+
+            }
+            switch (side)
+            {
+                case orderSide.Buy:
+                    foreach (var item in this.bids.Reverse())
+                    {
+                        qtAtPrice = item.Value;
+                        if(ordAtPrice.ContainsKey(item.Key) && ordAtPrice[item.Key] > 0)
+                        {
+                            qtAtPrice -= ordAtPrice[item.Key];
+                            if(qtAtPrice < 0)
+                            {
+                                qtAtPrice = 0;
+                            }
+                        }
+                        cumQuantity += qtAtPrice;
+
+
+                        if (cumQuantity > quantity)
+                        {
+                            price = item.Key;
+                            break;
+                        }
+                    }
+                    break;
+                case orderSide.Sell:
+                    foreach (var item in this.asks)
+                    {
+                        qtAtPrice = item.Value;
+                        if (ordAtPrice.ContainsKey(item.Key) && ordAtPrice[item.Key] < 0)
+                        {
+                            qtAtPrice += ordAtPrice[item.Key];
+                            if (qtAtPrice < 0)
+                            {
+                                qtAtPrice = 0;
+                            }
+                        }
+                        cumQuantity += qtAtPrice;
+
+                        if (cumQuantity > quantity)
+                        {
+                            price = item.Key;
+                            break;
+                        }
+                    }
+                    break;
+            }
+            Volatile.Write(ref this.quotes_lock, 0);
+            return price;
         }
         public void updateFills(DataSpotOrderUpdate prev_ord,DataSpotOrderUpdate new_ord)
         {

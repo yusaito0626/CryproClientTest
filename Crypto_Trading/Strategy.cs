@@ -264,10 +264,10 @@ namespace Crypto_Trading
                 }
                 decimal maker_bid = this.maker.bestbid.Item1;
                 decimal maker_ask = this.maker.bestask.Item1;
-                decimal maker_adjustedbid = this.maker.adjusted_bestbid.Item1;
-                decimal maker_adjustedask = this.maker.adjusted_bestask.Item1;
 
                 Volatile.Write(ref this.maker.quotes_lock, 0);
+                decimal maker_adjustedbid = this.maker.getPriceAfterSweep(orderSide.Buy, this.ToBsize);
+                decimal maker_adjustedask = this.maker.getPriceAfterSweep(orderSide.Sell, this.ToBsize);
 
                 if (bid_price > maker_adjustedbid + this.maker.price_unit)
                 {
@@ -286,15 +286,15 @@ namespace Crypto_Trading
                     }
                 }
 
-                if (ask_price < maker_ask - this.maker.price_unit)
+                if (ask_price < maker_adjustedask - this.maker.price_unit)
                 {
-                    if (maker_ask == live_askprice)
+                    if (maker_adjustedask == live_askprice)
                     {
-                        ask_price = maker_ask;
+                        ask_price = maker_adjustedask;
                     }
                     else
                     {
-                        ask_price = maker_ask - this.maker.price_unit;
+                        ask_price = maker_adjustedask - this.maker.price_unit;
                     }
 
                     if (ask_price <= maker_bid)

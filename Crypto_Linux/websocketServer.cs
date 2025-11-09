@@ -31,6 +31,8 @@ namespace Crypto_Linux
 
         public Action<string, Enums.logType> _addLog;
 
+        public Func<Task> onExitCommand;
+
         JsonSerializerOptions js_option = new JsonSerializerOptions
         {
             WriteIndented = true
@@ -172,6 +174,12 @@ namespace Crypto_Linux
                         token
                     );
                 }
+                else if(message == "exit")
+                {
+                    this.addLog("Recieved exit command from a client");
+                    await onExitCommand();
+                }
+                
 
             }
         }

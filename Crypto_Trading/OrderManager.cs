@@ -1639,7 +1639,6 @@ namespace Crypto_Trading
             Instrument ins = null;
             var spinner = new SpinWait();
             bool ret = true;
-            int i = 0;
             try
             {
                 while (true)
@@ -1673,22 +1672,28 @@ namespace Crypto_Trading
                             this.ordLogQueue.Enqueue(fill.ToString());
                             this.filledOrderQueue.Enqueue(fill);
                             spinner.Reset();
-                            i = 0;
                             end();
                         }
                         else
                         {
-                            if(i > 200000)
+                            ++(fill.queued_count);
+                            if(fill.queued_count > 200000)
                             {
                                 addLog("Unknown fill received.", Enums.logType.WARNING);
-                                addLog(fill.ToString(), Enums.logType.WARNING);
-                                this.filledOrderQueue.Enqueue(fill);
-                                i = 0;
+                                if(fill.queued_count > 1000000)
+                                {
+                                    this.ordLogQueue.Enqueue(fill.ToString());
+                                    this.filledOrderQueue.Enqueue(fill);
+                                }
+                                else
+                                {
+                                    Thread.Sleep(10);
+                                    this.ord_client.fillQueue.Enqueue(fill);
+                                }
                             }
                             else
                             {
                                 this.ord_client.fillQueue.Enqueue(fill);
-                                ++i;
                             }
                             break;
                         }
@@ -1784,7 +1789,6 @@ namespace Crypto_Trading
             modifingOrd mod;
             var spinner = new SpinWait();
             bool ret = true;
-            int i = 0;
             try
             {
                 while (true)
@@ -2083,17 +2087,16 @@ namespace Crypto_Trading
                                     }
                                 }
                                 this.ordLogQueue.Enqueue(ord.ToString());
-                                i = 0;
                             }
                             else
                             {//If the mapping doesn't exist, which means the order from the exchange reaches here before the new order processing.
-                                ++i;
-                                if (i > 200000)
+                                if (ord.queued_count > 200000)
                                 {
                                     addLog("Unknown Order", Enums.logType.WARNING);
                                     addLog(ord.ToString());
-                                    i = 0;
+                                    Thread.Sleep(10);
                                 }
+                                ++(ord.queued_count);
                                 this.ord_client.ordUpdateQueue.Enqueue(ord);
                                 break;
                             }

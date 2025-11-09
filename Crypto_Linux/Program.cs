@@ -118,7 +118,7 @@ namespace Crypto_Linux
                 await stopTrading();
                 isRunning = false;
             };
-
+            
             await mainProcess();
             addLog("Bye Bye");
             updateLog();
@@ -174,6 +174,12 @@ namespace Crypto_Linux
             crypto_client.setAddLog(addLog);
             thManager._addLog = addLog;
             ws_server._addLog = addLog;
+
+            ws_server.onExitCommand = async () =>
+            {
+                await stopTrading();
+                isRunning = false;
+            };
 
             qManager.initializeInstruments(masterFile);
             qManager.setQueues(crypto_client);
