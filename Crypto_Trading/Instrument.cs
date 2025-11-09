@@ -33,7 +33,7 @@ namespace Crypto_Trading
         public ValueTuple<decimal, decimal> adjusted_bestask;
         public ValueTuple<decimal, decimal> adjusted_bestbid;
 
-        public volatile int orders_lock;
+        public volatile int order_lock;
         public Dictionary<string, DataSpotOrderUpdate> orders;
         public Dictionary<string, DataSpotOrderUpdate> live_orders;
 

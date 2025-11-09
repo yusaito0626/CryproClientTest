@@ -2,6 +2,7 @@
 using Crypto_Clients;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
@@ -83,6 +84,10 @@ namespace Crypto_Trading
         public decimal totalFee;
         public decimal totalPnL;
 
+        public double onFill_latency;
+        public int onFill_count;
+        Stopwatch sw;
+
         public Action<string, Enums.logType> _addLog;
         public Strategy() 
         {
@@ -135,6 +140,20 @@ namespace Crypto_Trading
             this.totalPnL = 0;
 
             this.oManager = OrderManager.GetInstance();
+            this.onFill_latency = 0;
+            this.sw = new Stopwatch();
+            this.sw.Start();
+            Thread.Sleep(1);
+            this.sw.Stop();
+            this.sw.Reset();
+            this.sw.Start();
+            Thread.Sleep(1);
+            this.sw.Stop();
+            this.sw.Reset();
+            this.sw.Start();
+            Thread.Sleep(1);
+            this.sw.Stop();
+            this.sw.Reset();
         }
 
         public void readStrategyFile(string jsonfilename)
@@ -245,11 +264,22 @@ namespace Crypto_Trading
                 }
                 decimal maker_bid = this.maker.bestbid.Item1;
                 decimal maker_ask = this.maker.bestask.Item1;
+                decimal maker_adjustedbid = this.maker.adjusted_bestbid.Item1;
+                decimal maker_adjustedask = this.maker.adjusted_bestask.Item1;
+
                 Volatile.Write(ref this.maker.quotes_lock, 0);
 
-                if (bid_price > maker_bid + this.maker.price_unit)
+                if (bid_price > maker_adjustedbid + this.maker.price_unit)
                 {
-                    bid_price = maker_bid + this.maker.price_unit;
+                    if(maker_adjustedbid == live_bidprice)
+                    {
+                        bid_price = maker_bid;
+                    }
+                    else
+                    {
+                        bid_price = maker_bid + this.maker.price_unit;
+                    }
+                        
                     if (bid_price >= maker_ask)
                     {
                         bid_price = maker_bid;
@@ -258,7 +288,15 @@ namespace Crypto_Trading
 
                 if (ask_price < maker_ask - this.maker.price_unit)
                 {
-                    ask_price = maker_ask - this.maker.price_unit;
+                    if (maker_ask == live_askprice)
+                    {
+                        ask_price = maker_ask;
+                    }
+                    else
+                    {
+                        ask_price = maker_ask - this.maker.price_unit;
+                    }
+
                     if (ask_price <= maker_bid)
                     {
                         ask_price = maker_ask;
@@ -984,6 +1022,7 @@ namespace Crypto_Trading
         {
             if (this.enabled)
             {
+                this.sw.Start();
                 decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity; 
                 decimal filled_quantity = fill.quantity;
                 if (filled_quantity > this.ToBsize * 2)
@@ -1145,6 +1184,10 @@ namespace Crypto_Trading
                         }
                     }
                 }
+                this.sw.Stop();
+                this.onFill_latency = (this.sw.Elapsed.TotalNanoseconds + this.onFill_latency * 1000 * this.onFill_count) / (this.onFill_count + 1) / 1000;
+                ++(this.onFill_count);
+                this.sw.Reset();
             }
         }
         public void addLog(string line, Enums.logType logtype = Enums.logType.INFO)

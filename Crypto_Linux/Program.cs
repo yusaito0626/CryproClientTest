@@ -1383,6 +1383,7 @@ namespace Crypto_Linux
                         tradingPLAll += tradingPL;
                         feeAll += fee;
                         totalAll += total;
+                        addLog("onFill Latency(" + stg.name + "):" + stg.onFill_latency.ToString("N2") + " micro sec");
                     }
                 }
                 msg += DateTime.UtcNow.ToString() + " - All -    Notional Volume:" + volumeAll.ToString("N2") + " Trading PnL:" + tradingPLAll.ToString("N2") + " Fee:" + feeAll.ToString("N2") + " Total:" + totalAll.ToString("N2") + "\n";
