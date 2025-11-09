@@ -92,7 +92,7 @@ namespace Crypto_Clients
             this.subscribingChannels = new List<string>();
 
             //this._addLog = Console.WriteLine;
-            this.onMessage = Console.WriteLine;
+            //this.onMessage = Console.WriteLine;
 
             
         }
@@ -463,11 +463,11 @@ namespace Crypto_Clients
             }
             catch (WebSocketException ex)
             {
-                Console.WriteLine($"WebSocket Error: {ex.Message}");
+                this.addLog($"WebSocket Error: {ex.Message}", Enums.logType.ERROR);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Unexpacted Error: {ex.Message}");
+                this.addLog($"Unexpacted Error: {ex.Message}", Enums.logType.ERROR);
             }
             return false;
         }

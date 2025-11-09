@@ -4,15 +4,19 @@ using CryptoClients.Net.Enums;
 using CryptoExchange.Net.Logging.Extensions;
 using CryptoExchange.Net.SharedApis;
 using Discord;
+using System;
 using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Drawing;
+using System.Linq;
 using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
+using System.Runtime.Loader;
 using System.Text.Json;
+//using Terminal.Gui;
 using Utils;
-using static System.Net.Mime.MediaTypeNames;
+//using static Terminal.Gui.View;
 
 
 namespace Crypto_Linux
@@ -84,8 +88,46 @@ namespace Crypto_Linux
 
         static bool isRunning = false;
         CancellationTokenSource cts = new CancellationTokenSource();
+
+
+        static int totalWidth;
+        static int totalHeight;
+
+        static int mainWidth;
+        static int logWidth;
+        static int mainHeight;
+        static int commandHeight;
+
+        const int LOGBUF_SIZE = 100;
+        static string[] log_buffer = new string[LOGBUF_SIZE];
+        static int log_index = 0;
         static async Task Main(string[] args)
         {
+            Console.CancelKeyPress += async (sender, e) =>
+            {
+                addLog("Terminating the app...");
+                e.Cancel = true;
+                await stopTrading();
+                isRunning = false;
+            };
+
+            AssemblyLoadContext.Default.Unloading += async ctx =>
+            {
+                addLog("SIGTERM detected");
+
+                await stopTrading();
+                isRunning = false;
+            };
+
+            await mainProcess();
+            addLog("Bye Bye");
+            updateLog();
+        }
+
+        static private async Task mainProcess()
+        {
+            logQueue = new ConcurrentQueue<string>();
+
             Console.WriteLine("Crypto Trading App Ver." + GlobalVariables.ver_major + ":" + GlobalVariables.ver_minor + ":" + GlobalVariables.ver_patch);
             aborting = false;
             threadsStarted = false;
@@ -95,12 +137,11 @@ namespace Crypto_Linux
             privateConnect = true;
             msgLogging = false;
 
-            logQueue = new ConcurrentQueue<string>();
             filledOrderQueue = new ConcurrentQueue<DataFill>();
             logEntryStack = new Stack<logEntry>();
             fillInfoStack = new Stack<fillInfo>();
             int i = 0;
-            while(i < logSize)
+            while (i < logSize)
             {
                 logEntryStack.Push(new logEntry());
                 fillInfoStack.Push(new fillInfo());
@@ -121,7 +162,7 @@ namespace Crypto_Linux
                 return;
             }
             Console.WriteLine("readConfig completed");
-;
+            ;
 
             nextMsgTime = DateTime.UtcNow + TimeSpan.FromMinutes(msg_Interval);
 
@@ -159,15 +200,15 @@ namespace Crypto_Linux
             qManager.strategies = strategies;
             oManager.strategies = strategies;
 
-            Dictionary<string,masterInfo> masterinfos = new Dictionary<string,masterInfo>();
+            Dictionary<string, masterInfo> masterinfos = new Dictionary<string, masterInfo>();
 
-            foreach(var ins in qManager.instruments)
+            foreach (var ins in qManager.instruments)
             {
                 masterInfo ms = new masterInfo();
                 ms.symbol = ins.Value.symbol;
                 ms.market = ins.Value.market;
                 ms.baseCcy = ins.Value.baseCcy;
-                ms.quoteCcy= ins.Value.quoteCcy;
+                ms.quoteCcy = ins.Value.quoteCcy;
                 ms.taker_fee = ins.Value.taker_fee;
                 ms.maker_fee = ins.Value.maker_fee;
                 ms.price_unit = ins.Value.price_unit;
@@ -176,8 +217,8 @@ namespace Crypto_Linux
             }
             await ws_server.setMasterInfo(masterinfos);
 
-            Dictionary<string,strategySetting> stgSettings = new Dictionary<string,strategySetting>();
-            foreach(var stg in strategies)
+            Dictionary<string, strategySetting> stgSettings = new Dictionary<string, strategySetting>();
+            foreach (var stg in strategies)
             {
                 strategySetting setting = new strategySetting();
                 setting.name = stg.Value.name;
@@ -212,11 +253,11 @@ namespace Crypto_Linux
             i = 0;
             int trial = 3;
             Stopwatch sw = new Stopwatch();
-            Dictionary<string,double> avgLatency = new Dictionary<string,double>();
+            Dictionary<string, double> avgLatency = new Dictionary<string, double>();
             double latency = 0;
-            while(i < trial)
+            while (i < trial)
             {
-                foreach(var m in qManager._markets)
+                foreach (var m in qManager._markets)
                 {
                     Thread.Sleep(1000);
                     sw.Start();
@@ -225,7 +266,7 @@ namespace Crypto_Linux
                     latency = sw.Elapsed.TotalNanoseconds / 1000000;
                     sw.Reset();
                     addLog(m.Key + " trial " + i.ToString() + ": " + latency.ToString("N3") + " ms");
-                    if(avgLatency.ContainsKey(m.Key))
+                    if (avgLatency.ContainsKey(m.Key))
                     {
                         avgLatency[m.Key] += latency;
                     }
@@ -237,7 +278,7 @@ namespace Crypto_Linux
                 ++i;
             }
 
-            foreach(var l in avgLatency)
+            foreach (var l in avgLatency)
             {
                 addLog("Average Latency of " + l.Key + ": " + (l.Value / trial).ToString("N3") + " ms");
             }
@@ -261,7 +302,7 @@ namespace Crypto_Linux
                 addLog("Test Mode");
                 await testFunc();
             }
-            
+
 
             isRunning = true;
 
@@ -292,6 +333,8 @@ namespace Crypto_Linux
                 updateLog();
                 Thread.Sleep(1000);
             }
+            addLog("Exitting the main process...");
+            Thread.Sleep(2000);
         }
 
         static private string stgPnLMsg()
@@ -909,10 +952,10 @@ namespace Crypto_Linux
                     {
                         await oManager.cancelAllOrders();
                         Thread.Sleep(1000);
-
+                        addLog("All orders cancelled");
                         foreach (var th in thManager.threads)
                         {
-                            th.Value.isRunning = false;
+                            th.Value.stop();
                         }
                     }
                 }
@@ -1212,10 +1255,18 @@ namespace Crypto_Linux
 
                 stginfo.liquidity_ask = stg.taker.adjusted_bestask.Item1;
                 stginfo.liquidity_ask = stg.taker.adjusted_bestbid.Item1;
-                stginfo.notionalVolume = stg.maker.my_buy_notional + stg.maker.my_sell_notional;
-                stginfo.tradingPnL = (stg.taker.my_sell_notional - stg.taker.my_sell_quantity * stg.taker.mid) + (stg.taker.my_buy_quantity * stg.taker.mid - stg.taker.my_buy_notional);
-                stginfo.tradingPnL += (stg.maker.my_sell_notional - stg.maker.my_sell_quantity * stg.taker.mid) + (stg.maker.my_buy_quantity * stg.taker.mid - stg.maker.my_buy_notional);
-                stginfo.totalFee= stg.taker.base_fee * stg.taker.mid + stg.taker.quote_fee + stg.maker.base_fee * stg.taker.mid + stg.maker.quote_fee;
+
+                stg.netExposure = stg.maker.baseBalance.total + stg.taker.baseBalance.total - stg.baseCcyQuantity;
+                stg.notionalVolume = stg.maker.my_buy_notional + stg.maker.my_sell_notional;
+                stg.tradingPnL = stg.SoD_baseCcyPos * (stg.taker.mid - stg.taker.open_mid);
+                stg.tradingPnL += (stg.taker.my_sell_notional - stg.taker.my_sell_quantity * stg.taker.mid) + (stg.taker.my_buy_quantity * stg.taker.mid - stg.taker.my_buy_notional);
+                stg.tradingPnL += (stg.maker.my_sell_notional - stg.maker.my_sell_quantity * stg.taker.mid) + (stg.maker.my_buy_quantity * stg.taker.mid - stg.maker.my_buy_notional);
+                stg.totalFee = stg.taker.base_fee * stg.taker.mid + stg.taker.quote_fee + stg.maker.base_fee * stg.taker.mid + stg.maker.quote_fee;
+                stg.totalPnL = stg.tradingPnL - stg.totalFee;
+
+                stginfo.notionalVolume = stg.notionalVolume;
+                stginfo.tradingPnL = stg.tradingPnL;
+                stginfo.totalFee= stg.totalFee;
                 stginfo.totalPnL = stginfo.tradingPnL - stginfo.totalFee;
 
                 stginfo.skew = stg.skew_point;
@@ -1377,7 +1428,7 @@ namespace Crypto_Linux
             stopTrading(true);
         }
 
-        static private  void updateLog()
+        static private void updateLog()
         {
             string line;
             while (logQueue.TryDequeue(out line))
