@@ -206,15 +206,22 @@ namespace Crypto_Linux
             {
 
             }
-            this.logList.Add(log);
+            if(log.msg != null && log.msg.Contains("Error code:10009"))
+            {
 
-            string json = JsonSerializer.Serialize<List<logEntry>>([log]);
-            string msg;
-            Dictionary<string, string> sendingItem = new Dictionary<string, string>();
-            sendingItem["data_type"] = "log";
-            sendingItem["data"] = json;
-            msg = JsonSerializer.Serialize(sendingItem, this.js_option);
-            this.BroadcastAsync(msg);
+            }
+            else
+            {
+                this.logList.Add(log);
+
+                string json = JsonSerializer.Serialize<List<logEntry>>([log]);
+                string msg;
+                Dictionary<string, string> sendingItem = new Dictionary<string, string>();
+                sendingItem["data_type"] = "log";
+                sendingItem["data"] = json;
+                msg = JsonSerializer.Serialize(sendingItem, this.js_option);
+                this.BroadcastAsync(msg);
+            }
             Volatile.Write(ref this.sendingLogs, 0);
         }
         public async Task setMasterInfo(Dictionary<string,masterInfo> msinfos)

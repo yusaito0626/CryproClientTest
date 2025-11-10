@@ -463,7 +463,15 @@ namespace Crypto_Clients
             }
             catch (WebSocketException ex)
             {
-                this.addLog($"WebSocket Error: {ex.Message}", Enums.logType.ERROR);
+                if(ex.Message.StartsWith("The remote party closed the WebSocket connection"))
+                {
+                    this.addLog($"WebSocket Error: {ex.Message}", Enums.logType.WARNING);
+                    return false;
+                }
+                else
+                {
+                    this.addLog($"WebSocket Error: {ex.Message}", Enums.logType.ERROR);
+                }
             }
             catch (Exception ex)
             {

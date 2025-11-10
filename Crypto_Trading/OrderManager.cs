@@ -53,6 +53,7 @@ namespace Crypto_Trading
 
         public volatile int virtual_order_lock;
         public Dictionary<string, DataSpotOrderUpdate> virtual_liveorders;
+        public Dictionary<string, DataSpotOrderUpdate> disposed_orders;// The key is market + order_id, as the internal_order_id might not be exist.
 
         public Dictionary<string, modifingOrd> modifingOrders;
         public ConcurrentStack<modifingOrd> modifingOrdStack;
@@ -99,6 +100,7 @@ namespace Crypto_Trading
             this.live_orders = new Dictionary<string, DataSpotOrderUpdate>();
             this.virtual_order_lock = 0;
             this.virtual_liveorders = new Dictionary<string, DataSpotOrderUpdate>();
+            this.disposed_orders = new Dictionary<string, DataSpotOrderUpdate>();
 
             this.order_pool = new Queue<DataSpotOrderUpdate>();
 
@@ -1677,7 +1679,7 @@ namespace Crypto_Trading
                         else
                         {
                             ++(fill.queued_count);
-                            if(fill.queued_count > 200000)
+                            if (fill.queued_count % 200001 == 200000)
                             {
                                 addLog("Unknown fill received.", Enums.logType.WARNING);
                                 if(fill.queued_count > 1000000)
@@ -2090,14 +2092,34 @@ namespace Crypto_Trading
                             }
                             else
                             {//If the mapping doesn't exist, which means the order from the exchange reaches here before the new order processing.
-                                if (ord.queued_count > 200000)
+                                if(this.disposed_orders.ContainsKey(ord.market + ord.order_id))
+                                {
+                                    
+                                }
+                                else if (ord.queued_count % 200001 == 200000)
                                 {
                                     addLog("Unknown Order", Enums.logType.WARNING);
                                     addLog(ord.ToString());
                                     Thread.Sleep(10);
+                                    if(ord.queued_count > 10_000_000)
+                                    {
+                                        this.ordLogQueue.Enqueue(ord.ToString());
+                                        if (ord.order_id != "")
+                                        {
+                                            this.disposed_orders[ord.market + ord.order_id] = ord;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        ++(ord.queued_count);
+                                        this.ord_client.ordUpdateQueue.Enqueue(ord);
+                                    }
                                 }
-                                ++(ord.queued_count);
-                                this.ord_client.ordUpdateQueue.Enqueue(ord);
+                                else
+                                {
+                                    ++(ord.queued_count);
+                                    this.ord_client.ordUpdateQueue.Enqueue(ord);
+                                }
                                 break;
                             }
                         }

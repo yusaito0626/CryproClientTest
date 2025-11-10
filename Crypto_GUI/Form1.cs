@@ -625,232 +625,245 @@ namespace Crypto_GUI
             string msg;
             bool output = true;
             double latency = 0;
-            switch (this.info_receiver.State)
+            try
             {
-                case WebSocketState.Open:
-                    do
-                    {
-                        result = await this.info_receiver.ReceiveAsync(new ArraySegment<byte>(this.ws_buffer), CancellationToken.None);
-                        this.ws_memory.Write(this.ws_buffer, 0, result.Count);
-                    } while ((!result.EndOfMessage) && this.info_receiver.State != WebSocketState.Aborted && this.info_receiver.State != WebSocketState.Closed);
+                switch (this.info_receiver.State)
+                {
+                    case WebSocketState.Open:
+                        do
+                        {
+                            result = await this.info_receiver.ReceiveAsync(new ArraySegment<byte>(this.ws_buffer), CancellationToken.None);
+                            this.ws_memory.Write(this.ws_buffer, 0, result.Count);
+                        } while ((!result.EndOfMessage) && this.info_receiver.State != WebSocketState.Aborted && this.info_receiver.State != WebSocketState.Closed);
 
-                    switch (result.MessageType)
-                    {
-                        case WebSocketMessageType.Text:
-                            msg = Encoding.UTF8.GetString(this.ws_memory.ToArray());
-                            var js = JsonDocument.Parse(msg).RootElement;
-                            string data_type = js.GetProperty("data_type").GetString();
-                            string content = js.GetProperty("data").GetString();
-                            
-                            switch (data_type)
-                            {
-                                case "master":
-                                    var masters = JsonSerializer.Deserialize<Dictionary<string, masterInfo>>(content);
-                                    this.qManager.initializeInstruments(masters);
-                                    this.oManager.setInstruments(this.qManager.instruments);
-                                    this.BeginInvoke(() =>
-                                    {
-                                        foreach (string key in this.qManager.instruments.Keys)
+                        switch (result.MessageType)
+                        {
+                            case WebSocketMessageType.Text:
+                                msg = Encoding.UTF8.GetString(this.ws_memory.ToArray());
+                                var js = JsonDocument.Parse(msg).RootElement;
+                                string data_type = js.GetProperty("data_type").GetString();
+                                string content = js.GetProperty("data").GetString();
+
+                                switch (data_type)
+                                {
+                                    case "master":
+                                        var masters = JsonSerializer.Deserialize<Dictionary<string, masterInfo>>(content);
+                                        this.qManager.initializeInstruments(masters);
+                                        this.oManager.setInstruments(this.qManager.instruments);
+                                        this.BeginInvoke(() =>
                                         {
-                                            this.comboSymbols.Items.Add(key);
-                                        }
-                                    });
-                                    this.masterInfoReceived = true;
-                                    break;
-                                case "strategySetting":
-                                    var stgSetting = JsonSerializer.Deserialize<Dictionary<string, strategySetting>>(content);
-                                    setStrategies(stgSetting);
-                                    this.qManager.strategies = this.strategies;
-                                    this.oManager.strategies = this.strategies;
-                                    this.BeginInvoke(() =>
-                                    {
-                                        foreach (string key in this.strategies.Keys)
-                                        {
-                                            this.comboStrategy.Items.Add(key);
-                                        }
-                                    });
-                                    this.strategySettingReceived = true;
-                                    break;
-                                case "strategy":
-                                    var stginfos = JsonSerializer.Deserialize<Dictionary<string, strategyInfo>>(content);
-                                    foreach (var s in stginfos)
-                                    {
-                                        if (this.strategies.ContainsKey(s.Key))
-                                        {
-                                            Strategy stg = this.strategies[s.Key];
-                                            stg.skew_point = s.Value.skew;
-                                            stg.live_askprice = s.Value.ask;
-                                            stg.live_bidprice = s.Value.bid;
-                                            stg.notionalVolume = s.Value.notionalVolume;
-                                            stg.tradingPnL = s.Value.tradingPnL;
-                                            stg.totalFee = s.Value.totalFee;
-                                            stg.totalPnL = s.Value.totalPnL;
-                                        }
-                                        else
-                                        {
-                                            Strategy stg = new Strategy();
-                                            stg.name = s.Value.name;
-                                            stg.baseCcy = s.Value.baseCcy;
-                                            stg.quoteCcy = s.Value.quoteCcy;
-                                            stg.maker_market = s.Value.maker_market;
-                                            stg.taker_market = s.Value.taker_market;
-                                            stg.maker_symbol_market = s.Value.maker_symbol_market;
-                                            stg.taker_symbol_market = s.Value.taker_symbol_market;
-                                            if (this.qManager.instruments.ContainsKey(stg.maker_symbol_market))
+                                            foreach (string key in this.qManager.instruments.Keys)
                                             {
-                                                stg.maker = this.qManager.instruments[stg.maker_symbol_market];
+                                                this.comboSymbols.Items.Add(key);
                                             }
-                                            if (this.qManager.instruments.ContainsKey(stg.taker_symbol_market))
+                                        });
+                                        this.masterInfoReceived = true;
+                                        break;
+                                    case "strategySetting":
+                                        var stgSetting = JsonSerializer.Deserialize<Dictionary<string, strategySetting>>(content);
+                                        setStrategies(stgSetting);
+                                        this.qManager.strategies = this.strategies;
+                                        this.oManager.strategies = this.strategies;
+                                        this.BeginInvoke(() =>
+                                        {
+                                            foreach (string key in this.strategies.Keys)
                                             {
-                                                stg.taker = this.qManager.instruments[stg.taker_symbol_market];
+                                                this.comboStrategy.Items.Add(key);
                                             }
-                                            stg.skew_point = s.Value.skew;
-                                            stg.live_askprice = s.Value.ask;
-                                            stg.live_bidprice = s.Value.bid;
-                                            stg.notionalVolume = s.Value.notionalVolume;
-                                            stg.tradingPnL = s.Value.tradingPnL;
-                                            stg.totalFee = s.Value.totalFee;
-                                            stg.totalPnL = s.Value.totalPnL;
-                                            this.strategies[s.Key] = stg;
-                                            this.comboStrategy.Items.Add(s.Key);
-                                        }
-                                    }
-                                    break;
-                                case "instrument":
-                                    var insinfos = JsonSerializer.Deserialize<Dictionary<string, instrumentInfo>>(content);
-                                    foreach (var i in insinfos)
-                                    {
-                                        if (this.qManager.instruments.ContainsKey(i.Key))
+                                        });
+                                        this.strategySettingReceived = true;
+                                        break;
+                                    case "strategy":
+                                        var stginfos = JsonSerializer.Deserialize<Dictionary<string, strategyInfo>>(content);
+                                        foreach (var s in stginfos)
                                         {
-                                            Instrument ins = this.qManager.instruments[i.Key];
-                                            ins.last_price = i.Value.last_price;
-                                            ins.buy_notional = i.Value.notional_buy;
-                                            ins.sell_notional = i.Value.notional_sell;
-                                            ins.buy_quantity = i.Value.quantity_buy;
-                                            ins.sell_quantity = i.Value.quantity_sell;
-                                            ins.baseBalance = new Balance();
-                                            ins.baseBalance.ccy = ins.baseCcy;
-                                            ins.baseBalance.total = i.Value.baseCcy_total;
-                                            ins.baseBalance.inuse = i.Value.baseCcy_inuse;
-                                            ins.quoteBalance = new Balance();
-                                            ins.quoteBalance.ccy = ins.quoteCcy;
-                                            ins.quoteBalance.total = i.Value.quoteCcy_total;
-                                            ins.quoteBalance.inuse = i.Value.quoteCcy_inuse;
-                                            ins.my_buy_quantity = i.Value.my_quantity_buy;
-                                            ins.my_buy_notional = i.Value.my_notional_buy;
-                                            ins.my_sell_quantity = i.Value.my_quantity_sell;
-                                            ins.my_sell_notional = i.Value.my_notional_sell;
-                                            ins.quote_fee = i.Value.quoteFee_total;
-                                            ins.base_fee = i.Value.baseFee_total;
+                                            if (this.strategies.ContainsKey(s.Key))
+                                            {
+                                                Strategy stg = this.strategies[s.Key];
+                                                stg.skew_point = s.Value.skew;
+                                                stg.live_askprice = s.Value.ask;
+                                                stg.live_bidprice = s.Value.bid;
+                                                stg.notionalVolume = s.Value.notionalVolume;
+                                                stg.tradingPnL = s.Value.tradingPnL;
+                                                stg.totalFee = s.Value.totalFee;
+                                                stg.totalPnL = s.Value.totalPnL;
+                                            }
+                                            else
+                                            {
+                                                Strategy stg = new Strategy();
+                                                stg.name = s.Value.name;
+                                                stg.baseCcy = s.Value.baseCcy;
+                                                stg.quoteCcy = s.Value.quoteCcy;
+                                                stg.maker_market = s.Value.maker_market;
+                                                stg.taker_market = s.Value.taker_market;
+                                                stg.maker_symbol_market = s.Value.maker_symbol_market;
+                                                stg.taker_symbol_market = s.Value.taker_symbol_market;
+                                                if (this.qManager.instruments.ContainsKey(stg.maker_symbol_market))
+                                                {
+                                                    stg.maker = this.qManager.instruments[stg.maker_symbol_market];
+                                                }
+                                                if (this.qManager.instruments.ContainsKey(stg.taker_symbol_market))
+                                                {
+                                                    stg.taker = this.qManager.instruments[stg.taker_symbol_market];
+                                                }
+                                                stg.skew_point = s.Value.skew;
+                                                stg.live_askprice = s.Value.ask;
+                                                stg.live_bidprice = s.Value.bid;
+                                                stg.notionalVolume = s.Value.notionalVolume;
+                                                stg.tradingPnL = s.Value.tradingPnL;
+                                                stg.totalFee = s.Value.totalFee;
+                                                stg.totalPnL = s.Value.totalPnL;
+                                                this.strategies[s.Key] = stg;
+                                                this.comboStrategy.Items.Add(s.Key);
+                                            }
                                         }
-                                        else
+                                        break;
+                                    case "instrument":
+                                        var insinfos = JsonSerializer.Deserialize<Dictionary<string, instrumentInfo>>(content);
+                                        foreach (var i in insinfos)
                                         {
-                                            Instrument ins = new Instrument();
-                                            ins.symbol = i.Value.symbol;
-                                            ins.market = i.Value.market;
-                                            ins.baseCcy = i.Value.baseCcy;
-                                            ins.quoteCcy = i.Value.quoteCcy;
+                                            if (this.qManager.instruments.ContainsKey(i.Key))
+                                            {
+                                                Instrument ins = this.qManager.instruments[i.Key];
+                                                ins.last_price = i.Value.last_price;
+                                                ins.buy_notional = i.Value.notional_buy;
+                                                ins.sell_notional = i.Value.notional_sell;
+                                                ins.buy_quantity = i.Value.quantity_buy;
+                                                ins.sell_quantity = i.Value.quantity_sell;
+                                                ins.baseBalance = new Balance();
+                                                ins.baseBalance.ccy = ins.baseCcy;
+                                                ins.baseBalance.total = i.Value.baseCcy_total;
+                                                ins.baseBalance.inuse = i.Value.baseCcy_inuse;
+                                                ins.quoteBalance = new Balance();
+                                                ins.quoteBalance.ccy = ins.quoteCcy;
+                                                ins.quoteBalance.total = i.Value.quoteCcy_total;
+                                                ins.quoteBalance.inuse = i.Value.quoteCcy_inuse;
+                                                ins.my_buy_quantity = i.Value.my_quantity_buy;
+                                                ins.my_buy_notional = i.Value.my_notional_buy;
+                                                ins.my_sell_quantity = i.Value.my_quantity_sell;
+                                                ins.my_sell_notional = i.Value.my_notional_sell;
+                                                ins.quote_fee = i.Value.quoteFee_total;
+                                                ins.base_fee = i.Value.baseFee_total;
+                                            }
+                                            else
+                                            {
+                                                Instrument ins = new Instrument();
+                                                ins.symbol = i.Value.symbol;
+                                                ins.market = i.Value.market;
+                                                ins.baseCcy = i.Value.baseCcy;
+                                                ins.quoteCcy = i.Value.quoteCcy;
 
-                                            ins.last_price = i.Value.last_price;
-                                            ins.buy_notional = i.Value.notional_buy;
-                                            ins.sell_notional = i.Value.notional_sell;
-                                            ins.buy_quantity = i.Value.quantity_buy;
-                                            ins.sell_quantity = i.Value.quantity_sell;
-                                            ins.baseBalance = new Balance();
-                                            ins.baseBalance.ccy = ins.baseCcy;
-                                            ins.baseBalance.total = i.Value.baseCcy_total;
-                                            ins.baseBalance.inuse = i.Value.baseCcy_inuse;
-                                            ins.quoteBalance = new Balance();
-                                            ins.quoteBalance.ccy = ins.quoteCcy;
-                                            ins.quoteBalance.total = i.Value.quoteCcy_total;
-                                            ins.quoteBalance.inuse = i.Value.quoteCcy_inuse;
-                                            ins.my_buy_quantity = i.Value.my_quantity_buy;
-                                            ins.my_buy_notional = i.Value.my_notional_buy;
-                                            ins.my_sell_quantity = i.Value.my_quantity_sell;
-                                            ins.my_sell_notional = i.Value.my_notional_sell;
-                                            ins.quote_fee = i.Value.quoteFee_total;
-                                            ins.base_fee = i.Value.baseFee_total;
+                                                ins.last_price = i.Value.last_price;
+                                                ins.buy_notional = i.Value.notional_buy;
+                                                ins.sell_notional = i.Value.notional_sell;
+                                                ins.buy_quantity = i.Value.quantity_buy;
+                                                ins.sell_quantity = i.Value.quantity_sell;
+                                                ins.baseBalance = new Balance();
+                                                ins.baseBalance.ccy = ins.baseCcy;
+                                                ins.baseBalance.total = i.Value.baseCcy_total;
+                                                ins.baseBalance.inuse = i.Value.baseCcy_inuse;
+                                                ins.quoteBalance = new Balance();
+                                                ins.quoteBalance.ccy = ins.quoteCcy;
+                                                ins.quoteBalance.total = i.Value.quoteCcy_total;
+                                                ins.quoteBalance.inuse = i.Value.quoteCcy_inuse;
+                                                ins.my_buy_quantity = i.Value.my_quantity_buy;
+                                                ins.my_buy_notional = i.Value.my_notional_buy;
+                                                ins.my_sell_quantity = i.Value.my_quantity_sell;
+                                                ins.my_sell_notional = i.Value.my_notional_sell;
+                                                ins.quote_fee = i.Value.quoteFee_total;
+                                                ins.base_fee = i.Value.baseFee_total;
+                                            }
                                         }
-                                    }
-                                    break;
-                                case "connection":
-                                    var conninfos = JsonSerializer.Deserialize<Dictionary<string, connecitonStatus>>(content);
-                                    this.BeginInvoke(this.updateConnectionStatus, conninfos);
-                                    break;
-                                case "thread":
-                                    var thinfos = JsonSerializer.Deserialize<Dictionary<string, threadStatus>>(content);
-                                    this.BeginInvoke(this.updateThreadStatus, thinfos);
-                                    break;
-                                case "queue":
-                                    var queueinfos = JsonSerializer.Deserialize<Dictionary<string, queueInfo>>(content);
-                                    this.BeginInvoke(this.updateQueueInfo, queueinfos);
-                                    break;
-                                case "log":
-                                    var logs = JsonSerializer.Deserialize<List<logEntry>>(content);
-                                    logType lType = logType.NONE;
-                                    foreach (var l in logs)
-                                    {
-                                        switch (l.logtype)
+                                        break;
+                                    case "connection":
+                                        var conninfos = JsonSerializer.Deserialize<Dictionary<string, connecitonStatus>>(content);
+                                        this.BeginInvoke(this.updateConnectionStatus, conninfos);
+                                        break;
+                                    case "thread":
+                                        var thinfos = JsonSerializer.Deserialize<Dictionary<string, threadStatus>>(content);
+                                        this.BeginInvoke(this.updateThreadStatus, thinfos);
+                                        break;
+                                    case "queue":
+                                        var queueinfos = JsonSerializer.Deserialize<Dictionary<string, queueInfo>>(content);
+                                        this.BeginInvoke(this.updateQueueInfo, queueinfos);
+                                        break;
+                                    case "log":
+                                        var logs = JsonSerializer.Deserialize<List<logEntry>>(content);
+                                        logType lType = logType.NONE;
+                                        foreach (var l in logs)
                                         {
-                                            case "INFO":
-                                                lType = logType.INFO;
-                                                this.addLog("[Trade Engine]" + l.msg, lType);
-                                                break;
-                                            case "WARNING":
-                                                lType = logType.WARNING;
-                                                this.addLog("[Trade Engine]" + l.msg, lType);
-                                                break;
-                                            case "ERROR":
-                                                lType = logType.ERROR;
-                                                this.addLog("[Trade Engine]" + l.msg, lType);
-                                                break;
-                                            case "FATAL":
-                                                lType = logType.FATAL;
-                                                this.addLog("[Trade Engine]" + l.msg, lType);
-                                                break;
-                                            default:
-                                                lType = logType.NONE;
-                                                this.addLog("[Trade Engine]" + l.msg, lType);
-                                                break;
+                                            switch (l.logtype)
+                                            {
+                                                case "INFO":
+                                                    lType = logType.INFO;
+                                                    this.addLog("[Trade Engine]" + l.msg, lType);
+                                                    break;
+                                                case "WARNING":
+                                                    lType = logType.WARNING;
+                                                    this.addLog("[Trade Engine]" + l.msg, lType);
+                                                    break;
+                                                case "ERROR":
+                                                    lType = logType.ERROR;
+                                                    this.addLog("[Trade Engine]" + l.msg, lType);
+                                                    break;
+                                                case "FATAL":
+                                                    lType = logType.FATAL;
+                                                    this.addLog("[Trade Engine]" + l.msg, lType);
+                                                    break;
+                                                default:
+                                                    lType = logType.NONE;
+                                                    this.addLog("[Trade Engine]" + l.msg, lType);
+                                                    break;
+                                            }
                                         }
-                                    }
-                                    break;
-                                case "fill":
-                                    var fills = JsonSerializer.Deserialize<List<fillInfo>>(content);
-                                    this.BeginInvoke(this.updateFills, fills);
-                                    break;
-                                default:
-                                    this.addLog(msg);
-                                    break;
-                            }
+                                        break;
+                                    case "fill":
+                                        var fills = JsonSerializer.Deserialize<List<fillInfo>>(content);
+                                        this.BeginInvoke(this.updateFills, fills);
+                                        break;
+                                    default:
+                                        this.addLog(msg);
+                                        break;
+                                }
 
-                            break;
-                        case WebSocketMessageType.Binary:
-                            break;
-                        case WebSocketMessageType.Close:
-                            this.addLog("Closed by server");
-                            output = false;
-                            msg = "Closing message[onListen]:" + Encoding.UTF8.GetString(this.ws_memory.ToArray());
-                            break;
-                        default:
-                            msg = "";
-                            break;
-                    }
-                    this.ws_memory.SetLength(0);
-                    this.ws_memory.Position = 0;
-                    break;
-                case WebSocketState.None:
-                case WebSocketState.Connecting:
-                    //Do nothing
-                    break;
-                case WebSocketState.CloseReceived:
-                case WebSocketState.CloseSent:
-                case WebSocketState.Closed:
-                case WebSocketState.Aborted:
-                default:
-                    Thread.Sleep(1000);
-                    break;
+                                break;
+                            case WebSocketMessageType.Binary:
+                                break;
+                            case WebSocketMessageType.Close:
+                                this.addLog("Closed by server");
+                                output = false;
+                                msg = "Closing message[onListen]:" + Encoding.UTF8.GetString(this.ws_memory.ToArray());
+                                break;
+                            default:
+                                msg = "";
+                                break;
+                        }
+                        this.ws_memory.SetLength(0);
+                        this.ws_memory.Position = 0;
+                        break;
+                    case WebSocketState.None:
+                    case WebSocketState.Connecting:
+                        //Do nothing
+                        break;
+                    case WebSocketState.CloseReceived:
+                    case WebSocketState.CloseSent:
+                    case WebSocketState.Closed:
+                    case WebSocketState.Aborted:
+                    default:
+                        Thread.Sleep(1000);
+                        break;
+                }
             }
+            catch (WebSocketException ex)
+            {
+
+                this.addLog($"WebSocket Error: {ex.Message}" + "Error Code:" + ex.ErrorCode.ToString(), Enums.logType.ERROR);
+            }
+            catch (Exception ex)
+            {
+                this.addLog($"Unexpacted Error: {ex.Message}", Enums.logType.ERROR);
+            }
+
             return (true, 0);
         }
         private void updateFills(List<fillInfo> fills)

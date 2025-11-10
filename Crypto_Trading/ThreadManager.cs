@@ -266,6 +266,7 @@ namespace Crypto_Trading
                         this.addLog("The thread is stopping with an error", logType.WARNING);
                         onError();
                     }
+                    this.isRunning = false;
                 });
                 this.isRunning = true;
                 this.threadObj.Start();
