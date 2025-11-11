@@ -608,26 +608,67 @@ namespace Crypto_Clients
                     {
                         addLog("Failed to get trade history from coincheck.", logType.WARNING);
                     }
-                    //js = await this.coincheck_client.getTradeHistory();
-                    //if (js.RootElement.GetProperty("success").GetBoolean())
-                    //{
-                    //    var data = js.RootElement.GetProperty("transactions");
-                    //    foreach (var item in data.EnumerateArray())
-                    //    {
-                    //        while (!this.fillStack.TryPop(out fill))
-                    //        {
-                    //        }
-                    //        fill.setCoincheckFill(item);
-                    //        output.Add(fill);
-                    //    }
-                    //}
-                    //else
-                    //{
-                    //    addLog("Failed to get trade history from coincheck.", logType.WARNING);
-                    //}
                     break;
             }
             return output;
+        }
+
+        public async Task<decimal> getCurrentMid(string market, string symbol)
+        {
+            decimal mid = -1;
+            JsonDocument js;
+
+            switch(market)
+            {
+                case "bitbank":
+                    js = await this.bitbank_client.getTicker(symbol);
+                    if(js.RootElement.GetProperty("success").GetInt32() == 1)
+                    {
+                        var data = js.RootElement.GetProperty("data");
+                        mid = (decimal.Parse(data.GetProperty("sell").GetString()) + decimal.Parse(data.GetProperty("buy").GetString())) / 2;
+                    }
+                    else
+                    {
+                        addLog("Failed to get the ticker from bitbank.", logType.WARNING);
+                    }
+                    break;
+                case "coincheck":
+                    js = await this.coincheck_client.getTicker(symbol);
+                    JsonElement js_bid;
+                    JsonElement js_ask;
+                    decimal bid = 0;
+                    decimal ask = 0;    
+                    if (js.RootElement.TryGetProperty("bid",out js_bid))
+                    {
+                        bid = js_bid.GetDecimal();
+                    }
+                    if (js.RootElement.TryGetProperty("ask", out js_ask))
+                    {
+                        ask = js_ask.GetDecimal();
+                    }
+                    if(ask > 0 && bid > 0)
+                    {
+                        mid = (ask + bid) / 2;
+                    }
+                    else if(ask > 0)
+                    {
+                        mid = ask;
+                    }
+                    else if(bid > 0)
+                    {
+                        mid = bid;
+                    }
+                        //if(js.RootElement.GetProperty("success").GetBoolean())
+                        //{
+                        //    mid = (decimal.Parse(js.RootElement.GetProperty("ask").GetString()) + decimal.Parse(js.RootElement.GetProperty("bid").GetString())) / 2;
+                        //}
+                        //else
+                        //{
+                        //    addLog("Failed to get the ticker from coincheck.", logType.WARNING);
+                        //}
+                    break;
+            }
+            return mid;
         }
         async public Task<ExchangeWebResult<SharedFee>[]> getFees(IEnumerable<string>? markets,string baseCcy,string quoteCcy)
         {

@@ -1,4 +1,5 @@
 ﻿using Binance.Net.Enums;
+using Binance.Net.Objects.Models.Spot.Loans;
 using Crypto_Clients;
 using System;
 using System.Collections.Generic;
@@ -273,11 +274,11 @@ namespace Crypto_Trading
                 {
                     if(maker_adjustedbid == live_bidprice)
                     {
-                        bid_price = maker_bid;
+                        bid_price = maker_adjustedbid;
                     }
                     else
                     {
-                        bid_price = maker_bid + this.maker.price_unit;
+                        bid_price = maker_adjustedbid + this.maker.price_unit;
                     }
                         
                     if (bid_price >= maker_ask)
@@ -951,15 +952,26 @@ namespace Crypto_Trading
         {
             if (this.predictFill)
             {
-                if(ord.status == orderStatus.Filled && this.stg_orders.Contains(ord.internal_order_id))
+                if(ord.status == orderStatus.Filled)
                 {
+                    if(this.stg_orders.Contains(ord.internal_order_id) == false && this.stg_orders.Contains(ord.market + ord.order_id))
+                    {
+                        if(ord.symbol_market == this.maker.symbol_market)
+                        {
+                            this.stg_orders.Add(ord.market + ord.order_id);
+                        }
+                        else
+                        {
+                            return;
+                        }
+                    }
                     decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity;
                     
                     while (Interlocked.CompareExchange(ref this.fill_lock, 1, 0) != 0)
                     {
 
                     }
-                    if (this.executed_Orders.ContainsKey(ord.internal_order_id))
+                    if (this.executed_Orders.ContainsKey(ord.internal_order_id) || this.executed_Orders.ContainsKey(ord.market + ord.order_id))
                     {
                         //Do nothing
                     }
@@ -1034,10 +1046,20 @@ namespace Crypto_Trading
                 {
                     return;
                 }
-                if (this.stg_orders.Contains(fill.internal_order_id) == false)
+                if (this.stg_orders.Contains(fill.internal_order_id) == false && this.stg_orders.Contains(fill.market + fill.order_id))
                 {
+                    //Even if the order id is not registered, if the market and symbol meets the strategy handle the fill.
+                    //Register the market + order_id
+                    if(fill.symbol_market == this.maker.symbol_market)
+                    {
+                        this.stg_orders.Add(fill.market + fill.order_id);
+                    }
+                    else
+                    {
+                        return;
+                    }
                     //this.addLog("Unknown order order:" + fill.ToString());
-                    return;
+                    //return;
                 }
 
                 if (this.predictFill)
@@ -1046,7 +1068,7 @@ namespace Crypto_Trading
                     {
 
                     }
-                    if (this.executed_Orders.ContainsKey(fill.internal_order_id))
+                    if (this.executed_Orders.ContainsKey(fill.internal_order_id) || this.executed_Orders.ContainsKey(fill.market + fill.order_id))
                     {
                         //Do nothing
                     }

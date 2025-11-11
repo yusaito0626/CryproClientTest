@@ -582,13 +582,23 @@ namespace Crypto_Clients
             return (output,latency);
         }
        
-        private async Task<string> getAsync(string endpoint,string body = "")
+        private async Task<string> getAsync(string endpoint,string body = "",string url = "")
         {
             var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             var timeWindow = "5000";
             var message = $"{nonce}{timeWindow}{endpoint}{body}";
 
-            var request = new HttpRequestMessage(HttpMethod.Get, bitbank_connection.URL + endpoint + body);
+            HttpRequestMessage request;
+
+            if(url != "")
+            {
+                request = new HttpRequestMessage(HttpMethod.Get, url + endpoint + body);
+            }
+            else
+            {
+                request = new HttpRequestMessage(HttpMethod.Get, bitbank_connection.URL + endpoint + body);
+            }
+
 
             request.Headers.Add("ACCESS-KEY", this.apiName);
             request.Headers.Add("ACCESS-REQUEST-TIME", nonce.ToString());
@@ -596,14 +606,6 @@ namespace Crypto_Clients
             request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
 
             request.Content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
-            //if (body == "")
-            //{
-            //    request.Content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
-            //}
-            //else
-            //{
-            //    request.Content = new StringContent(body, Encoding.UTF8, "application/json");
-            //}
 
             var response = await this.http_client.SendAsync(request);
             var resString = await response.Content.ReadAsStringAsync();
@@ -635,7 +637,14 @@ namespace Crypto_Clients
 
             return resString;
         }
-
+        public async Task<JsonDocument> getTicker(string symbol)
+        {
+            string url = "https://public.bitbank.cc";
+            string request = $"/{symbol}/ticker";
+            var resString = await this.getAsync(request,"",url);
+            var json = JsonDocument.Parse(resString);
+            return json;
+        }
         public async Task<JsonDocument> getBalance()
         {
             var resString = await this.getAsync("/v1/user/assets");

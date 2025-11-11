@@ -256,12 +256,6 @@ namespace Crypto_Linux
 
             addLog("Latency check");
 
-            List<DataFill> tradeHistory = await crypto_client.getTradeHistory("coincheck",DateTime.UtcNow.Date);
-            foreach(DataFill fill in tradeHistory)
-            {
-                Console.WriteLine(fill.ToString());
-            }
-            Console.WriteLine(tradeHistory.Count.ToString() + " trades found.");
             i = 0;
             int trial = 3;
             Stopwatch sw = new Stopwatch();
@@ -813,25 +807,89 @@ namespace Crypto_Linux
                 }
                 else
                 {
-                    if (!qManager.setBalance(await crypto_client.getBalance(qManager._markets.Keys)))
-                    {
-                        return false;
-                    }
+                    
                     string SoDPosFile = outputPath + "/SoD_Position.csv";
-                    StreamWriter sw = null;
                     if (!File.Exists(SoDPosFile))
                     {
-                        sw = new StreamWriter(new FileStream(SoDPosFile, FileMode.Create, FileAccess.Write));
-                        sw.WriteLine("timestamp,symbol,market,symbol_market,base_ccy,quote_ccy,baseccy_balance,quoteccy_balance");
+                        if (!qManager.setBalance(await crypto_client.getBalance(qManager._markets.Keys)))
+                        {
+                            return false;
+                        }
+                        StreamWriter sw = new StreamWriter(new FileStream(SoDPosFile, FileMode.Create, FileAccess.Write));
+                        sw.WriteLine("timestamp,symbol,market,symbol_market,base_ccy,quote_ccy,baseccy_balance,quoteccy_balance,open_mid");
                         string currentTime = DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat);
                         foreach (var ins in qManager.instruments.Values)
                         {
-                            string line = currentTime + "," + ins.symbol + "," + ins.market + "," + ins.symbol_market + "," + ins.baseCcy + "," + ins.quoteCcy + "," + ins.baseBalance.total.ToString() + "," + ins.quoteBalance.total.ToString();
+                            decimal mid = await crypto_client.getCurrentMid(ins.market, ins.symbol);
+                            string line = currentTime + "," + ins.symbol + "," + ins.market + "," + ins.symbol_market + "," + ins.baseCcy + "," + ins.quoteCcy + "," + ins.baseBalance.total.ToString() + "," + ins.quoteBalance.total.ToString() + "," + mid.ToString();
+                            ins.SoD_baseBalance.total = ins.baseBalance.total;
+                            ins.SoD_baseBalance.ccy = ins.baseBalance.ccy;
+                            ins.SoD_baseBalance.market = ins.baseBalance.market;
+                            ins.SoD_quoteBalance.total = ins.quoteBalance.total;
+                            ins.SoD_quoteBalance.ccy = ins.quoteBalance.ccy;
+                            ins.SoD_quoteBalance.market = ins.quoteBalance.market;
+                            ins.open_mid = mid;
                             sw.WriteLine(line);
                             sw.Flush();
                         }
                         sw.Close();
                         sw.Dispose();
+                    }
+                    else
+                    {
+                        addLog("SoD file found File:" + SoDPosFile);
+                        StreamReader sr = new StreamReader(new FileStream(SoDPosFile, FileMode.Open, FileAccess.Read));
+                        while(sr.ReadLine() is string line)
+                        {
+                            addLog(line);
+                            if(line.StartsWith("timestamp"))
+                            {
+                                continue;
+                            }
+                            string[] items = line.Split(',');
+                            if(items.Length >= 8)
+                            {
+                                string symbol_market = items[3];
+                                if (qManager.instruments.ContainsKey(symbol_market))
+                                {
+                                    Instrument ins = qManager.instruments[symbol_market];
+                                    ins.SoD_baseBalance.ccy = ins.baseCcy;
+                                    ins.SoD_baseBalance.market = ins.market;
+                                    ins.SoD_baseBalance.total = decimal.Parse(items[6]);
+                                    ins.SoD_quoteBalance.ccy = ins.quoteCcy;
+                                    ins.SoD_quoteBalance.market = ins.market;
+                                    ins.SoD_quoteBalance.total = decimal.Parse(items[7]);
+                                    ins.open_mid = decimal.Parse(items[8]);
+
+                                    ins.baseBalance.total = ins.SoD_baseBalance.total;
+                                    ins.baseBalance.ccy = ins.SoD_baseBalance.ccy;
+                                    ins.baseBalance.market = ins.SoD_baseBalance.market;
+                                    ins.quoteBalance.total = ins.SoD_quoteBalance.total;
+                                    ins.quoteBalance.ccy = ins.SoD_quoteBalance.ccy;
+                                    ins.quoteBalance.market = ins.SoD_quoteBalance.market;
+                                }
+                            }
+                        }
+                        List<DataFill> histFill;
+                        foreach (var mkt in qManager._markets.Keys)
+                        {
+                            histFill = await crypto_client.getTradeHistory(mkt, DateTime.UtcNow.Date);
+                            foreach (var fill in histFill)
+                            {
+                                string symbol_market = fill.symbol_market;
+                                if (qManager.instruments.ContainsKey(symbol_market))
+                                {
+                                    Instrument ins = qManager.instruments[symbol_market];
+                                    ins.updateFills(fill);
+                                    filledOrderQueue.Enqueue(fill);
+                                }
+                            }
+                        }
+                        //Just in case, update balance again
+                        if (!qManager.setBalance(await crypto_client.getBalance(qManager._markets.Keys)))
+                        {
+                            return false;
+                        }
                     }
                 }
                 qManager.ready = true;
@@ -903,8 +961,10 @@ namespace Crypto_Linux
                     
                     foreach (var stg in strategies.Values)
                     {
+
+                        stg.SoD_baseCcyPos = (stg.maker.SoD_baseBalance.total + stg.taker.SoD_baseBalance.total) - stg.baseCcyQuantity;
                         decimal baseBalance_diff = stg.baseCcyQuantity - (stg.maker.baseBalance.total + stg.taker.baseBalance.total);
-                        stg.SoD_baseCcyPos = - baseBalance_diff;
+                        //stg.SoD_baseCcyPos = - baseBalance_diff;
                         orderSide side = orderSide.Buy;
                         if (baseBalance_diff < 0)
                         {
@@ -913,12 +973,13 @@ namespace Crypto_Linux
                         }
                         baseBalance_diff = Math.Round(baseBalance_diff / stg.taker.quantity_unit) * stg.taker.quantity_unit;
                         stg.lastPosAdjustment = DateTime.UtcNow;
-                        addLog("SoD balance of " + stg.name + " BaseCcy:" + (stg.maker.baseBalance.total + stg.taker.baseBalance.total).ToString() + " QuoteCcy:" + (stg.maker.quoteBalance.total + stg.taker.quoteBalance.total).ToString());
-                        addLog("Adjustment at SoD: " + side.ToString() + " " + baseBalance_diff.ToString());
+                        addLog("The current balance of " + stg.name + " BaseCcy:" + (stg.maker.baseBalance.total + stg.taker.baseBalance.total).ToString() + " QuoteCcy:" + (stg.maker.quoteBalance.total + stg.taker.quoteBalance.total).ToString());
+                        addLog("Adjustment at the start: " + side.ToString() + " " + baseBalance_diff.ToString());
                         if(baseBalance_diff > 0)
                         {
                             await oManager.placeNewSpotOrder(stg.taker, side, orderType.Market, baseBalance_diff, 0, null, true, false);
                         }
+
                     }
                 }
             }

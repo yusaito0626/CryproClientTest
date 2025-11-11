@@ -990,7 +990,12 @@ namespace Crypto_Clients
             }
             return resString;
         }
-
+        public async Task<JsonDocument> getTicker(string symbol)
+        {
+            var resString = await this.getAsync("/api/ticker?pair=" + symbol);
+            var json = JsonDocument.Parse(resString);
+            return json;
+        }
         public async Task<JsonDocument> getTradeHistory()
         {
             var resString = await this.getAsync("/api/exchange/orders/transactions");

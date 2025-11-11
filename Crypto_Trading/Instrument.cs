@@ -63,6 +63,9 @@ namespace Crypto_Trading
         public Balance baseBalance;
         public Balance quoteBalance;
 
+        public Balance SoD_baseBalance;
+        public Balance SoD_quoteBalance;
+
         public decimal taker_fee;
         public decimal maker_fee;
 
@@ -120,6 +123,9 @@ namespace Crypto_Trading
 
             this.baseBalance = new Balance();
             this.quoteBalance = new Balance();
+
+            this.SoD_baseBalance = new Balance();
+            this.SoD_quoteBalance = new Balance();
 
             this.taker_fee = 0;
             this.maker_fee = 0;
