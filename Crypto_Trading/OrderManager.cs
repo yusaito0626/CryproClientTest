@@ -2069,27 +2069,73 @@ namespace Crypto_Trading
                                     addLog(ord.ToString());
                                     if(ord.queued_count > 1_000_000)
                                     {
-                                        addLog("Cancelling the order and removing from strategies...");
-                                        ins = this.Instruments[ord.symbol_market];
-                                        ord.internal_order_id = ord.market + ord.order_id;
-                                        this.ordIdMapping[ord.internal_order_id] = ord.market + ord.order_id;
-                                        this.orders[ord.market + ord.order_id] = ord;
-                                        foreach (var stg in this.strategies.Values)
+                                        if(ord.status == orderStatus.Open)
                                         {
-                                            if (stg.maker.symbol_market == ord.symbol_market)
+                                            addLog("Cancelling the order and removing from strategies...");
+                                            ins = this.Instruments[ord.symbol_market];
+                                            ord.internal_order_id = ord.market + ord.order_id;
+                                            this.ordIdMapping[ord.internal_order_id] = ord.market + ord.order_id;
+                                            this.orders[ord.market + ord.order_id] = ord;
+
+                                            decimal filled_quantity = ord.filled_quantity;
+                                            if (filled_quantity > 0 && ord.order_type != orderType.Market)
                                             {
                                                 switch (ord.side)
                                                 {
                                                     case orderSide.Buy:
-                                                        stg.live_buyorder_id = "";
+                                                        ins.quoteBalance.AddBalance(0, -filled_quantity * ord.order_price);
                                                         break;
                                                     case orderSide.Sell:
-                                                        stg.live_sellorder_id = "";
+                                                        ins.baseBalance.AddBalance(0, -filled_quantity);
                                                         break;
+
+                                                }
+                                            }
+
+                                            foreach (var stg in this.strategies.Values)
+                                            {
+                                                if (stg.maker.symbol_market == ord.symbol_market)
+                                                {
+                                                    switch (ord.side)
+                                                    {
+                                                        case orderSide.Buy:
+                                                            stg.live_buyorder_id = "";
+                                                            break;
+                                                        case orderSide.Sell:
+                                                            stg.live_sellorder_id = "";
+                                                            break;
+                                                    }
+                                                }
+                                            }
+                                            this.placeCancelSpotOrder(ins, ord.market + ord.order_id, true, false);
+                                        }
+                                        else
+                                        {
+                                            decimal filled_quantity = 0;
+                                            ins = this.Instruments[ord.symbol_market];
+                                            if (this.orders.ContainsKey(ord.market + ord.order_id))
+                                            {
+                                                DataSpotOrderUpdate prev = this.orders[ord.market + ord.order_id];
+                                                filled_quantity = ord.order_quantity - prev.filled_quantity;
+                                            }
+                                            else
+                                            {
+                                                filled_quantity = ord.order_quantity;
+                                            }
+                                            if (filled_quantity > 0 && ord.order_type != orderType.Market)
+                                            {
+                                                switch (ord.side)
+                                                {
+                                                    case orderSide.Buy:
+                                                        ins.quoteBalance.AddBalance(0, -filled_quantity * ord.order_price);
+                                                        break;
+                                                    case orderSide.Sell:
+                                                        ins.baseBalance.AddBalance(0, -filled_quantity);
+                                                        break;
+
                                                 }
                                             }
                                         }
-                                        this.placeCancelSpotOrder(ins, ord.market + ord.order_id, true, false);   
                                     }
                                     else
                                     {

@@ -27,6 +27,7 @@ namespace Crypto_Linux
         //static string defaultConfigPath = "C:\\Users\\yusai\\Crypto_Project\\configs\\config_linuxtest.json";
         static string logPath = Path.Combine(AppContext.BaseDirectory, "crypto.log");
         static string outputPath = AppContext.BaseDirectory;
+        static string outputPath_org = AppContext.BaseDirectory;
         static string APIsPath = "";
         static List<string> APIList = new List<string>();
         static string discordTokenFile = "";
@@ -584,6 +585,7 @@ namespace Crypto_Linux
             if (root.TryGetProperty("outputPath", out elem))
             {
                 outputPath = elem.GetString();
+                outputPath_org = outputPath;
             }
             else
             {
@@ -1100,6 +1102,36 @@ namespace Crypto_Linux
                     await MsgDeliverer.sendMessage(msg);
                     addLog(msg);
                     Thread.Sleep(1000);
+
+                    string dt = (DateTime.UtcNow + TimeSpan.FromDays(1)).ToString("yyyy-MM-dd");
+                    string newpath = outputPath_org + "/" + dt;
+                    if (!Directory.Exists(newpath))
+                    {
+                        Directory.CreateDirectory(newpath);
+                    }
+                    string SoDPosFile = newpath + "/SoD_Position.csv";
+                    qManager.setBalance(await crypto_client.getBalance(qManager._markets.Keys));
+
+                    StreamWriter sw = new StreamWriter(new FileStream(SoDPosFile, FileMode.Create, FileAccess.Write));
+                    sw.WriteLine("timestamp,symbol,market,symbol_market,base_ccy,quote_ccy,baseccy_balance,quoteccy_balance,open_mid");
+                    string currentTime = DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat);
+                    foreach (var ins in qManager.instruments.Values)
+                    {
+                        decimal mid = await crypto_client.getCurrentMid(ins.market, ins.symbol);
+                        string line = currentTime + "," + ins.symbol + "," + ins.market + "," + ins.symbol_market + "," + ins.baseCcy + "," + ins.quoteCcy + "," + ins.baseBalance.total.ToString() + "," + ins.quoteBalance.total.ToString() + "," + mid.ToString();
+                        ins.SoD_baseBalance.total = ins.baseBalance.total;
+                        ins.SoD_baseBalance.ccy = ins.baseBalance.ccy;
+                        ins.SoD_baseBalance.market = ins.baseBalance.market;
+                        ins.SoD_quoteBalance.total = ins.quoteBalance.total;
+                        ins.SoD_quoteBalance.ccy = ins.quoteBalance.ccy;
+                        ins.SoD_quoteBalance.market = ins.quoteBalance.market;
+                        ins.open_mid = mid;
+                        sw.WriteLine(line);
+                        sw.Flush();
+                    }
+                    sw.Close();
+                    sw.Dispose();
+
                     foreach (var th in thManager.threads)
                     {
                         th.Value.stop();
