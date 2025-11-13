@@ -320,11 +320,11 @@ namespace Crypto_Trading
                 bid_price = Math.Floor(bid_price / this.maker.price_unit) * this.maker.price_unit;
                 ask_price = Math.Ceiling(ask_price / this.maker.price_unit) * this.maker.price_unit;
 
-                if (this.ToBsize * (1 + this.taker.taker_fee) > this.taker.baseBalance.available)
+                if (this.ToBsize * (1 + this.taker.taker_fee) * 2 > this.taker.baseBalance.available)
                 {
                     bid_price = 0;
                 }
-                if (taker_ask * this.ToBsize * (1 + this.taker.taker_fee) > this.taker.quoteBalance.available)
+                if (taker_ask * this.ToBsize * (1 + this.taker.taker_fee) * 2 > this.taker.quoteBalance.available)
                 {
                     ask_price = 0;
                 }

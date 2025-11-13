@@ -376,7 +376,6 @@ namespace Crypto_Trading
                     spinner.SpinOnce();
                     if (spinningMax > 0 && spinner.Count >= spinningMax)
                     {
-                        this.addLog("Yield called on update quotes");
                         Thread.Yield();
                         spinner.Reset();
                     }
@@ -391,7 +390,12 @@ namespace Crypto_Trading
             }
             catch (Exception ex)
             {
+                this.addLog("Error recieved with in updateQuotes");
                 this.addLog(ex.Message, Enums.logType.WARNING);
+                if (ex.StackTrace != null)
+                {
+                    this.addLog(ex.StackTrace, Enums.logType.WARNING);
+                }
                 ret = false;
             }
             return ret;
@@ -471,7 +475,12 @@ namespace Crypto_Trading
             }
             catch (Exception ex)
             {
+                this.addLog("Error recieved with in optimize");
                 this.addLog(ex.Message, Enums.logType.WARNING);
+                if (ex.StackTrace != null)
+                {
+                    this.addLog(ex.StackTrace, Enums.logType.WARNING);
+                }
                 ret = false;
             }
             return ret;
@@ -580,7 +589,12 @@ namespace Crypto_Trading
             }
             catch (Exception ex)
             {
+                this.addLog("Error recieved with in updateTrades");
                 this.addLog(ex.Message, Enums.logType.WARNING);
+                if (ex.StackTrace != null)
+                {
+                    this.addLog(ex.StackTrace, Enums.logType.WARNING);
+                }
                 ret = false;
             }
             return ret;

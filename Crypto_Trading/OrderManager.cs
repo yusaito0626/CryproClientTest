@@ -653,6 +653,7 @@ namespace Crypto_Trading
                     {
 
                     }
+
                     output.status = orderStatus.INVALID;
                     output.timestamp = sendTime;
                     output.internal_order_id = sndOrd.internalOrdId;
@@ -1714,10 +1715,11 @@ namespace Crypto_Trading
                                 }
                                 else
                                 {
+                                    DataFill localfill = fill;
                                     Task.Run(() =>
                                     {
                                         Thread.Sleep(10);
-                                        this.ord_client.fillQueue.Enqueue(fill);
+                                        this.ord_client.fillQueue.Enqueue(localfill);
                                         addLog("The order has been queued.", Enums.logType.WARNING);
                                     });
                                 }
@@ -1752,7 +1754,12 @@ namespace Crypto_Trading
             }
             catch(Exception ex)
             {
+                this.addLog("Error recieved with in updateFills");
                 this.addLog(ex.Message, Enums.logType.WARNING);
+                if(ex.StackTrace != null)
+                {
+                    this.addLog(ex.StackTrace, Enums.logType.WARNING);
+                }
                 ret = false;
             }
             return ret;
@@ -2069,9 +2076,9 @@ namespace Crypto_Trading
                                 {
                                     addLog("Unknown Order", Enums.logType.WARNING);
                                     addLog(ord.ToString());
-                                    if(ord.queued_count > 1_000_000)
+                                    if (ord.queued_count > 1_000_000)
                                     {
-                                        if(ord.status == orderStatus.Open)
+                                        if (ord.status == orderStatus.Open)
                                         {
                                             addLog("Cancelling the order and removing from strategies...");
                                             ins = this.Instruments[ord.symbol_market];
@@ -2141,11 +2148,12 @@ namespace Crypto_Trading
                                     }
                                     else
                                     {
+                                        DataSpotOrderUpdate localord = ord;
                                         Task.Run(() =>
                                         {
                                             Thread.Sleep(10);
-                                            ++(ord.queued_count);
-                                            this.ord_client.ordUpdateQueue.Enqueue(ord);
+                                            ++(localord.queued_count);
+                                            this.ord_client.ordUpdateQueue.Enqueue(localord);
                                         });
                                     }
                                 }
@@ -2198,7 +2206,12 @@ namespace Crypto_Trading
             }
             catch (Exception ex)
             {
+                this.addLog("Error recieved with in updateOrders");
                 this.addLog(ex.Message, Enums.logType.WARNING);
+                if (ex.StackTrace != null)
+                {
+                    this.addLog(ex.StackTrace, Enums.logType.WARNING);
+                }
                 ret = false;
             }
             return ret;
