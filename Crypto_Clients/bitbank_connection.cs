@@ -32,6 +32,10 @@ namespace Crypto_Clients
         public ConcurrentQueue<DataFill> fillQueue;
         public ConcurrentStack<DataFill> fillStack;
 
+        public ConcurrentQueue<string> msgLogQueue;
+        string logPath;
+        public bool logging;
+
         ClientWebSocket websocket_client;
         HttpClient http_client;
 
@@ -55,8 +59,7 @@ namespace Crypto_Clients
         MemoryStream ws_memory = new MemoryStream();
         MemoryStream result_memory = new MemoryStream();
 
-        public bool logging;
-        public StreamWriter msgLog;
+        //public StreamWriter msgLog;
 
         Stopwatch sw_POST;
         double elapsedTime_POST;
@@ -94,7 +97,8 @@ namespace Crypto_Clients
             //this._addLog = Console.WriteLine;
             //this.onMessage = Console.WriteLine;
 
-            
+            this.msgLogQueue = new ConcurrentQueue<string>();
+
         }
 
         public void setQueues(Crypto_Clients client)
@@ -108,8 +112,64 @@ namespace Crypto_Clients
         public void setLogFile(string path)
         {
             this.logging = true;
-            FileStream fspub = new FileStream(path + "/bitbank_msglog" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + ".txt", FileMode.Append, FileAccess.Write, FileShare.Read);
-            this.msgLog = new StreamWriter(fspub);
+            this.logPath = path;
+            //FileStream fspub = new FileStream(path + "/bitbank_msglog" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + ".txt", FileMode.Append, FileAccess.Write, FileShare.Read);
+            //this.msgLog = new StreamWriter(fspub);
+        }
+        public async Task<bool> msgLogging(Action start, Action end, CancellationToken ct, int spinningMax)
+        {
+            var spinner = new SpinWait();
+            this.logging = true;
+            FileStream fspub = new FileStream(this.logPath + "/bitbank_msglog" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + ".txt", FileMode.Append, FileAccess.Write, FileShare.Read);
+            StreamWriter msgLog = new StreamWriter(fspub);
+            bool ret = true;
+            int i = 0;
+            try
+            {
+                while (true)
+                {
+                    i = 0;
+                    while (this.msgLogQueue.TryDequeue(out var msg))
+                    {
+                        start();
+                        msgLog.WriteLine(msg);
+                        ++i;
+                        spinner.Reset();
+                        end();
+                        if (i == 10000)
+                        {
+                            break;
+                        }
+                    }
+                    if (ct.IsCancellationRequested)
+                    {
+                        this.addLog("Cancel requested. msgLogging of bitbank", Enums.logType.WARNING);
+                        break;
+                    }
+                    spinner.SpinOnce();
+                    if (spinningMax > 0 && spinner.Count >= spinningMax)
+                    {
+                        Thread.Yield();
+                        spinner.Reset();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this.addLog("Error occured during logging bitbank messages.", Enums.logType.WARNING);
+                this.addLog($"Error: {ex.Message}");
+                if (ex.StackTrace != null)
+                {
+                    this.addLog($"{ex.StackTrace}");
+                }
+                ret = false;
+            }
+            finally
+            {
+                msgLog.Flush();
+                msgLog.Dispose();
+            }
+            return ret;
         }
 
         public void SetApiCredentials(string name, string key)
@@ -328,8 +388,7 @@ namespace Crypto_Clients
                 }
                 if(this.logging)
                 {
-                    this.msgLog.WriteLine(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   " + msg);
-                    this.msgLog.Flush();
+                    this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   " + msg);
                 }
             }
 
@@ -343,10 +402,6 @@ namespace Crypto_Clients
             this.ws_memory.SetLength(0);
             this.ws_memory.Position = 0;
             this.websocket_client.Dispose();
-            if(this.logging)
-            {
-                this.msgLog.Flush();
-            }
         }
 
         public async Task<bool> Listening(Action start, Action end, CancellationToken ct,int spinningMax)//This function doesn't require to count the spinning as the receiver wait until it receives something.
@@ -430,7 +485,7 @@ namespace Crypto_Clients
                             }
                             if (this.logging)
                             {
-                                this.msgLog.WriteLine(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   " + msg);
+                                this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   " + msg);
                                 //this.logFilePublic.Flush();
                             }
                             this.ws_memory.SetLength(0);
@@ -558,7 +613,7 @@ namespace Crypto_Clients
                     }
                     if(this.logging)
                     {
-                        this.msgLog.WriteLine(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   " + msg);
+                        this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   " + msg);
                         //this.logFilePublic.Flush();
                     }
                     this.ws_memory.SetLength(0);
@@ -897,8 +952,7 @@ namespace Crypto_Clients
                         }
                         if(this.logging)
                         {
-                            this.msgLog.WriteLine(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   " + messageResult.Message.ToString());
-                            this.msgLog.Flush();
+                            this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   " + messageResult.Message.ToString());
                         }
                     }
                 },
@@ -907,8 +961,7 @@ namespace Crypto_Clients
                     this.addLog("presence: " + presenceResult.Event);
                     if(this.logging)
                     {
-                        this.msgLog.WriteLine(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   " + presenceResult.Event);
-                        this.msgLog.Flush();
+                        this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   " + presenceResult.Event);
                     }
                 },
                 async (pubnubObj, status) =>
@@ -948,8 +1001,7 @@ namespace Crypto_Clients
                     }
                     if(this.logging)
                     {
-                        this.msgLog.WriteLine(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   " + status.Category.ToString() + " " + status.ErrorData.ToString());
-                        this.msgLog.Flush();
+                        this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   " + status.Category.ToString() + " " + status.ErrorData.ToString());
                     }
                 }));
 

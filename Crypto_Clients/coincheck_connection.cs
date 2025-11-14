@@ -3,8 +3,10 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.IO.Compression;
 using System.Net.WebSockets;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -24,6 +26,10 @@ namespace Crypto_Clients
 
         public ConcurrentQueue<JsonElement> orderQueue;
         public ConcurrentQueue<JsonElement> fillQueue;
+
+        public ConcurrentQueue<string> msgLogQueue;
+        string logPath;
+        public bool logging;
 
         ClientWebSocket websocket_client;
         ClientWebSocket private_client;
@@ -58,8 +64,6 @@ namespace Crypto_Clients
         private Int64 lastnonce;
         private volatile int nonceChecking;
 
-        public bool logging;
-        public StreamWriter msgLog;
 
         Stopwatch sw_POST;
         double elapsedTime_POST;
@@ -82,6 +86,7 @@ namespace Crypto_Clients
 
             this.orderQueue = new ConcurrentQueue<JsonElement>();
             this.fillQueue = new ConcurrentQueue<JsonElement>();
+            this.msgLogQueue = new ConcurrentQueue<string>();
 
             this.closeSentPublic = false;
             this.closeSentPrivate = false;
@@ -95,13 +100,70 @@ namespace Crypto_Clients
 
             this.lastnonce = 0;
             this.nonceChecking = 0;
-            //this._addLog = Console.WriteLine;
+            
         }
         public void setLogFile(string path)
         {
             this.logging = true;
-            FileStream fspub = new FileStream(path + "/coincheck_msglog" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + ".txt", FileMode.Append, FileAccess.Write, FileShare.Read);
-            this.msgLog = new StreamWriter(fspub);
+            this.logPath = path;
+            //FileStream fspub = new FileStream(path + "/coincheck_msglog" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + ".txt", FileMode.Append, FileAccess.Write, FileShare.Read);
+            //this.msgLog = new StreamWriter(fspub);
+        }
+
+        public async Task<bool> msgLogging(Action start,Action end,CancellationToken ct,int spinningMax)
+        {
+            var spinner = new SpinWait();
+            this.logging = true;
+            FileStream fspub = new FileStream(this.logPath + "/coincheck_msglog" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + ".txt", FileMode.Append, FileAccess.Write, FileShare.Read);
+            StreamWriter msgLog = new StreamWriter(fspub);
+            bool ret = true;
+            int i = 0;
+            try
+            {
+                while (true)
+                {
+                    i = 0;
+                    while (this.msgLogQueue.TryDequeue(out var msg))
+                    {
+                        start();
+                        msgLog.WriteLine(msg);
+                        ++i;
+                        spinner.Reset();
+                        end();
+                        if (i == 10000)
+                        {
+                            break;
+                        }
+                    }
+                    if (ct.IsCancellationRequested)
+                    {
+                        this.addLog("Cancel requested. msgLogging of coincheck", Enums.logType.WARNING);
+                        break;
+                    }
+                    spinner.SpinOnce();
+                    if (spinningMax > 0 && spinner.Count >= spinningMax)
+                    {
+                        Thread.Yield();
+                        spinner.Reset();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this.addLog("Error occured during logging coincheck messages.", Enums.logType.WARNING);
+                this.addLog($"Error: {ex.Message}");
+                if(ex.StackTrace != null)
+                {
+                    this.addLog($"{ex.StackTrace}");
+                }
+                ret = false;
+            }
+            finally
+            {
+                msgLog.Flush();
+                msgLog.Dispose();
+            }
+            return ret;
         }
         public void SetApiCredentials(string name, string key)
         {
@@ -326,8 +388,7 @@ namespace Crypto_Clients
                 }
                 if(this.logging)
                 {
-                    this.msgLog.WriteLine(DateTime.UtcNow.ToString() + "   " + msg);
-                    this.msgLog.Flush();
+                    this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   " + msg);
                 }
             }
 
@@ -340,10 +401,6 @@ namespace Crypto_Clients
             this.ws_memory.SetLength(0);
             this.ws_memory.Position = 0;
             this.websocket_client.Dispose();
-            if (this.logging)
-            {
-                this.msgLog.Flush();
-            }
         }
         public async Task<bool> Listening(Action start, Action end, CancellationToken ct, int spinningMax)//This function doesn't require to count the spinning as the receiver wait until it receives something.
         {
@@ -392,7 +449,7 @@ namespace Crypto_Clients
                             }
                             if (this.logging)
                             {
-                                this.msgLog.WriteLine(DateTime.UtcNow.ToString() + "   " + msg);
+                                this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   " + msg);
                                 //this.logFilePublic.Flush();
                             }
                             this.ws_memory.SetLength(0);
@@ -481,7 +538,7 @@ namespace Crypto_Clients
                     }
                     if(this.logging)
                     {
-                        this.msgLog.WriteLine(DateTime.UtcNow.ToString() + "   " + msg);
+                        this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   " + msg);
                         //this.logFilePublic.Flush();
                     }
                     this.ws_memory.SetLength(0);
@@ -694,13 +751,8 @@ namespace Crypto_Clients
                 }
                 if(this.logging)
                 {
-                    this.msgLog.WriteLine(DateTime.UtcNow.ToString() + "   " + msg);
-                    this.msgLog.Flush();
+                    this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   " + msg);
                 }
-            }
-            if(this.logging)
-            {
-                this.msgLog.Flush();
             }
             this.pv_memory.SetLength(0);
             this.pv_memory.Position = 0;
@@ -712,10 +764,6 @@ namespace Crypto_Clients
             this.pv_memory.SetLength(0);
             this.pv_memory.Position = 0;
             this.private_client.Dispose();
-            if (this.logging)
-            {
-                this.msgLog.Flush();
-            }
         }
         public async Task<bool> ListeningPrivate(Action start, Action end, CancellationToken ct, int spinningMax)//This function doesn't require to count the spinning as the receiver wait until it receives something.
         {
@@ -766,7 +814,7 @@ namespace Crypto_Clients
                             }
                             if (this.logging)
                             {
-                                this.msgLog.WriteLine(DateTime.UtcNow.ToString() + "   " + msg);
+                                this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   " + msg);
                                 //this.logFilePrivate.Flush();
                             }
                             this.pv_memory.SetLength(0);
@@ -857,7 +905,7 @@ namespace Crypto_Clients
                     }
                     if(this.logging)
                     {
-                        this.msgLog.WriteLine(DateTime.UtcNow.ToString() + "   " + msg);
+                        this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   " + msg);
                         //this.logFilePrivate.Flush();
                     }
                     this.pv_memory.SetLength(0);
@@ -912,7 +960,7 @@ namespace Crypto_Clients
             }
             if (this.logging)
             {
-                this.msgLog.WriteLine(DateTime.UtcNow.ToString() + "   GET" + endpoint + body);
+                this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   GET" + endpoint + body);
             }
 
 
@@ -953,7 +1001,7 @@ namespace Crypto_Clients
             sw_POST.Reset();
             if (this.logging)
             {
-                this.msgLog.WriteLine(DateTime.UtcNow.ToString() + "   POST" + endpoint + body);
+                this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   POST" + endpoint + body);
             }
             var resString = await response.Content.ReadAsStringAsync();
             return resString;
@@ -986,7 +1034,7 @@ namespace Crypto_Clients
             var resString = await response.Content.ReadAsStringAsync();
             if (this.logging)
             {
-                this.msgLog.WriteLine(DateTime.UtcNow.ToString() + "   DELETE" + endpoint + body);
+                this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   DELETE" + endpoint + body);
             }
             return resString;
         }

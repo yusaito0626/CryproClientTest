@@ -771,7 +771,11 @@ namespace Crypto_Linux
                 {
                     if (msgLogging)
                     {
-                        crypto_client.setMsgLogging(mkt.Key, outputPath);
+                        Func<Action, Action, CancellationToken, int, Task<bool>>?  func = crypto_client.setMsgLogging(mkt.Key, outputPath);
+                        if(func != null)
+                        {
+                            thManager.addThread(mkt.Key + "_msgLogging", func, null, null, 1);
+                        }
                     }
                     await qManager.connectPublicChannel(mkt.Key);
                     if (liveTrading || privateConnect)

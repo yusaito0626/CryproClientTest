@@ -105,24 +105,29 @@ namespace Crypto_Clients
             }
         }
 
-        public void setMsgLogging(string market, string outputPath)
+        public Func<Action, Action, CancellationToken, int, Task<bool>>? setMsgLogging(string market, string outputPath)
         {
             this.megLogging = true;
+            Func<Action, Action, CancellationToken, int, Task<bool>>? ret = null;
             switch (market)
             {
                 case "bitbank":
                     this.bitbank_client.setLogFile(outputPath);
+                    ret = this.bitbank_client.msgLogging;
                     break;
                 case "coincheck":
                     this.coincheck_client.setLogFile(outputPath);
+                    ret = this.coincheck_client.msgLogging;
                     break;
                 case "bittrade":
-                    this.bittrade_client.setLogFile(outputPath);
+                    this.addLog("Message logging is not defined for " + market, logType.WARNING);
+                    //this.bittrade_client.setLogFile(outputPath);
                     break;
                 default:
                     this.addLog("Message logging is not defined for " + market, logType.WARNING);
                     break;
             }
+            return ret;
         }
 
         public void setAddLog(Action<string, Enums.logType> act)
