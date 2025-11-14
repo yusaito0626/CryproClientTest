@@ -941,7 +941,6 @@ namespace Crypto_Clients
                 nonce = this.lastnonce + 1;
             }
             this.lastnonce = nonce;
-            Volatile.Write(ref this.nonceChecking, 0);
             var message = $"{nonce}{coincheck_connection.URL}{endpoint}";
 
             var request = new HttpRequestMessage(HttpMethod.Get, coincheck_connection.URL + endpoint);
@@ -965,6 +964,7 @@ namespace Crypto_Clients
 
 
             var response = await this.http_client.SendAsync(request);
+            Volatile.Write(ref this.nonceChecking, 0);
             var resString = await response.Content.ReadAsStringAsync();
 
             return resString;
@@ -982,7 +982,6 @@ namespace Crypto_Clients
                 nonce = this.lastnonce + 1;
             }
             this.lastnonce = nonce;
-            Volatile.Write(ref this.nonceChecking, 0);
             var message = $"{nonce}{coincheck_connection.URL}{endpoint}{body}";
 
             var request = new HttpRequestMessage(HttpMethod.Post, coincheck_connection.URL + endpoint);
@@ -995,6 +994,7 @@ namespace Crypto_Clients
 
             sw_POST = Stopwatch.StartNew();
             var response = await this.http_client.SendAsync(request);
+            Volatile.Write(ref this.nonceChecking, 0);
             sw_POST.Stop();
             this.elapsedTime_POST += sw_POST.Elapsed.TotalNanoseconds / 1000;
             ++this.count;
@@ -1019,7 +1019,6 @@ namespace Crypto_Clients
                 nonce = this.lastnonce + 1;
             }
             this.lastnonce = nonce;
-            Volatile.Write(ref this.nonceChecking, 0);
             var message = $"{nonce}{coincheck_connection.URL}{endpoint}{body}";
 
             var request = new HttpRequestMessage(HttpMethod.Delete, coincheck_connection.URL + endpoint);
@@ -1031,6 +1030,7 @@ namespace Crypto_Clients
             request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
 
             var response = await this.http_client.SendAsync(request);
+            Volatile.Write(ref this.nonceChecking, 0);
             var resString = await response.Content.ReadAsStringAsync();
             if (this.logging)
             {
