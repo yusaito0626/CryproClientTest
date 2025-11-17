@@ -447,6 +447,10 @@ namespace Crypto_Clients
                             this.ordUpdateQueue.Enqueue(ord);
                         }
                     }
+                    else
+                    {
+                        l = null;
+                    }
                     break;
                 case "coincheck":
                     js = await this.coincheck_client.getActiveOrders();
@@ -485,6 +489,10 @@ namespace Crypto_Clients
                             l.Add(ord);
                             this.ordUpdateQueue.Enqueue(ord);
                         }
+                    }
+                    else
+                    {
+                        l = null;
                     }
                     break;
                 case "bittrade":
@@ -565,6 +573,10 @@ namespace Crypto_Clients
                             l.Add(ord);
                             this.ordUpdateQueue.Enqueue(ord);
                         }
+                    }
+                    else
+                    {
+                        l = null;
                     }
                     break;
             }
@@ -2633,46 +2645,5 @@ namespace Crypto_Clients
         {
             return this.market + "," + this.symbol + "," + ((DateTime)this.timestamp).ToString("yyyy-MM-dd HH:mm:ss.fff") + "," + ((DateTime)this.filled_time).ToString("yyyy-MM-dd HH:mm:ss.fff") + "," + this.side.ToString() + "," + this.price.ToString() + "," + this.quantity.ToString();
         }
-    }
-
-    public enum orderType
-    {
-        NONE = -1,
-        Limit = 1,
-        LimitMaker = 2,
-        Market = 3,
-        Other = 4
-    }
-    public enum orderAction
-    {
-        NONE = -1,
-        New = 1,
-        Mod = 2,
-        Can = 3
-    }
-    public enum orderSide
-    {
-        NONE = -1,
-        Buy = 1,
-        Sell = 2
-    }
-    public enum orderStatus
-    {
-        NONE = -1,
-        WaitOpen = 1,
-        Open = 2,
-        PartialFill = 3,
-        WaitCancel = 4,
-        Filled = 5,
-        Canceled = 6,
-        WaitMod = 98,
-        INVALID = 99
-    }
-    public enum timeInForce
-    {
-        NONE = -1,
-        GoodTillCanceled = 1,
-        ImmediateOrCancel = 2,
-        FillOrKill = 3
     }
 }

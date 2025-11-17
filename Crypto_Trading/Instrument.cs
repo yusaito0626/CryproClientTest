@@ -5,6 +5,7 @@ using Discord.Audio.Streams;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using Utils;
+using Enums;
 
 namespace Crypto_Trading
 {

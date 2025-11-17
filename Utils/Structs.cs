@@ -41,6 +41,8 @@ namespace Utils
         public decimal skewThreshold { get; set; }
         public decimal oneSideThreshold { get; set; }
         public Boolean predictFill { get; set; }
+        public string? skew_type { get; set; }
+        public decimal skew_step { get; set; }
     }
     public class fillInfo
     {

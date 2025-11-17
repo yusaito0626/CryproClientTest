@@ -406,15 +406,15 @@ namespace Crypto_GUI
         }
         private void setStrategies(Dictionary<string, strategySetting> stgSettings)
         {
-            Strategy stg = new Strategy();
             foreach (var setting in stgSettings)
             {
+                Strategy stg = new Strategy();
+                stg._addLog = this.addLog;
                 stg.setStrategy(setting.Value);
                 stg.maker = this.qManager.getInstrument(stg.baseCcy, stg.quoteCcy, stg.maker_market);
                 stg.taker = this.qManager.getInstrument(stg.baseCcy, stg.quoteCcy, stg.taker_market);
                 stg.maker.ToBsize = stg.ToBsize;
                 stg.taker.ToBsize = stg.ToBsize;
-                stg._addLog = this.addLog;
                 this.strategies[stg.name] = stg;
             }
         }
@@ -2083,6 +2083,15 @@ namespace Crypto_GUI
                 this.lbl_oneside.Text = this.selected_stg.oneSideThreshold.ToString("N0");
                 this.lbl_fillInterval.Text = this.selected_stg.intervalAfterFill.ToString("N2");
                 this.lbl_ordUpdateTh.Text = this.selected_stg.modThreshold.ToString("N5");
+                this.lbl_skewtype.Text = this.selected_stg.skew_type.ToString();
+                if(this.selected_stg.skew_type == skewType.STEP)
+                {
+                    this.lbl_skewstep.Text = this.selected_stg.skew_step.ToString("N0");
+                }
+                else
+                {
+                    this.lbl_skewstep.Text = "-";
+                }
             }
         }
 

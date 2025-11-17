@@ -348,11 +348,11 @@ namespace Crypto_Trading
                                     }
                                     else if (symbol_market == stg.Value.maker.symbol_market && !this.oManager.getVirtualMode())
                                     {
+                                        stg.Value.onMakerQuotes(msg);
                                         if (Interlocked.CompareExchange(ref stg.Value.queued, 1, 0) == 0)
                                         {
                                             this.optQueue.Enqueue(stg.Value);
                                         }
-                                        //stg.Value.onMakerQuotes(msg);
                                     }
                                 }
 
@@ -448,7 +448,61 @@ namespace Crypto_Trading
                     while (this.optQueue.TryDequeue(out stg))
                     {
                         start();
-                        await stg.updateOrders();
+                        if(!await stg.updateOrders())
+                        {
+                            this.addLog("Cancelling all the orders including unknown.", Enums.logType.WARNING);
+
+                            List<DataSpotOrderUpdate> ordList = await this.crypto_client.getActiveOrders(stg.maker.market);
+                            int i = 0;
+                            while(ordList == null)
+                            {
+                                ++i;
+                                addLog("Failed to get active orders. Retrying..." + i.ToString(), Enums.logType.WARNING);
+                                ordList = await this.crypto_client.getActiveOrders(stg.maker.market);
+                                if(i >= 5)
+                                {
+                                    addLog("Failed to get active orders.", Enums.logType.ERROR);
+                                    break;
+                                }
+                            }
+
+                            this.addLog("The number of active orders:" + ordList.Count.ToString("N0"), Enums.logType.WARNING);
+                            List<string> id_list = new List<string>();
+                            foreach (DataSpotOrderUpdate ord in ordList)
+                            {
+                                if (stg.maker.symbol_market == ord.symbol_market)
+                                {
+                                    if (this.oManager.ordIdMapping.ContainsKey(ord.market + ord.order_id))
+                                    {
+                                        ord.internal_order_id = this.oManager.ordIdMapping[ord.market + ord.order_id];
+                                    }
+                                    else
+                                    {
+                                        ord.internal_order_id = ord.market + ord.order_id;
+                                        this.oManager.ordIdMapping[ord.market + ord.order_id] = ord.market + ord.order_id;
+                                    }
+                                    id_list.Add(ord.internal_order_id);
+                                    this.oManager.orders[ord.internal_order_id] = ord;
+                                }
+                            }
+                            if (id_list.Count > 0)
+                            {
+                                Thread.Sleep(1000);//Make sure the cancel orders are executed
+                                this.addLog("Cancelling...", Enums.logType.WARNING);
+                                await this.oManager.placeCancelSpotOrders(stg.maker, id_list, true, true);
+                                stg.maker.baseBalance.inuse = 0;
+                                stg.maker.quoteBalance.inuse = 0;
+                                stg.live_bidprice = 0;
+                                stg.live_buyorder_id = "";
+                                stg.live_askprice = 0;
+                                stg.live_sellorder_id = "";
+                                stg.addLog("Order cancelled.", Enums.logType.WARNING);
+                            }
+                            else
+                            {
+                                addLog("Active order not found");
+                            }
+                        }
                         Volatile.Write(ref stg.queued, 0);
                         spinner.Reset();
                         end();
@@ -486,20 +540,7 @@ namespace Crypto_Trading
             return ret;
 
         }
-        public async Task<(bool,double)> _optimize()
-        {
-            Strategy stg;
-            double latency = 0;
-            if(this.optQueue.TryDequeue(out stg))
-            {
-                this.sw_optimize.Start();
-                await stg.updateOrders();
-                this.sw_optimize.Stop();
-                latency = this.sw_optimize.Elapsed.TotalNanoseconds / 1000;
-                this.sw_optimize.Reset();
-            }
-            return (true, latency);
-        }
+
 
         public async void optimizeOnClosing()
         {

@@ -245,6 +245,9 @@ namespace Crypto_Linux
                 setting.modThreshold = stg.Value.modThreshold;
                 setting.skewThreshold = stg.Value.skewThreshold;
                 setting.oneSideThreshold = stg.Value.oneSideThreshold;
+                setting.predictFill = stg.Value.predictFill;
+                setting.skew_type = stg.Value.skew_type.ToString();
+                setting.skew_step = stg.Value.skew_step;
                 stgSettings[stg.Key] = setting;
             }
             await ws_server.setStrategySetting(stgSettings);
@@ -739,12 +742,12 @@ namespace Crypto_Linux
                 foreach (var elem in doc.RootElement.EnumerateArray())
                 {
                     Strategy stg = new Strategy();
+                    stg._addLog = addLog;
                     stg.setStrategy(elem);
                     stg.maker = qManager.getInstrument(stg.baseCcy, stg.quoteCcy, stg.maker_market);
                     stg.taker = qManager.getInstrument(stg.baseCcy, stg.quoteCcy, stg.taker_market);
                     stg.maker.ToBsize = stg.ToBsize;
                     stg.taker.ToBsize = stg.ToBsize;
-                    stg._addLog = addLog;
                     strategies[stg.name] = stg;
                     strategyInfo stginfo = new strategyInfo();
                     stginfo.baseCcy = stg.baseCcy;

@@ -10,7 +10,9 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+
 using Utils;
+using Enums;
 
 namespace Crypto_Trading
 {
@@ -30,6 +32,8 @@ namespace Crypto_Trading
         public decimal intervalAfterFill;
         public decimal modThreshold;
 
+        public skewType skew_type;
+        public decimal skew_step;
         public decimal maxSkew;
         public decimal skewThreshold;
         public decimal oneSideThreshold;
@@ -104,6 +108,8 @@ namespace Crypto_Trading
             this.intervalAfterFill = 0;
             this.modThreshold = 0;
             this.maxSkew = 0;
+            this.skew_type = skewType.LINEAR;
+            this.skew_step = 100;
             this.skewThreshold = 0;
             this.oneSideThreshold = 0;
             this.skewWidening = 0;
@@ -168,45 +174,197 @@ namespace Crypto_Trading
                 string fileContent = File.ReadAllText(jsonfilename);
                 using JsonDocument doc = JsonDocument.Parse(fileContent);
                 var root = doc.RootElement;
-
-                this.baseCcy = root.GetProperty("baseCcy").GetString();
-                this.quoteCcy = root.GetProperty("quoteCcy").GetString();
-                this.markup = root.GetProperty("markup").GetDecimal();
-                this.min_markup = root.GetProperty("min_markup").GetDecimal();
-                this.baseCcyQuantity = root.GetProperty("baseCcyQuantity").GetDecimal();
-                this.skewWidening = root.GetProperty("skewWidening").GetDecimal();
-                this.ToBsize = root.GetProperty("ToBsize").GetDecimal();
-                this.intervalAfterFill = root.GetProperty("intervalAfterFill").GetDecimal();
-                this.modThreshold = root.GetProperty("modThreshold").GetDecimal();
-                this.maxSkew = root.GetProperty("max_skew").GetDecimal();
-                this.skewThreshold = root.GetProperty("skewThreshold").GetDecimal();
-                this.oneSideThreshold = root.GetProperty("oneSideThreshold").GetDecimal();
-                this.taker_symbol_market = root.GetProperty("taker_symbol_market").GetString();
-                this.maker_symbol_market = root.GetProperty("maker_symbol_market").GetString();
-                this.predictFill = root.GetProperty("fillPrediction").GetBoolean();
-                //this.taker_market = root.GetProperty("taker_market").ToString();
-                //this.maker_market = root.GetProperty("maker_market").ToString();
+                this.setStrategy(root);
             }
         }
 
-        public void setStrategy(JsonElement js)
+        public void setStrategy(JsonElement root)
         {
-            this.name = js.GetProperty("name").GetString();
-            this.baseCcy = js.GetProperty("baseCcy").GetString();
-            this.quoteCcy = js.GetProperty("quoteCcy").GetString();
-            this.markup = js.GetProperty("markup").GetDecimal();
-            this.min_markup = js.GetProperty("min_markup").GetDecimal();
-            this.baseCcyQuantity = js.GetProperty("baseCcyQuantity").GetDecimal();
-            this.skewWidening = js.GetProperty("skewWidening").GetDecimal();
-            this.ToBsize = js.GetProperty("ToBsize").GetDecimal();
-            this.intervalAfterFill = js.GetProperty("intervalAfterFill").GetDecimal();
-            this.modThreshold = js.GetProperty("modThreshold").GetDecimal();
-            this.maxSkew = js.GetProperty("max_skew").GetDecimal();
-            this.skewThreshold = js.GetProperty("skewThreshold").GetDecimal();
-            this.oneSideThreshold = js.GetProperty("oneSideThreshold").GetDecimal();
-            this.taker_market = js.GetProperty("taker_market").GetString();
-            this.maker_market = js.GetProperty("maker_market").GetString();
-            this.predictFill = js.GetProperty("fillPrediction").GetBoolean();
+            JsonElement item;
+
+            if (root.TryGetProperty("name", out item))
+            {
+                this.name = item.GetString();
+            }
+            else
+            {
+                addLog("Name is not configurated", logType.ERROR);
+            }
+            if (root.TryGetProperty("baseCcy", out item))
+            {
+                this.baseCcy = item.GetString();
+            }
+            else
+            {
+                addLog("Base Currency is not configurated", logType.ERROR);
+            }
+            if (root.TryGetProperty("quoteCcy", out item))
+            {
+                this.quoteCcy = item.GetString();
+            }
+            else
+            {
+                addLog("Quote Currency is not configurated", logType.ERROR);
+            }
+            if (root.TryGetProperty("taker_market", out item))
+            {
+                this.taker_market = item.GetString();
+            }
+            else
+            {
+                addLog("Taker symbol market is not configurated", logType.ERROR);
+            }
+            if (root.TryGetProperty("maker_market", out item))
+            {
+                this.maker_market = item.GetString();
+            }
+            else
+            {
+                addLog("Taker symbol market is not configurated", logType.ERROR);
+            }
+            if (root.TryGetProperty("markup", out item))
+            {
+                this.markup = item.GetDecimal();
+            }
+            else
+            {
+                addLog("Markup is not configurated", logType.ERROR);
+            }
+            if (root.TryGetProperty("min_markup", out item))
+            {
+                this.min_markup = item.GetDecimal();
+            }
+            else
+            {
+                addLog("Minimum markup is not configurated", logType.ERROR);
+            }
+            if (root.TryGetProperty("baseCcyQuantity", out item))
+            {
+                this.baseCcyQuantity = item.GetDecimal();
+            }
+            else
+            {
+                addLog("The quantity of the base currency is not configurated", logType.ERROR);
+            }
+            if (root.TryGetProperty("ToBsize", out item))
+            {
+                this.ToBsize = item.GetDecimal();
+            }
+            else
+            {
+                addLog("ToB size is not configurated", logType.ERROR);
+            }
+            if (root.TryGetProperty("modThreshold", out item))
+            {
+                this.modThreshold = item.GetDecimal();
+            }
+            else
+            {
+                addLog("Threshold of modifying is not configurated", logType.ERROR);
+            }
+            if (root.TryGetProperty("max_skew", out item))
+            {
+                this.maxSkew = item.GetDecimal();
+            }
+            else
+            {
+                addLog("Maximum skew is not configurated", logType.ERROR);
+            }
+            if (root.TryGetProperty("skewThreshold", out item))
+            {
+                this.skewThreshold = item.GetDecimal();
+            }
+            else
+            {
+                addLog("Threshold of skewing is not configurated", logType.ERROR);
+            }
+            if (root.TryGetProperty("oneSideThreshold", out item))
+            {
+                this.oneSideThreshold = item.GetDecimal();
+            }
+            else
+            {
+                addLog("Threshold of one-side quote is not configurated", logType.ERROR);
+            }
+
+            //Not mandatory
+            if (root.TryGetProperty("skewWidening", out item))
+            {
+                this.skewWidening = item.GetDecimal();
+            }
+            else
+            {
+                addLog("Skew widening is not configurated. Default value will be set. value:0", logType.WARNING);
+                this.skewWidening = 0;
+            }
+            if (root.TryGetProperty("intervalAfterFill", out item))
+            {
+                this.intervalAfterFill = item.GetDecimal();
+            }
+            else
+            {
+                addLog("Interval after fill is not configurated. Default value will be set. value:1", logType.WARNING);
+                this.intervalAfterFill = 1;
+            }
+            if (root.TryGetProperty("fillPrediction", out item))
+            {
+                this.predictFill = item.GetBoolean();
+            }
+            else
+            {
+                addLog("Fill prediction is not configurated. Default value will be set. value:false", logType.WARNING);
+                this.predictFill = false;
+            }
+
+            if (root.TryGetProperty("skew_type", out item))
+            {
+                string type = item.GetString().ToLower();
+                if (type == "linear")
+                {
+                    this.skew_type = skewType.LINEAR;
+                }
+                else if (type == "step")
+                {
+                    this.skew_type = skewType.STEP;
+                    if (root.TryGetProperty("skew_step", out item))
+                    {
+                        this.skew_step = item.GetDecimal();
+                    }
+                    else
+                    {
+                        addLog("Skew step needs to be configured for step skew. Default value will be set. value:100[dpm]", logType.WARNING);
+                        this.skew_step = 100;
+                    }
+                }
+                else
+                {
+                    addLog("Inappropriate value for skew type. Default value will be set. value:Linear", logType.WARNING);
+                    this.skew_type = skewType.LINEAR;
+                }
+            }
+            else
+            {
+                addLog("Skew type is not configurated. Default value will be set. value:Linear", logType.WARNING);
+                this.skew_type = skewType.LINEAR;
+            }
+
+
+            //this.name = js.GetProperty("name").GetString();
+            //this.baseCcy = js.GetProperty("baseCcy").GetString();
+            //this.quoteCcy = js.GetProperty("quoteCcy").GetString();
+            //this.markup = js.GetProperty("markup").GetDecimal();
+            //this.min_markup = js.GetProperty("min_markup").GetDecimal();
+            //this.baseCcyQuantity = js.GetProperty("baseCcyQuantity").GetDecimal();
+            //this.skewWidening = js.GetProperty("skewWidening").GetDecimal();
+            //this.ToBsize = js.GetProperty("ToBsize").GetDecimal();
+            //this.intervalAfterFill = js.GetProperty("intervalAfterFill").GetDecimal();
+            //this.modThreshold = js.GetProperty("modThreshold").GetDecimal();
+            //this.maxSkew = js.GetProperty("max_skew").GetDecimal();
+            //this.skewThreshold = js.GetProperty("skewThreshold").GetDecimal();
+            //this.oneSideThreshold = js.GetProperty("oneSideThreshold").GetDecimal();
+            //this.taker_market = js.GetProperty("taker_market").GetString();
+            //this.maker_market = js.GetProperty("maker_market").GetString();
+            //this.predictFill = js.GetProperty("fillPrediction").GetBoolean();
         }
         public void setStrategy(strategySetting setting)
         {
@@ -226,11 +384,13 @@ namespace Crypto_Trading
             this.taker_market = setting.taker_market;
             this.maker_market = setting.maker_market;
             this.predictFill = setting.predictFill;
+            this.skew_type = setting.skew_type.ToLower() == "step" ? skewType.STEP : skewType.LINEAR;
+            this.skew_step = setting.skew_step;
         }
 
-        public async Task updateOrders()
+        public async Task<bool> updateOrders()
         {
-
+            bool ret = true;
             if (this.enabled)
             {
                 bool buyFirst = true;
@@ -364,7 +524,8 @@ namespace Crypto_Trading
                     else if(currentTime - this.live_buyorder_time > TimeSpan.FromSeconds(10))
                     {
                         addLog("Strategy buy order not found. order_id:" + this.live_buyorder_id);
-                        await RefreshLiveOrders();
+                        //await RefreshLiveOrders();
+                        ret = false;
                         this.live_buyorder_id = "";
                         this.live_bidprice = 0;
                     }
@@ -394,7 +555,8 @@ namespace Crypto_Trading
                     else if (currentTime - this.live_sellorder_time > TimeSpan.FromSeconds(10))
                     {
                         addLog("Strategy sell order not found. order_id:" + this.live_sellorder_id);
-                        await RefreshLiveOrders();
+                        //await RefreshLiveOrders();
+                        ret = false;
                         this.live_sellorder_id = "";
                         this.live_askprice = 0;
                     }
@@ -522,158 +684,9 @@ namespace Crypto_Trading
                         this.live_buyorder_time = DateTime.UtcNow;
                     }
                 }
-
-
-                //if (buyFirst)
-                //{
-                //    if (this.live_buyorder_id != "")
-                //    {
-                //        if (this.oManager.orders.ContainsKey(this.live_buyorder_id))
-                //        {
-                //            ord = this.oManager.orders[this.live_buyorder_id];
-                //            if (bid_price == 0 || (this.maker.baseBalance.total > this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200)))
-                //            {
-                //                //this.live_buyorder_id = "";
-                //                //this.oManager.placeCancelSpotOrder(this.maker, ord.internal_order_id, true);
-                //                this.live_bidprice = 0;
-                //            }
-                //            else if (isPriceChanged && ord.status == orderStatus.Open && this.live_bidprice != bid_price)
-                //            {
-                //                //this.live_buyorder_id = "";
-                //                //this.live_buyorder_id = await this.oManager.placeModSpotOrder(this.maker, ord.internal_order_id, this.ToBsize, bid_price, false, true, false);
-                //                this.live_buyorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, this.ToBsize, bid_price, null, true, false);
-                //                this.live_bidprice = bid_price;
-                //                this.stg_orders.Add(this.live_buyorder_id);
-                //            }
-                //        }
-                //    }
-                //    else
-                //    {
-                //        if (this.maker.baseBalance.total > this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200))
-                //        {
-                //            //Do nothing
-                //        }
-                //        else if (bid_price > 0 && (this.last_filled_time_buy == null || (decimal)(DateTime.UtcNow - this.last_filled_time_buy).Value.TotalSeconds > this.intervalAfterFill))
-                //        {
-                //            this.live_buyorder_id = "";
-                //            this.live_buyorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, this.ToBsize, bid_price, null, true, false);
-                //            this.stg_orders.Add(this.live_buyorder_id);
-                //            this.live_bidprice = bid_price;
-                //        }
-                //    }
-
-                //    if (this.live_sellorder_id != "")
-                //    {
-                //        if (this.oManager.orders.ContainsKey(this.live_sellorder_id))
-                //        {
-                //            ord = this.oManager.orders[this.live_sellorder_id];
-                //            if (ask_price == 0 || (this.maker.baseBalance.total < this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200)))
-                //            {
-                //                //this.live_sellorder_id = "";
-                //                //this.oManager.placeCancelSpotOrder(this.maker, ord.internal_order_id, true, false);
-                //                this.live_askprice = 0;
-                //            }
-                //            else if (isPriceChanged && ord.status == orderStatus.Open && this.live_askprice != ask_price)
-                //            {
-                //                //this.live_sellorder_id = "";
-                //                //this.live_sellorder_id = await this.oManager.placeModSpotOrder(this.maker, ord.internal_order_id, this.ToBsize, ask_price, false, true, false);
-                //                this.live_sellorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, this.ToBsize, ask_price, null, true, false);
-                //                this.stg_orders.Add(this.live_sellorder_id);
-                //                this.live_askprice = ask_price;
-                //            }
-                //        }
-
-                //    }
-                //    else
-                //    {
-                //        if (this.maker.baseBalance.total < this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200))
-                //        {
-                //            //Do nothing
-                //        }
-                //        else if (ask_price > 0 && (this.last_filled_time_sell == null || (decimal)(DateTime.UtcNow - this.last_filled_time_sell).Value.TotalSeconds > this.intervalAfterFill))
-                //        {
-                //            this.live_sellorder_id = "";
-                //            this.live_sellorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, this.ToBsize, ask_price, null, true, false);
-                //            this.stg_orders.Add(this.live_sellorder_id);
-                //            this.live_askprice = ask_price;
-                //        }
-                //    }
-                //}
-                //else
-                //{
-                //    if (this.live_sellorder_id != "")
-                //    {
-                //        if (this.oManager.orders.ContainsKey(this.live_sellorder_id))
-                //        {
-                //            ord = this.oManager.orders[this.live_sellorder_id];
-                //            if (ask_price == 0 || (this.maker.baseBalance.total < this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200)))
-                //            {
-                //                this.live_sellorder_id = "";
-                //                this.oManager.placeCancelSpotOrder(this.maker, ord.internal_order_id, true, false);
-                //                this.live_askprice = 0;
-                //            }
-                //            else if (isPriceChanged && ord.status == orderStatus.Open && ord.order_price != ask_price)
-                //            {
-                //                this.live_sellorder_id = "";
-                //                this.live_sellorder_id = await this.oManager.placeModSpotOrder(this.maker, ord.internal_order_id, this.ToBsize, ask_price, false, true, false);
-                //                this.stg_orders.Add(this.live_sellorder_id);
-                //                this.live_askprice = ask_price;
-                //            }
-                //        }
-
-                //    }
-                //    else
-                //    {
-                //        if (this.maker.baseBalance.total < this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200))
-                //        {
-                //            //Do nothing
-                //        }
-                //        else if (ask_price > 0 && (this.last_filled_time_sell == null || (decimal)(DateTime.UtcNow - this.last_filled_time_sell).Value.TotalSeconds > this.intervalAfterFill))
-                //        {
-                //            this.live_sellorder_id = "";
-                //            this.live_sellorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, this.ToBsize, ask_price, null, true, false);
-                //            this.stg_orders.Add(this.live_sellorder_id);
-                //            this.live_askprice = ask_price;
-                //        }
-                //    }
-
-                //    if (this.live_buyorder_id != "")
-                //    {
-                //        if (this.oManager.orders.ContainsKey(this.live_buyorder_id))
-                //        {
-                //            ord = this.oManager.orders[this.live_buyorder_id];
-                //            if (bid_price == 0 || (this.maker.baseBalance.total > this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200)))
-                //            {
-                //                this.live_buyorder_id = "";
-                //                this.oManager.placeCancelSpotOrder(this.maker, ord.internal_order_id, true);
-                //                this.live_bidprice = 0;
-                //            }
-                //            else if (isPriceChanged && ord.status == orderStatus.Open && ord.order_price != bid_price)
-                //            {
-                //                this.live_buyorder_id = "";
-                //                this.live_buyorder_id = await this.oManager.placeModSpotOrder(this.maker, ord.internal_order_id, this.ToBsize, bid_price, false, true, false);
-                //                this.live_bidprice = bid_price;
-                //                this.stg_orders.Add(this.live_buyorder_id);
-                //            }
-                //        }
-                //    }
-                //    else
-                //    {
-                //        if (this.maker.baseBalance.total > this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200))
-                //        {
-                //            //Do nothing
-                //        }
-                //        else if (bid_price > 0 && (this.last_filled_time_buy == null || (decimal)(DateTime.UtcNow - this.last_filled_time_buy).Value.TotalSeconds > this.intervalAfterFill))
-                //        {
-                //            this.live_buyorder_id = "";
-                //            this.live_buyorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, this.ToBsize, bid_price, null, true, false);
-                //            this.stg_orders.Add(this.live_buyorder_id);
-                //            this.live_bidprice = bid_price;
-                //        }
-                //    }
-                //}
                 Volatile.Write(ref this.updating, 0);
             }
+            return ret;
         }
 
         public bool checkPriceChange()
@@ -719,80 +732,20 @@ namespace Crypto_Trading
                 {
                     this.oManager.placeCancelSpotOrders(this.taker, taker_orders, true);
                 }
-                //foreach (var id in maker_orders)
-                //{
-                //    if (this.oManager.orders.ContainsKey(id))
-                //    {
-                //        cancelling_ord = this.oManager.orders[id];
-                //        if (cancelling_ord.symbol_market == this.maker.symbol_market)
-                //        {
-                //            this.oManager.placeCancelSpotOrder(this.maker, cancelling_ord.order_id, true);
-                //        }
-                //        else if (cancelling_ord.symbol_market == this.taker.symbol_market)
-                //        {
-                //            this.oManager.placeCancelSpotOrder(this.taker, cancelling_ord.order_id,true);
-                //        }
-                //    }
-                //}
-            }
-        }
-
-        public async Task RefreshLiveOrders()
-        {
-            this.addLog("Cancelling all the orders including unknown.",Enums.logType.WARNING);
-            Crypto_Clients.Crypto_Clients client = Crypto_Clients.Crypto_Clients.GetInstance();
-
-            List<DataSpotOrderUpdate> ordList = await client.getActiveOrders(this.maker.market);
-
-            this.addLog("The number of active orders:" + ordList.Count.ToString("N0"), Enums.logType.WARNING);
-            List<string> id_list = new List<string>();
-            foreach(DataSpotOrderUpdate ord in ordList)
-            {
-                if(this.maker.symbol_market == ord.symbol_market)
-                {
-                    if (this.oManager.ordIdMapping.ContainsKey(ord.market + ord.order_id))
-                    {
-                        ord.internal_order_id = this.oManager.ordIdMapping[ord.market + ord.order_id];
-                    }
-                    else
-                    {
-                        ord.internal_order_id = ord.market + ord.order_id;
-                        this.oManager.ordIdMapping[ord.market + ord.order_id] = ord.market + ord.order_id;
-                    }
-                    id_list.Add(ord.internal_order_id);
-                    this.oManager.orders[ord.internal_order_id] = ord;
-                }
-            }
-            if(id_list.Count > 0)
-            {
-                Thread.Sleep(1000);//Make sure the cancel orders are executed
-                this.addLog("Cancelling...", Enums.logType.WARNING);
-                await this.oManager.placeCancelSpotOrders(this.maker, id_list, true, true);
-                this.maker.baseBalance.inuse = 0;
-                this.maker.quoteBalance.inuse = 0;
-                this.live_bidprice = 0;
-                this.live_buyorder_id = "";
-                this.live_askprice = 0;
-                this.live_sellorder_id = "";
-                this.addLog("Order cancelled.", Enums.logType.WARNING);
-            }
-            else
-            {
-                addLog("Active order not found");
             }
         }
         public decimal skew()
         {
             decimal skew_point = 0;
-            if(this.maker.baseBalance.total > this.baseCcyQuantity * ((decimal)0.5 + this.skewThreshold / 200))
+            if (this.maker.baseBalance.total > this.baseCcyQuantity * ((decimal)0.5 + this.skewThreshold / 200))
             {
-                skew_point = - this.maxSkew * (this.maker.baseBalance.total - this.baseCcyQuantity * ((decimal)0.5 + this.skewThreshold / 200)) / (this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200) - this.baseCcyQuantity * ((decimal)0.5 + this.skewThreshold / 200));
+                skew_point = -this.maxSkew * (this.maker.baseBalance.total - this.baseCcyQuantity * ((decimal)0.5 + this.skewThreshold / 200)) / (this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200) - this.baseCcyQuantity * ((decimal)0.5 + this.skewThreshold / 200));
                 if (skew_point < -this.maxSkew)
                 {
                     skew_point = -this.maxSkew;
                 }
             }
-            else if(this.maker.baseBalance.total < this.baseCcyQuantity * ((decimal)0.5 - this.skewThreshold / 200))
+            else if (this.maker.baseBalance.total < this.baseCcyQuantity * ((decimal)0.5 - this.skewThreshold / 200))
             {
                 skew_point = this.maxSkew * (this.baseCcyQuantity * ((decimal)0.5 - this.skewThreshold / 200) - this.maker.baseBalance.total) / (this.baseCcyQuantity * ((decimal)0.5 - this.skewThreshold / 200) - this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200));
                 if (skew_point > this.maxSkew)
@@ -800,6 +753,11 @@ namespace Crypto_Trading
                     skew_point = this.maxSkew;
                 }
             }
+            if (this.skew_type == skewType.STEP)
+            {
+                skew_point = Math.Floor(skew_point / this.skew_step) * this.skew_step;
+            }
+            
             return skew_point;
         }
 

@@ -686,8 +686,12 @@ namespace Crypto_Clients
             sw_POST.Start();
             var response = await this.http_client.SendAsync(request);
             sw_POST.Stop();
-            this.elapsedTime_POST += sw_POST.Elapsed.TotalNanoseconds / 1000;
+            this.elapsedTime_POST = (this.elapsedTime_POST * this.count + sw_POST.Elapsed.TotalNanoseconds / 1000) / (this.count + 1);
             ++this.count;
+            if (sw_POST.Elapsed.TotalNanoseconds > 3_000_000_000)
+            {
+                this.addLog("The roundtrip time exceeded 3 sec.    Time:" + (sw_POST.Elapsed.TotalNanoseconds / 1_000_000_000).ToString("N3") + "[sec]", Enums.logType.WARNING);
+            }
             sw_POST.Reset();
             var resString = await response.Content.ReadAsStringAsync();
 
@@ -1002,7 +1006,7 @@ namespace Crypto_Clients
         {
             if (this.count > 0)
             {
-                return this.elapsedTime_POST / this.count;
+                return this.elapsedTime_POST;
             }
             else
             {
