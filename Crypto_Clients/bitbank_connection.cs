@@ -83,7 +83,8 @@ namespace Crypto_Clients
             this.websocket_client = new ClientWebSocket();
             this.http_client = new HttpClient(_handler)
             {
-                BaseAddress = new Uri(URL)
+                BaseAddress = new Uri(URL),
+                Timeout = TimeSpan.FromSeconds(10)
             };
 
             //this.orderQueue = new ConcurrentQueue<JsonElement>();
@@ -640,62 +641,98 @@ namespace Crypto_Clients
        
         private async Task<string> getAsync(string endpoint,string body = "",string url = "")
         {
-            var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            var timeWindow = "5000";
-            var message = $"{nonce}{timeWindow}{endpoint}{body}";
-
-            HttpRequestMessage request;
-
-            if(url != "")
+            
+            try
             {
-                request = new HttpRequestMessage(HttpMethod.Get, url + endpoint + body);
+                var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                var timeWindow = "5000";
+                var message = $"{nonce}{timeWindow}{endpoint}{body}";
+
+                HttpRequestMessage request;
+
+                if (url != "")
+                {
+                    request = new HttpRequestMessage(HttpMethod.Get, url + endpoint + body);
+                }
+                else
+                {
+                    request = new HttpRequestMessage(HttpMethod.Get, bitbank_connection.URL + endpoint + body);
+                }
+
+
+                request.Headers.Add("ACCESS-KEY", this.apiName);
+                request.Headers.Add("ACCESS-REQUEST-TIME", nonce.ToString());
+                request.Headers.Add("ACCESS-TIME-WINDOW", timeWindow);
+                request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
+
+                request.Content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
+                var response = await this.http_client.SendAsync(request);
+                var resString = await response.Content.ReadAsStringAsync();
+                return resString;
             }
-            else
+            catch (TaskCanceledException tce)
             {
-                request = new HttpRequestMessage(HttpMethod.Get, bitbank_connection.URL + endpoint + body);
+                this.addLog("The request has timed out." + tce.Message, Enums.logType.WARNING);
+                return "{\"success\":0,\"data\":{\"code\":80001}}";
             }
-
-
-            request.Headers.Add("ACCESS-KEY", this.apiName);
-            request.Headers.Add("ACCESS-REQUEST-TIME", nonce.ToString());
-            request.Headers.Add("ACCESS-TIME-WINDOW", timeWindow);
-            request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
-
-            request.Content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
-
-            var response = await this.http_client.SendAsync(request);
-            var resString = await response.Content.ReadAsStringAsync();
-
-            return resString;
+            catch (TimeoutException te)
+            {
+                this.addLog("The request has timed out." + te.Message, Enums.logType.WARNING);
+                return "{\"success\":0,\"data\":{\"code\":80001}}";
+            }
+            catch (Exception ex)
+            {
+                this.addLog("Error occured during getAsync. " + ex.Message, Enums.logType.ERROR);
+                return "{\"success\":0,\"data\":{\"code\":-1}}";
+            }
         }
         private async Task<string> postAsync(string endpoint, string body)
         {
-            var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            var timeWindow = "5000";
-            var message = $"{nonce}{timeWindow}{body}";
-
-            var request = new HttpRequestMessage(HttpMethod.Post, bitbank_connection.URL + endpoint);
-
-            request.Content = new StringContent(body, Encoding.UTF8, "application/json");
-
-            request.Headers.Add("ACCESS-KEY", this.apiName);
-            request.Headers.Add("ACCESS-REQUEST-TIME", nonce.ToString());
-            request.Headers.Add("ACCESS-TIME-WINDOW", timeWindow);
-            request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
-
-            sw_POST.Start();
-            var response = await this.http_client.SendAsync(request);
-            sw_POST.Stop();
-            this.elapsedTime_POST = (this.elapsedTime_POST * this.count + sw_POST.Elapsed.TotalNanoseconds / 1000) / (this.count + 1);
-            ++this.count;
-            if (sw_POST.Elapsed.TotalNanoseconds > 3_000_000_000)
+            try
             {
-                this.addLog("The roundtrip time exceeded 3 sec.    Time:" + (sw_POST.Elapsed.TotalNanoseconds / 1_000_000_000).ToString("N3") + "[sec]", Enums.logType.WARNING);
-            }
-            sw_POST.Reset();
-            var resString = await response.Content.ReadAsStringAsync();
+                var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                var timeWindow = "5000";
+                var message = $"{nonce}{timeWindow}{body}";
 
-            return resString;
+                var request = new HttpRequestMessage(HttpMethod.Post, bitbank_connection.URL + endpoint);
+
+                request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+                request.Headers.Add("ACCESS-KEY", this.apiName);
+                request.Headers.Add("ACCESS-REQUEST-TIME", nonce.ToString());
+                request.Headers.Add("ACCESS-TIME-WINDOW", timeWindow);
+                request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
+
+                sw_POST.Start();
+                var response = await this.http_client.SendAsync(request);
+                sw_POST.Stop();
+                this.elapsedTime_POST = (this.elapsedTime_POST * this.count + sw_POST.Elapsed.TotalNanoseconds / 1000) / (this.count + 1);
+                ++this.count;
+                if (sw_POST.Elapsed.TotalNanoseconds > 3_000_000_000)
+                {
+                    this.addLog("The roundtrip time exceeded 3 sec.    Time:" + (sw_POST.Elapsed.TotalNanoseconds / 1_000_000_000).ToString("N3") + "[sec]", Enums.logType.WARNING);
+                }
+                sw_POST.Reset();
+                var resString = await response.Content.ReadAsStringAsync();
+
+                return resString;
+            }
+            catch (TaskCanceledException tce)
+            {
+                this.addLog("The request has timed out." + tce.Message, Enums.logType.WARNING);
+                return "{\"success\":0,\"data\":{\"code\":80001}}";
+            }
+            catch (TimeoutException te)
+            {
+                this.addLog("The request has timed out." + te.Message, Enums.logType.WARNING);
+                return "{\"success\":0,\"data\":{\"code\":80001}}";
+            }
+            catch (Exception ex)
+            {
+                this.addLog("Error occured during getAsync. " + ex.Message, Enums.logType.ERROR);
+                return "{\"success\":0,\"data\":{\"code\":-1}}";
+            }
+            
         }
         public async Task<JsonDocument> getTicker(string symbol)
         {
@@ -772,7 +809,7 @@ namespace Crypto_Clients
             foreach (var property in doc.RootElement.EnumerateObject())
             {
                 if (property.Value.ValueKind == JsonValueKind.Null)
-                    continue; // null値はスキップ
+                    continue;
 
                 if (first)
                 {
@@ -807,8 +844,8 @@ namespace Crypto_Clients
 
             var jsonBody = JsonSerializer.Serialize(body);
             var resString = await this.postAsync("/v1/user/spot/order", jsonBody);
-
-            return JsonDocument.Parse(resString);
+            var json = JsonDocument.Parse(resString);
+            return json;
         }
         public async Task<JsonDocument> placeCanOrder(string symbol,string order_id)
         {
@@ -820,8 +857,8 @@ namespace Crypto_Clients
 
             var jsonBody = JsonSerializer.Serialize(body);
             var resString = await this.postAsync("/v1/user/spot/cancel_order", jsonBody);
-
-            return JsonDocument.Parse(resString);
+            var json = JsonDocument.Parse(resString);
+            return json;
         }
 
         public async Task<List<JsonDocument>> placeCanOrders(string symbol, IEnumerable<string> order_ids)
@@ -849,6 +886,7 @@ namespace Crypto_Clients
                 var json = JsonSerializer.Serialize(body);
                 var resString = await this.postAsync("/v1/user/spot/cancel_orders", json);
                 list.Add(JsonDocument.Parse(resString));
+
             }
             return list;
         }

@@ -81,7 +81,8 @@ namespace Crypto_Clients
             this.private_client = new ClientWebSocket();
             this.http_client = new HttpClient(_handler)
             {
-                BaseAddress = new Uri(URL)
+                BaseAddress = new Uri(URL),
+                Timeout = TimeSpan.FromSeconds(10)
             };
 
             this.orderQueue = new ConcurrentQueue<JsonElement>();
@@ -932,117 +933,174 @@ namespace Crypto_Clients
 
         private async Task<string> getAsync(string endpoint,string body = "")
         {
-            while (Interlocked.CompareExchange(ref this.nonceChecking, 1, 0) != 0)
+            try
             {
+                while (Interlocked.CompareExchange(ref this.nonceChecking, 1, 0) != 0)
+                {
 
+                }
+                var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                if (nonce <= this.lastnonce)
+                {
+                    nonce = this.lastnonce + 1;
+                }
+                this.lastnonce = nonce;
+                var message = $"{nonce}{coincheck_connection.URL}{endpoint}";
+
+                var request = new HttpRequestMessage(HttpMethod.Get, coincheck_connection.URL + endpoint);
+
+                request.Headers.Add("ACCESS-KEY", this.apiName);
+                request.Headers.Add("ACCESS-NONCE", nonce.ToString());
+                request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
+
+                if (body == "")
+                {
+                    request.Content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
+                }
+                else
+                {
+                    request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+                }
+                if (this.logging)
+                {
+                    this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   GET" + endpoint + body);
+                }
+
+
+                Volatile.Write(ref this.nonceChecking, 0);
+                var response = await this.http_client.SendAsync(request);
+                var resString = await response.Content.ReadAsStringAsync();
+
+                return resString;
             }
-            var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            if (nonce <= this.lastnonce)
+            catch (TaskCanceledException tce)
             {
-                nonce = this.lastnonce + 1;
+                this.addLog("The request has timed out." + tce.Message, Enums.logType.WARNING);
+                return "{\"success\":false,\"error\":\"The request timed out\"}";
             }
-            this.lastnonce = nonce;
-            var message = $"{nonce}{coincheck_connection.URL}{endpoint}";
-
-            var request = new HttpRequestMessage(HttpMethod.Get, coincheck_connection.URL + endpoint);
-
-            request.Headers.Add("ACCESS-KEY", this.apiName);
-            request.Headers.Add("ACCESS-NONCE", nonce.ToString());
-            request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
-
-            if(body == "")
+            catch (TimeoutException te)
             {
-                request.Content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
+                this.addLog("The request has timed out." + te.Message, Enums.logType.WARNING);
+                return "{\"success\":false,\"error\":\"The request timed out\"}";
             }
-            else
+            catch (Exception ex)
             {
-                request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+                this.addLog("Error occured during getAsync. " + ex.Message, Enums.logType.ERROR);
+                return "{\"success\":false,\"error\":\"" + ex.Message + "\"}";
             }
-            if (this.logging)
-            {
-                this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   GET" + endpoint + body);
-            }
-
-
-            Volatile.Write(ref this.nonceChecking, 0);
-            var response = await this.http_client.SendAsync(request);
-            var resString = await response.Content.ReadAsStringAsync();
-
-            return resString;
+            
         }
 
         private async Task<string> postAsync(string endpoint, string body)
         {
-            while(Interlocked.CompareExchange(ref this.nonceChecking,1,0) != 0)
+            try
             {
+                while (Interlocked.CompareExchange(ref this.nonceChecking, 1, 0) != 0)
+                {
 
+                }
+                var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                if (nonce <= this.lastnonce)
+                {
+                    nonce = this.lastnonce + 1;
+                }
+                this.lastnonce = nonce;
+                var message = $"{nonce}{coincheck_connection.URL}{endpoint}{body}";
+
+                var request = new HttpRequestMessage(HttpMethod.Post, coincheck_connection.URL + endpoint);
+
+                request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+                request.Headers.Add("ACCESS-KEY", this.apiName);
+                request.Headers.Add("ACCESS-NONCE", nonce.ToString());
+                request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
+
+                sw_POST = Stopwatch.StartNew();
+                Volatile.Write(ref this.nonceChecking, 0);
+                var response = await this.http_client.SendAsync(request);
+                sw_POST.Stop();
+                this.elapsedTime_POST = (this.elapsedTime_POST * this.count + sw_POST.Elapsed.TotalNanoseconds / 1000) / (this.count + 1);
+
+                if (sw_POST.Elapsed.TotalNanoseconds > 3_000_000_000)
+                {
+                    this.addLog("The roundtrip time exceeded 3 sec.    Time:" + (sw_POST.Elapsed.TotalNanoseconds / 1_000_000_000).ToString("N3") + "[sec]", Enums.logType.WARNING);
+                }
+                ++this.count;
+                sw_POST.Reset();
+                if (this.logging)
+                {
+                    this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   POST" + endpoint + body);
+                }
+                var resString = await response.Content.ReadAsStringAsync();
+                return resString;
             }
-            var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            if (nonce <= this.lastnonce)
+            catch (TaskCanceledException tce)
             {
-                nonce = this.lastnonce + 1;
+                this.addLog("The request has timed out." + tce.Message, Enums.logType.WARNING);
+                return "{\"success\":false,\"error\":\"The request timed out\"}";
             }
-            this.lastnonce = nonce;
-            var message = $"{nonce}{coincheck_connection.URL}{endpoint}{body}";
-
-            var request = new HttpRequestMessage(HttpMethod.Post, coincheck_connection.URL + endpoint);
-
-            request.Content = new StringContent(body, Encoding.UTF8, "application/json");
-
-            request.Headers.Add("ACCESS-KEY", this.apiName);
-            request.Headers.Add("ACCESS-NONCE", nonce.ToString());
-            request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
-
-            sw_POST = Stopwatch.StartNew();
-            Volatile.Write(ref this.nonceChecking, 0);
-            var response = await this.http_client.SendAsync(request);
-            sw_POST.Stop();
-            this.elapsedTime_POST = (this.elapsedTime_POST * this.count +  sw_POST.Elapsed.TotalNanoseconds / 1000) / (this.count + 1);
-
-            if (sw_POST.Elapsed.TotalNanoseconds > 3_000_000_000)
+            catch (TimeoutException te)
             {
-                this.addLog("The roundtrip time exceeded 3 sec.    Time:" + (sw_POST.Elapsed.TotalNanoseconds / 1_000_000_000).ToString("N3") + "[sec]", Enums.logType.WARNING);
+                this.addLog("The request has timed out." + te.Message, Enums.logType.WARNING);
+                return "{\"success\":false,\"error\":\"The request timed out\"}";
             }
-            ++this.count;
-            sw_POST.Reset();
-            if (this.logging)
+            catch (Exception ex)
             {
-                this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   POST" + endpoint + body);
+                this.addLog("Error occured during getAsync. " + ex.Message, Enums.logType.ERROR);
+                return "{\"success\":false,\"error\":\"" + ex.Message + "\"}";
             }
-            var resString = await response.Content.ReadAsStringAsync();
-            return resString;
+
         }
 
         private async Task<string> deleteAsync(string endpoint,string body)
         {
-            while (Interlocked.CompareExchange(ref this.nonceChecking, 1, 0) != 0)
+            try
             {
+                while (Interlocked.CompareExchange(ref this.nonceChecking, 1, 0) != 0)
+                {
 
+                }
+                var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                if (nonce <= this.lastnonce)
+                {
+                    nonce = this.lastnonce + 1;
+                }
+                this.lastnonce = nonce;
+                var message = $"{nonce}{coincheck_connection.URL}{endpoint}{body}";
+
+                var request = new HttpRequestMessage(HttpMethod.Delete, coincheck_connection.URL + endpoint);
+
+                request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+                request.Headers.Add("ACCESS-KEY", this.apiName);
+                request.Headers.Add("ACCESS-NONCE", nonce.ToString());
+                request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
+
+                Volatile.Write(ref this.nonceChecking, 0);
+                var response = await this.http_client.SendAsync(request);
+                var resString = await response.Content.ReadAsStringAsync();
+                if (this.logging)
+                {
+                    this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   DELETE" + endpoint + body);
+                }
+                return resString;
             }
-            var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            if (nonce <= this.lastnonce)
+            catch (TaskCanceledException tce)
             {
-                nonce = this.lastnonce + 1;
+                this.addLog("The request has timed out." + tce.Message, Enums.logType.WARNING);
+                return "{\"success\":false,\"error\":\"The request timed out\"}";
             }
-            this.lastnonce = nonce;
-            var message = $"{nonce}{coincheck_connection.URL}{endpoint}{body}";
-
-            var request = new HttpRequestMessage(HttpMethod.Delete, coincheck_connection.URL + endpoint);
-
-            request.Content = new StringContent(body, Encoding.UTF8, "application/json");
-
-            request.Headers.Add("ACCESS-KEY", this.apiName);
-            request.Headers.Add("ACCESS-NONCE", nonce.ToString());
-            request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
-
-            Volatile.Write(ref this.nonceChecking, 0);
-            var response = await this.http_client.SendAsync(request);
-            var resString = await response.Content.ReadAsStringAsync();
-            if (this.logging)
+            catch (TimeoutException te)
             {
-                this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   DELETE" + endpoint + body);
+                this.addLog("The request has timed out." + te.Message, Enums.logType.WARNING);
+                return "{\"success\":false,\"error\":\"The request timed out\"}";
             }
-            return resString;
+            catch (Exception ex)
+            {
+                this.addLog("Error occured during getAsync. " + ex.Message, Enums.logType.ERROR);
+                return "{\"success\":false,\"error\":\"" + ex.Message + "\"}";
+            }
+
         }
         public async Task<JsonDocument> getTicker(string symbol)
         {
@@ -1129,11 +1187,11 @@ namespace Crypto_Clients
                 foreach (var tx in transactions.EnumerateArray())
                 {
                     currentTime = DateTime.Parse(tx.GetProperty("created_at").GetString(), null, System.Globalization.DateTimeStyles.RoundtripKind);
-                    if(endTime != null && currentTime > endTime)
+                    if (endTime != null && currentTime > endTime)
                     {
 
                     }
-                    else if(startTime != null && currentTime < startTime)
+                    else if (startTime != null && currentTime < startTime)
                     {
                         break;
                     }
@@ -1142,12 +1200,12 @@ namespace Crypto_Clients
                         allTransactions.Add(tx);
                     }
                 }
-                if(startTime != null && currentTime < startTime)
+                if (startTime != null && currentTime < startTime)
                 {
                     break;
                 }
 
-                
+
                 starting_after = transactions[transactions.GetArrayLength() - 1].GetProperty("id").GetInt64().ToString();
             }
             return allTransactions;
@@ -1196,12 +1254,8 @@ namespace Crypto_Clients
             var jsonBody = JsonSerializer.Serialize(body);
             //var sw = Stopwatch.StartNew();
             var resString = await this.postAsync("/api/exchange/orders", jsonBody);
-            //sw.Stop();
-
-            //double latency = sw.Elapsed.TotalMilliseconds;
-            //this.addLog("Coincheck postAsync latency:" + latency.ToString());
-
-            return JsonDocument.Parse(resString);
+            var json = JsonDocument.Parse(resString);
+            return json;
         }
 
         public async Task<JsonDocument> placeMarketNewOrder(string symbol, string side, decimal price = 0, decimal quantity = 0, string tif = "good_til_cancelled")
@@ -1219,7 +1273,8 @@ namespace Crypto_Clients
                 var jsonBody = JsonSerializer.Serialize(body);
                 var resString = await this.postAsync("/api/exchange/orders", jsonBody);
 
-                return JsonDocument.Parse(resString);
+                var json = JsonDocument.Parse(resString);
+                return json;
             }
             else
             {
@@ -1234,7 +1289,8 @@ namespace Crypto_Clients
                 var jsonBody = JsonSerializer.Serialize(body);
                 var resString = await this.postAsync("/api/exchange/orders", jsonBody);
 
-                return JsonDocument.Parse(resString);
+                var json = JsonDocument.Parse(resString);
+                return json;
             }
             
         }
@@ -1243,7 +1299,8 @@ namespace Crypto_Clients
         {
             var resString = await this.deleteAsync("/api/exchange/orders/" + order_id, "");
 
-            return JsonDocument.Parse(resString);
+            var json = JsonDocument.Parse(resString);
+            return json;
         }
 
         public async Task<List<JsonDocument>> placeCanOrders(IEnumerable<string> order_ids)

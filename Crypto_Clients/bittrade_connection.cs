@@ -89,7 +89,8 @@ namespace Crypto_Clients
             this.private_client = new ClientWebSocket();
             this.http_client = new HttpClient(_handler)
             {
-                BaseAddress = new Uri(URL)
+                BaseAddress = new Uri(URL),
+                Timeout = TimeSpan.FromSeconds(10)
             };
 
             this.orderQueue = new ConcurrentQueue<JsonElement>();

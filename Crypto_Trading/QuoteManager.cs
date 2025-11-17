@@ -451,7 +451,9 @@ namespace Crypto_Trading
                         if(!await stg.updateOrders())
                         {
                             this.addLog("Cancelling all the orders including unknown.", Enums.logType.WARNING);
-
+                            await this.oManager.cancelAllOrders();
+                            Thread.Sleep(1000);
+                            this.addLog("Requesting order list....", Enums.logType.WARNING);
                             List<DataSpotOrderUpdate> ordList = await this.crypto_client.getActiveOrders(stg.maker.market);
                             int i = 0;
                             while(ordList == null)
