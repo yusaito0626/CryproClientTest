@@ -611,7 +611,7 @@ namespace Crypto_Trading
                 }
                 else if (this.live_sellorder_id == "")
                 {
-                    if (bid_price > 0 && (this.last_filled_time_buy == null || (decimal)(DateTime.UtcNow - this.last_filled_time_buy).Value.TotalSeconds > this.intervalAfterFill))
+                    if (ask_price > 0 && (this.last_filled_time_sell == null || (decimal)(DateTime.UtcNow - this.last_filled_time_sell).Value.TotalSeconds > this.intervalAfterFill))
                     {
                         newSellOrder = true;
                     }
@@ -763,7 +763,7 @@ namespace Crypto_Trading
 
         public void onTrades(DataTrade trade)
         {
-            if(this.predictFill && trade.symbol + "@" + trade.market == this.maker.symbol_market)
+            if(this.enabled && this.abook && this.predictFill && trade.symbol + "@" + trade.market == this.maker.symbol_market)
             {
                 int i = 0;
                 while (Interlocked.CompareExchange(ref this.updating, 2, 0) != 0)
@@ -881,7 +881,7 @@ namespace Crypto_Trading
         }
         public void onMakerQuotes(DataOrderBook quote)
         {
-            if(this.predictFill && quote.symbol + "@" + quote.market == this.maker.symbol_market)
+            if(this.enabled && this.abook && this.predictFill && quote.symbol + "@" + quote.market == this.maker.symbol_market)
             {
                 decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity;
                 while (Interlocked.CompareExchange(ref this.updating,3,0) != 0)
@@ -976,7 +976,7 @@ namespace Crypto_Trading
         }
         public void onOrdUpdate(DataSpotOrderUpdate ord, DataSpotOrderUpdate prev)
         {
-            if (this.predictFill)
+            if (this.enabled && this.abook && this.predictFill)
             {
                 if(ord.status == orderStatus.Filled)
                 {
@@ -1058,7 +1058,7 @@ namespace Crypto_Trading
 
         public async Task onFill(DataFill fill)
         {
-            if (this.enabled)
+            if (this.enabled && this.abook)
             {
                 this.sw.Start();
                 decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity; 
@@ -1140,7 +1140,7 @@ namespace Crypto_Trading
                                         if (fill.quantity == this.ToBsize)
                                         {
                                             this.executed_Orders[fill.internal_order_id] = null;
-                                            this.last_filled_time_sell = DateTime.UtcNow;
+                                            this.last_filled_time_buy = DateTime.UtcNow;
                                             fill.msg = "  onFill at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat) + fill.internal_order_id;
                                         }
                                     }

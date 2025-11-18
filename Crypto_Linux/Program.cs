@@ -1527,7 +1527,7 @@ namespace Crypto_Linux
             }
             catch (Exception ex)
             {
-                addLog("Error Occured while broadcasting messages error:" + ex.Message,Enums.logType.ERROR);
+                addLog("Error Occured while broadcasting messages error:" + ex.Message,Enums.logType.WARNING);
             }
         }
 

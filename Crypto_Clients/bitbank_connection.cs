@@ -704,7 +704,12 @@ namespace Crypto_Clients
                 request.Headers.Add("ACCESS-TIME-WINDOW", timeWindow);
                 request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
 
-                sw_POST.Start();
+                sw_POST.Restart();
+                if (this.logging)
+                {
+                    this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   POST " + endpoint + " " + body);
+                    //this.logFilePublic.Flush();
+                }
                 var response = await this.http_client.SendAsync(request);
                 sw_POST.Stop();
                 this.elapsedTime_POST = (this.elapsedTime_POST * this.count + sw_POST.Elapsed.TotalNanoseconds / 1000) / (this.count + 1);
@@ -713,7 +718,7 @@ namespace Crypto_Clients
                 {
                     this.addLog("The roundtrip time exceeded 3 sec.    Time:" + (sw_POST.Elapsed.TotalNanoseconds / 1_000_000_000).ToString("N3") + "[sec]", Enums.logType.WARNING);
                 }
-                sw_POST.Reset();
+                //sw_POST.Reset();
                 var resString = await response.Content.ReadAsStringAsync();
 
                 return resString;

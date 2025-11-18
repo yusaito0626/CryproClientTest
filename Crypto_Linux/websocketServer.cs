@@ -431,6 +431,9 @@ namespace Crypto_Linux
             var data = Encoding.UTF8.GetBytes(message);
             var seg = new ArraySegment<byte>(data);
 
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+
             foreach (var ws in _clients.ToList())
             {
                 if (ws.State != WebSocketState.Open)
@@ -440,12 +443,22 @@ namespace Crypto_Linux
                 }
                 try
                 {
-                    await ws.SendAsync(seg, WebSocketMessageType.Text, true, CancellationToken.None);
+                    await ws.SendAsync(seg, WebSocketMessageType.Text, true, cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    Console.WriteLine("sendAsync time out");
+                    _clients.Remove(ws);
                 }
                 catch (WebSocketException)
                 {
                     this.addLog("Removing disconnected client during broadcast");
                     _clients.Remove(ws);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Error occured during broadcasting data.");
+                    Console.WriteLine(e.Message);
                 }
             }
         }
