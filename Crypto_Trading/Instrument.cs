@@ -31,6 +31,11 @@ namespace Crypto_Trading
 
         public ValueTuple<decimal, decimal> bestask;
         public ValueTuple<decimal, decimal> bestbid;
+
+        public ValueTuple<decimal, decimal> prev_bestask;
+        public ValueTuple<decimal, decimal> prev_bestbid;
+        public DateTime bestask_time;
+        public DateTime bestbid_time;
         //Amount Weighted Best Ask/Bid +/- fee
         public ValueTuple<decimal, decimal> adjusted_bestask;
         public ValueTuple<decimal, decimal> adjusted_bestbid;
@@ -93,6 +98,11 @@ namespace Crypto_Trading
 
             this.bestask = new ValueTuple<decimal, decimal>(0, 0);
             this.bestbid = new ValueTuple<decimal, decimal>(0, 0);
+            this.prev_bestask = new ValueTuple<decimal, decimal>(0, 0);
+            this.prev_bestbid = new ValueTuple<decimal, decimal>(0, 0);
+            DateTime current = DateTime.UtcNow;
+            this.bestask_time = current;
+            this.bestbid_time = current;
             //Amount Weighted Best Ask/Bid +/- fee
             this.adjusted_bestask = new ValueTuple<decimal, decimal>(0,0);
             this.adjusted_bestbid = new ValueTuple<decimal, decimal>(0,0);
@@ -280,8 +290,9 @@ namespace Crypto_Trading
             }
         }
 
-        private void updateBeskAskBid(decimal quantity)
+        private bool updateBeskAskBid(decimal quantity)
         {
+            bool ret = true;
             if(quantity > 0)
             {
                 decimal cumQuantity = 0;
@@ -354,15 +365,46 @@ namespace Crypto_Trading
                     this.adjusted_bestbid.Item2 = this.bids.Last().Value;
                 }
             }
+            this.prev_bestask.Item1 = this.bestask.Item1;
+            this.prev_bestask.Item2 = this.bestask.Item2;
+            this.prev_bestbid.Item1 = this.bestbid.Item1;
+            this.prev_bestbid.Item2 = this.bestbid.Item2;
+            DateTime current = DateTime.UtcNow;
             if (this.asks.Count > 0)
             {
                 this.bestask.Item1 = this.asks.First().Key;
                 this.bestask.Item2 = this.asks.First().Value;
+                if(this.bestask.Item1 != this.prev_bestask.Item1 || this.bestask.Item2 != this.prev_bestask.Item2)
+                {
+                    this.bestask_time = current;
+                }
             }
             if (this.bids.Count > 0)
             {
                 this.bestbid.Item1 = this.bids.Last().Key;
                 this.bestbid.Item2 = this.bids.Last().Value;
+
+                if (this.bestbid.Item1 != this.prev_bestbid.Item1 || this.bestbid.Item2 != this.prev_bestbid.Item2)
+                {
+                    this.bestbid_time = current;
+                }
+            }
+            if(this.bestask.Item1 > 0 && this.bestbid.Item1 > 0 && this.bestbid.Item1 >= this.bestask.Item1)
+            {
+                ret = false;
+                if(this.bestask_time > this.bestbid_time)
+                {
+                    this.bids.Remove(this.bestbid.Item1);
+                }
+                else if(this.bestask_time < this.bestbid_time)
+                {
+                    this.asks.Remove(this.bestask.Item1);
+                }
+                else
+                {
+                    this.asks.Remove(this.bestask.Item1);
+                    this.bids.Remove(this.bestbid.Item1);
+                }
             }
             if (this.adjusted_bestask.Item1 > 0 && this.adjusted_bestbid.Item1 > 0)
             {
@@ -408,7 +450,7 @@ namespace Crypto_Trading
             {
                 this.open_mid = this.mid;
             }
-            
+            return ret;
         }
         public decimal getPriceAfterSweep(orderSide side, decimal quantity)
         {

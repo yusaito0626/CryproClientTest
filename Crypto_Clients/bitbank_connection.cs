@@ -41,6 +41,7 @@ namespace Crypto_Clients
 
         private static readonly SocketsHttpHandler _handler = new()
         {
+            ConnectTimeout = TimeSpan.FromSeconds(3),
             PooledConnectionLifetime = TimeSpan.FromHours(1),
 
             PooledConnectionIdleTimeout = TimeSpan.FromMinutes(10),
