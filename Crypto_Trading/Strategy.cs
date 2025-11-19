@@ -357,25 +357,32 @@ namespace Crypto_Trading
                 addLog("Skew type is not configurated. Default value will be set. value:Linear", logType.WARNING);
                 this.skew_type = skewType.LINEAR;
             }
+            if (root.TryGetProperty("decaying_time", out item))
+            {
+                this.markup_decay_basetime = item.GetDecimal();
+            }
+            else
+            {
+                this.markup_decay_basetime = 999999;
+            }
 
-
-            //this.name = js.GetProperty("name").GetString();
-            //this.baseCcy = js.GetProperty("baseCcy").GetString();
-            //this.quoteCcy = js.GetProperty("quoteCcy").GetString();
-            //this.markup = js.GetProperty("markup").GetDecimal();
-            //this.min_markup = js.GetProperty("min_markup").GetDecimal();
-            //this.baseCcyQuantity = js.GetProperty("baseCcyQuantity").GetDecimal();
-            //this.skewWidening = js.GetProperty("skewWidening").GetDecimal();
-            //this.ToBsize = js.GetProperty("ToBsize").GetDecimal();
-            //this.intervalAfterFill = js.GetProperty("intervalAfterFill").GetDecimal();
-            //this.modThreshold = js.GetProperty("modThreshold").GetDecimal();
-            //this.maxSkew = js.GetProperty("max_skew").GetDecimal();
-            //this.skewThreshold = js.GetProperty("skewThreshold").GetDecimal();
-            //this.oneSideThreshold = js.GetProperty("oneSideThreshold").GetDecimal();
-            //this.taker_market = js.GetProperty("taker_market").GetString();
-            //this.maker_market = js.GetProperty("maker_market").GetString();
-            //this.predictFill = js.GetProperty("fillPrediction").GetBoolean();
-        }
+                //this.name = js.GetProperty("name").GetString();
+                //this.baseCcy = js.GetProperty("baseCcy").GetString();
+                //this.quoteCcy = js.GetProperty("quoteCcy").GetString();
+                //this.markup = js.GetProperty("markup").GetDecimal();
+                //this.min_markup = js.GetProperty("min_markup").GetDecimal();
+                //this.baseCcyQuantity = js.GetProperty("baseCcyQuantity").GetDecimal();
+                //this.skewWidening = js.GetProperty("skewWidening").GetDecimal();
+                //this.ToBsize = js.GetProperty("ToBsize").GetDecimal();
+                //this.intervalAfterFill = js.GetProperty("intervalAfterFill").GetDecimal();
+                //this.modThreshold = js.GetProperty("modThreshold").GetDecimal();
+                //this.maxSkew = js.GetProperty("max_skew").GetDecimal();
+                //this.skewThreshold = js.GetProperty("skewThreshold").GetDecimal();
+                //this.oneSideThreshold = js.GetProperty("oneSideThreshold").GetDecimal();
+                //this.taker_market = js.GetProperty("taker_market").GetString();
+                //this.maker_market = js.GetProperty("maker_market").GetString();
+                //this.predictFill = js.GetProperty("fillPrediction").GetBoolean();
+            }
         public void setStrategy(strategySetting setting)
         {
             this.name = setting.name;
@@ -391,6 +398,7 @@ namespace Crypto_Trading
             this.maxSkew = setting.max_skew;
             this.skewThreshold = setting.skewThreshold;
             this.oneSideThreshold = setting.oneSideThreshold;
+            this.markup_decay_basetime = setting.decaying_time;
             this.taker_market = setting.taker_market;
             this.maker_market = setting.maker_market;
             this.predictFill = setting.predictFill;

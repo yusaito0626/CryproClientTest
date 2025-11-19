@@ -245,6 +245,7 @@ namespace Crypto_Linux
                 setting.modThreshold = stg.Value.modThreshold;
                 setting.skewThreshold = stg.Value.skewThreshold;
                 setting.oneSideThreshold = stg.Value.oneSideThreshold;
+                setting.decaying_time = stg.Value.markup_decay_basetime;
                 setting.predictFill = stg.Value.predictFill;
                 setting.skew_type = stg.Value.skew_type.ToString();
                 setting.skew_step = stg.Value.skew_step;
@@ -1546,7 +1547,15 @@ namespace Crypto_Linux
             string msg = "";
 
             //To keep http_client alive.
-            await crypto_client.getBalance(qManager._markets.Keys);
+            try
+            {
+                await crypto_client.getBalance(qManager._markets.Keys);
+            }
+            catch(Exception e)
+            {
+                addLog("Error occured during keepalive request", logType.WARNING);
+                addLog(e.Message, logType.WARNING);
+            }
 
             if (DateTime.UtcNow > nextMsgTime)
             {

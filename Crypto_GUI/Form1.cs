@@ -2075,6 +2075,7 @@ namespace Crypto_GUI
                 this.lbl_skewWidening.Text = this.selected_stg.skewWidening.ToString("N2");
                 this.lbl_skew.Text = this.selected_stg.skewThreshold.ToString("N0");
                 this.lbl_oneside.Text = this.selected_stg.oneSideThreshold.ToString("N0");
+                this.lbl_decayingtime.Text = this.selected_stg.markup_decay_basetime.ToString("N0");
                 this.lbl_fillInterval.Text = this.selected_stg.intervalAfterFill.ToString("N2");
                 this.lbl_ordUpdateTh.Text = this.selected_stg.modThreshold.ToString("N5");
                 this.lbl_skewtype.Text = this.selected_stg.skew_type.ToString();

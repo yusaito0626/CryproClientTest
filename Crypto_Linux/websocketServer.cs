@@ -119,6 +119,7 @@ namespace Crypto_Linux
                     setting.modThreshold = stg.Value.modThreshold;
                     setting.skewThreshold = stg.Value.skewThreshold;
                     setting.oneSideThreshold = stg.Value.oneSideThreshold;
+                    setting.decaying_time = stg.Value.markup_decay_basetime;
                     setting.predictFill = stg.Value.predictFill;
                     setting.skew_type = stg.Value.skew_type.ToString();
                     setting.skew_step = stg.Value.skew_step;
@@ -142,6 +143,7 @@ namespace Crypto_Linux
                     setting.modThreshold = stg.Value.modThreshold;
                     setting.skewThreshold = stg.Value.skewThreshold;
                     setting.oneSideThreshold = stg.Value.oneSideThreshold;
+                    setting.decaying_time = stg.Value.markup_decay_basetime;
                     setting.predictFill = stg.Value.predictFill;
                     setting.skew_type = stg.Value.skew_type.ToString();
                     setting.skew_step = stg.Value.skew_step;
