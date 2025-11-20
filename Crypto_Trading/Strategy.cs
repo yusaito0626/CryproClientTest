@@ -828,6 +828,20 @@ namespace Crypto_Trading
         {
             if(this.enabled && this.abook && this.predictFill && trade.symbol + "@" + trade.market == this.maker.symbol_market)
             {
+                if (!this.oManager.ready)
+                {
+                    int j = 0;
+                    while (!this.oManager.ready)
+                    {
+                        Thread.Sleep(1);
+                        ++j;
+                        if (j > 10000)
+                        {
+                            this.addLog("Order Manager is not ready", logType.ERROR);
+                            return;
+                        }
+                    }
+                }
                 int i = 0;
                 while (Interlocked.CompareExchange(ref this.updating, 2, 0) != 0)
                 {
@@ -948,6 +962,20 @@ namespace Crypto_Trading
         {
             if(this.enabled && this.abook && this.predictFill && quote.symbol + "@" + quote.market == this.maker.symbol_market)
             {
+                if (!this.oManager.ready)
+                {
+                    int i = 0;
+                    while (!this.oManager.ready)
+                    {
+                        Thread.Sleep(1);
+                        ++i;
+                        if (i > 10000)
+                        {
+                            this.addLog("Order Manager is not ready", logType.ERROR);
+                            return;
+                        }
+                    }
+                }
                 decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity;
                 while (Interlocked.CompareExchange(ref this.updating,3,0) != 0)
                 {
@@ -1047,7 +1075,7 @@ namespace Crypto_Trading
             {
                 if(ord.status == orderStatus.Filled)
                 {
-                    if(this.stg_orders.Contains(ord.internal_order_id) == false && this.stg_orders.Contains(ord.market + ord.order_id))
+                    if (this.stg_orders.Contains(ord.internal_order_id) == false && this.stg_orders.Contains(ord.market + ord.order_id))
                     {
                         if(ord.symbol_market == this.maker.symbol_market)
                         {
@@ -1059,7 +1087,22 @@ namespace Crypto_Trading
                         }
                     }
                     decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity;
-                    
+
+                    if (!this.oManager.ready)
+                    {
+                        int i = 0;
+                        while (!this.oManager.ready)
+                        {
+                            Thread.Sleep(1);
+                            ++i;
+                            if (i > 10000)
+                            {
+                                this.addLog("Order Manager is not ready", logType.ERROR);
+                                return;
+                            }
+                        }
+                    }
+
                     while (Interlocked.CompareExchange(ref this.fill_lock, 1, 0) != 0)
                     {
 
@@ -1129,6 +1172,20 @@ namespace Crypto_Trading
         {
             if (this.enabled && this.abook)
             {
+                if (!this.oManager.ready)
+                {
+                    int i = 0;
+                    while (!this.oManager.ready)
+                    {
+                        Thread.Sleep(1);
+                        ++i;
+                        if (i > 10000)
+                        {
+                            this.addLog("Order Manager is not ready", logType.ERROR);
+                            return;
+                        }
+                    }
+                }
                 this.sw.Start();
                 decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity; 
                 decimal filled_quantity = fill.quantity;

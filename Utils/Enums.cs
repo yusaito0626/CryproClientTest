@@ -60,5 +60,6 @@
     {
         NONE = 0,
         NONCE_ERROR = 1,
+        TIMED_OUT = 80001
     }
 }

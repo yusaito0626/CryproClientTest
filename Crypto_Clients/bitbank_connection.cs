@@ -39,17 +39,7 @@ namespace Crypto_Clients
         ClientWebSocket websocket_client;
         HttpClient http_client;
 
-        private static readonly SocketsHttpHandler _handler = new()
-        {
-            ConnectTimeout = TimeSpan.FromSeconds(3),
-            PooledConnectionLifetime = TimeSpan.FromHours(1),
-
-            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(10),
-
-            KeepAlivePingDelay = TimeSpan.FromMinutes(1),
-            KeepAlivePingTimeout = TimeSpan.FromSeconds(15),
-            KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always
-        };
+        private SocketsHttpHandler _handler;
 
         WebSocketState pubnub_state;
 
@@ -71,6 +61,8 @@ namespace Crypto_Clients
 
         private List<string> subscribingChannels;
 
+        volatile int refreshing = 0;
+
         private bitbank_connection()
         {
             this.apiName = "";
@@ -82,6 +74,17 @@ namespace Crypto_Clients
             this.sw_Public = new Stopwatch();
 
             this.websocket_client = new ClientWebSocket();
+            this._handler = new()
+            {
+                ConnectTimeout = TimeSpan.FromSeconds(3),
+                PooledConnectionLifetime = TimeSpan.FromHours(1),
+
+                PooledConnectionIdleTimeout = TimeSpan.FromMinutes(10),
+
+                KeepAlivePingDelay = TimeSpan.FromMinutes(1),
+                KeepAlivePingTimeout = TimeSpan.FromSeconds(15),
+                KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always
+            };
             this.http_client = new HttpClient(_handler)
             {
                 BaseAddress = new Uri(URL),
@@ -103,14 +106,34 @@ namespace Crypto_Clients
 
         }
 
-        public void refreshHttpClient()
+        public bool refreshHttpClient()
         {
-            this.http_client.Dispose();
-            this.http_client = new HttpClient(_handler)
+            if(Interlocked.CompareExchange(ref this.refreshing,1,0) == 0)
             {
-                BaseAddress = new Uri(URL),
-                Timeout = TimeSpan.FromSeconds(10)
-            };
+                this.http_client.Dispose();
+                this._handler = new()
+                {
+                    ConnectTimeout = TimeSpan.FromSeconds(3),
+                    PooledConnectionLifetime = TimeSpan.FromHours(1),
+
+                    PooledConnectionIdleTimeout = TimeSpan.FromMinutes(10),
+
+                    KeepAlivePingDelay = TimeSpan.FromMinutes(1),
+                    KeepAlivePingTimeout = TimeSpan.FromSeconds(15),
+                    KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always
+                };
+                this.http_client = new HttpClient(_handler)
+                {
+                    BaseAddress = new Uri(URL),
+                    Timeout = TimeSpan.FromSeconds(10)
+                };
+                Volatile.Write(ref this.refreshing, 0);
+                return true;
+            }
+            else
+            {
+                return false;  
+            }
         }
 
         public void setQueues(Crypto_Clients client)

@@ -92,6 +92,8 @@ namespace Crypto_Trading
         Stopwatch sw_updateOrders;
         Stopwatch sw_updateFills;
 
+        volatile int refreshing_httpClient = 0;
+
         private OrderManager() 
         {
             this.aborting = false;
@@ -159,20 +161,34 @@ namespace Crypto_Trading
             //this.OrderProcessingStop.Cancel();
         }
 
-        public void refreshHttpClient(string market)
+        public bool refreshHttpClient(string market)
         {
-            switch(market)
+            if(Interlocked.CompareExchange(ref this.refreshing_httpClient,1,0) == 0)
             {
-                case "bitbank":
-                    this.ord_client.bitbank_client.refreshHttpClient();
-                    break;
-                case "coincheck":
-                    this.ord_client.bitbank_client.refreshHttpClient();
-                    break;
-                default:
-                    addLog("Httpclient refresh is not configured for " + market, logType.ERROR);
-                    break;
+                this.ready = false;
+                Thread.Sleep(1000);
+                switch (market)
+                {
+                    case "bitbank":
+                        this.ord_client.bitbank_client.refreshHttpClient();
+                        break;
+                    case "coincheck":
+                        this.ord_client.bitbank_client.refreshHttpClient();
+                        break;
+                    default:
+                        addLog("Httpclient refresh is not configured for " + market, logType.ERROR);
+                        break;
+                }
+                Thread.Sleep(1000);
+                this.ready = true;
+                Volatile.Write(ref this.refreshing_httpClient, 0);
+                return true;
             }
+            else
+            {
+                return false;
+            }
+            
         }
 
         public async Task connectPrivateChannel(string market)
@@ -246,140 +262,168 @@ namespace Crypto_Trading
         {
             sendingOrder ord;
             string ordid;
-            while(!this.sendingOrdersStack.TryPop(out ord))
+            if(this.ready)
             {
-
-            }
-            Interlocked.Increment(ref this.pop_count);
-            ordid = this.getInternalOrdId(ins.market);
-            ord.internalOrdId = ordid;
-            ord.action = orderAction.New;
-            ord.ins = ins;
-            ord.side = side;
-            ord.order_type = ordtype;
-            ord.quantity = quantity;
-            ord.price = price;
-            ord.time_in_force = timeinforce;
-            if(sendNow)
-            {
-                if(wait)
+                while (!this.sendingOrdersStack.TryPop(out ord))
                 {
-                    await this.processNewOrder(ord);
+
+                }
+                Interlocked.Increment(ref this.pop_count);
+                ordid = this.getInternalOrdId(ins.market);
+                ord.internalOrdId = ordid;
+                ord.action = orderAction.New;
+                ord.ins = ins;
+                ord.side = side;
+                ord.order_type = ordtype;
+                ord.quantity = quantity;
+                ord.price = price;
+                ord.time_in_force = timeinforce;
+                if (sendNow)
+                {
+                    if (wait)
+                    {
+                        await this.processNewOrder(ord);
+                    }
+                    else
+                    {
+                        this.processNewOrder(ord);
+                    }
                 }
                 else
                 {
-                    this.processNewOrder(ord);
+                    this.addLog("This feature is not temporarily supported", Enums.logType.ERROR);
+                    this.sendingOrders.Enqueue(ord);
                 }
+
+                return ordid;
             }
             else
             {
-                this.addLog("This feature is not temporarily supported", Enums.logType.ERROR);
-                this.sendingOrders.Enqueue(ord);
+                return "";
             }
-
-            return ordid;
         }
         public async Task<string> placeCancelSpotOrder(Instrument ins, string orderId, bool sendNow = true, bool wait = false)
         {
             sendingOrder ord;
-            while (!this.sendingOrdersStack.TryPop(out ord))
+            if(this.ready)
             {
-
-            }
-            Interlocked.Increment(ref this.pop_count);
-            //ordid = this.getInternalOrdId(ins.market);
-            //ord.internalOrdId = ordid;
-            ord.action = orderAction.Can;
-            ord.ins = ins;
-
-            ord.ref_IntOrdId = orderId;
-
-            if(sendNow)
-            {
-                if(wait)
+                while (!this.sendingOrdersStack.TryPop(out ord))
                 {
-                    await this.processCanOrder(ord);
+
+                }
+                Interlocked.Increment(ref this.pop_count);
+                //ordid = this.getInternalOrdId(ins.market);
+                //ord.internalOrdId = ordid;
+                ord.action = orderAction.Can;
+                ord.ins = ins;
+
+                ord.ref_IntOrdId = orderId;
+
+                if (sendNow)
+                {
+                    if (wait)
+                    {
+                        await this.processCanOrder(ord);
+                    }
+                    else
+                    {
+                        this.processCanOrder(ord);
+                    }
                 }
                 else
                 {
-                    this.processCanOrder(ord);
+                    this.addLog("This feature is not temporarily supported", Enums.logType.ERROR);
+                    this.sendingOrders.Enqueue(ord);
                 }
+
+                return orderId;
             }
             else
             {
-                this.addLog("This feature is not temporarily supported", Enums.logType.ERROR);
-                this.sendingOrders.Enqueue(ord);
+                return "";
             }
-
-            return orderId;
         }
         public async Task<IEnumerable<string>> placeCancelSpotOrders(Instrument ins,IEnumerable<string> order_ids,bool sendNow = true,bool wait = false)
         {
             sendingOrder ord;
-            while (!this.sendingOrdersStack.TryPop(out ord))
+            if(this.ready)
             {
-
-            }
-            Interlocked.Increment(ref this.pop_count);
-            ord.action = orderAction.Can;
-            ord.ins = ins;
-
-            ord.order_ids = order_ids;
-
-            if (sendNow)
-            {
-                if (wait)
+                while (!this.sendingOrdersStack.TryPop(out ord))
                 {
-                    await this.processCanOrders(ord);
+
+                }
+                Interlocked.Increment(ref this.pop_count);
+                ord.action = orderAction.Can;
+                ord.ins = ins;
+
+                ord.order_ids = order_ids;
+
+                if (sendNow)
+                {
+                    if (wait)
+                    {
+                        await this.processCanOrders(ord);
+                    }
+                    else
+                    {
+                        this.processCanOrders(ord);
+                    }
                 }
                 else
                 {
-                    this.processCanOrders(ord);
+                    this.addLog("This feature is not temporarily supported", Enums.logType.ERROR);
+                    this.sendingOrders.Enqueue(ord);
                 }
+
+                return order_ids;
             }
             else
             {
-                this.addLog("This feature is not temporarily supported", Enums.logType.ERROR);
-                this.sendingOrders.Enqueue(ord);
+                return new List<string>() ;
             }
-
-            return order_ids;
         }
         public async Task<string> placeModSpotOrder(Instrument ins, string orderId, decimal quantity, decimal price,bool waitCancel, bool sendNow = true,bool wait = false)
         {
             sendingOrder ord;
             string ordid;
-            while (!this.sendingOrdersStack.TryPop(out ord))
+            if(this.ready)
             {
-
-            }
-            Interlocked.Increment(ref this.pop_count);
-            ordid = this.getInternalOrdId(ins.market);
-            ord.internalOrdId = ordid;
-            ord.ref_IntOrdId = orderId;
-            ord.action = orderAction.Mod;
-            ord.ins = ins;
-            ord.quantity = quantity;
-            ord.price = price;
-            ord.waitCancel = waitCancel;
-            if(sendNow)
-            {
-                if(wait)
+                while (!this.sendingOrdersStack.TryPop(out ord))
                 {
-                    await this.processModOrder(ord);
+
+                }
+                Interlocked.Increment(ref this.pop_count);
+                ordid = this.getInternalOrdId(ins.market);
+                ord.internalOrdId = ordid;
+                ord.ref_IntOrdId = orderId;
+                ord.action = orderAction.Mod;
+                ord.ins = ins;
+                ord.quantity = quantity;
+                ord.price = price;
+                ord.waitCancel = waitCancel;
+                if (sendNow)
+                {
+                    if (wait)
+                    {
+                        await this.processModOrder(ord);
+                    }
+                    else
+                    {
+                        this.processModOrder(ord);
+                    }
                 }
                 else
                 {
-                    this.processModOrder(ord);
+                    this.addLog("This feature is not temporarily supported", Enums.logType.ERROR);
+                    this.sendingOrders.Enqueue(ord);
                 }
+
+                return ordid;
             }
             else
             {
-                this.addLog("This feature is not temporarily supported", Enums.logType.ERROR);
-                this.sendingOrders.Enqueue(ord);
+                return "";
             }
-
-            return ordid;
         }
 
         async public Task<DataSpotOrderUpdate?> processNewOrder(sendingOrder sndOrd)
@@ -628,6 +672,29 @@ namespace Crypto_Trading
                 else
                 {
                     int code = js.RootElement.GetProperty("data").GetProperty("code").GetInt32();
+
+                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    {
+
+                    }
+
+                    output.status = orderStatus.INVALID;
+                    output.timestamp = sendTime;
+                    output.internal_order_id = sndOrd.internalOrdId;
+                    output.side = sndOrd.side;
+                    output.symbol = sndOrd.ins.symbol;
+                    output.market = sndOrd.ins.market;
+                    output.symbol_market = sndOrd.ins.symbol_market;
+                    output.order_quantity = sndOrd.quantity;
+                    output.order_price = sndOrd.price;
+                    output.filled_quantity = 0;
+                    output.average_price = 0;
+                    output.fee = 0;
+                    output.fee_asset = "";
+                    output.is_trigger_order = true;
+                    output.last_trade = "";
+                    output.msg = sndOrd.msg;
+
                     switch (code)
                     {
                         case 10000:
@@ -662,32 +729,17 @@ namespace Crypto_Trading
                         case 70015:
                             this.addLog("New order failed. The system is busy Error code:" + code.ToString() + "   ord_id:" + sndOrd.internalOrdId , Enums.logType.WARNING);
                             break;
+                        case 80001:
+                            this.addLog("New order failed. Operation timed out. code:" + code.ToString() + "   ord_id:" + sndOrd.internalOrdId, Enums.logType.WARNING);
+                            output.err_code = code;
+                            this.refreshHttpClient("bitbank");
+                            break;
                         default:
                             this.addLog("New Order Failed   ord_id:" + sndOrd.internalOrdId, Enums.logType.ERROR);
                             this.addLog(js.RootElement.GetRawText(), Enums.logType.ERROR);
                             break;
                     }
-                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
-                    {
-
-                    }
-
-                    output.status = orderStatus.INVALID;
-                    output.timestamp = sendTime;
-                    output.internal_order_id = sndOrd.internalOrdId;
-                    output.side = sndOrd.side;
-                    output.symbol = sndOrd.ins.symbol;
-                    output.market = sndOrd.ins.market;
-                    output.symbol_market = sndOrd.ins.symbol_market;
-                    output.order_quantity = sndOrd.quantity;
-                    output.order_price = sndOrd.price;
-                    output.filled_quantity = 0;
-                    output.average_price = 0;
-                    output.fee = 0;
-                    output.fee_asset = "";
-                    output.is_trigger_order = true;
-                    output.last_trade = "";
-                    output.msg = sndOrd.msg;
+                    
                     this.ord_client.ordUpdateQueue.Enqueue(output);
                 }
             }
@@ -1208,6 +1260,11 @@ namespace Crypto_Trading
                         case 70015:
                             this.addLog("Cancel order failed. The system is busy Error code:   ord_id:" + sndOrd.internalOrdId + code.ToString(), Enums.logType.WARNING);
                             break;
+                        case 80001:
+                            this.addLog("Cancel order failed. Operation timed out. code:" + code.ToString() + "   ord_id:" + sndOrd.internalOrdId, Enums.logType.WARNING);
+                            this.refreshHttpClient("bitbank");
+                            //output.err_code = code;
+                            break;
                         default:
                             this.addLog("Cancel Order Failed   ord_id:" + sndOrd.internalOrdId, Enums.logType.ERROR);
                             this.addLog(js.RootElement.GetRawText(), Enums.logType.ERROR);
@@ -1438,6 +1495,11 @@ namespace Crypto_Trading
                             case 70014:
                             case 70015:
                                 this.addLog("Cancel order failed. The system is busy Error code:" + code.ToString() + "   orderCount:" + ord_ids.Count.ToString(), Enums.logType.WARNING);
+                                break;
+                            case 80001:
+                                this.addLog("Cancel order failed. Operation timed out. code:" + code.ToString() + "   ord_id:" + sndOrd.internalOrdId, Enums.logType.WARNING);
+                                this.refreshHttpClient("bitbank");
+                                //output.err_code = code;
                                 break;
                             default:
                                 this.addLog("Cancel Order Failed   orderCount:" + ord_ids.Count.ToString(), Enums.logType.ERROR);
