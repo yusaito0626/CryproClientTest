@@ -431,6 +431,9 @@ namespace Crypto_Trading
                 decimal markup_bid = this.markup;
                 decimal markup_ask = this.markup;
 
+                decimal ordersize_bid = this.ToBsize;
+                decimal ordersize_ask = this.ToBsize;
+
                 decimal elapsedTimeFromLastfill = (decimal)(DateTime.UtcNow - (this.last_filled_time ?? DateTime.UtcNow)).TotalMinutes - 5;
                 if(elapsedTimeFromLastfill < 0)
                 {
@@ -494,8 +497,8 @@ namespace Crypto_Trading
                 decimal maker_ask = this.maker.bestask.Item1;
 
                 Volatile.Write(ref this.maker.quotes_lock, 0);
-                decimal maker_adjustedbid = this.maker.getPriceAfterSweep(orderSide.Buy, this.ToBsize);
-                decimal maker_adjustedask = this.maker.getPriceAfterSweep(orderSide.Sell, this.ToBsize);
+                decimal maker_adjustedbid = this.maker.getPriceAfterSweep(orderSide.Buy, ordersize_bid);
+                decimal maker_adjustedask = this.maker.getPriceAfterSweep(orderSide.Sell, ordersize_ask);
 
                 if (bid_price > maker_adjustedbid + this.maker.price_unit)
                 {
@@ -543,11 +546,11 @@ namespace Crypto_Trading
                 bid_price = Math.Floor(bid_price / this.maker.price_unit) * this.maker.price_unit;
                 ask_price = Math.Ceiling(ask_price / this.maker.price_unit) * this.maker.price_unit;
 
-                if (this.ToBsize * (1 + this.taker.taker_fee) * 2 > this.taker.baseBalance.available)
+                if (ordersize_bid * (1 + this.taker.taker_fee) * 2 > this.taker.baseBalance.available)
                 {
                     bid_price = 0;
                 }
-                if (taker_ask * this.ToBsize * (1 + this.taker.taker_fee) * 2 > this.taker.quoteBalance.available)
+                if (taker_ask * ordersize_ask * (1 + this.taker.taker_fee) * 2 > this.taker.quoteBalance.available)
                 {
                     ask_price = 0;
                 }
@@ -717,14 +720,14 @@ namespace Crypto_Trading
                 {
                     if(newBuyOrder)
                     {
-                        this.live_buyorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, this.ToBsize, bid_price, null, true, false);
+                        this.live_buyorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, ordersize_bid, bid_price, null, true, false);
                         this.live_bidprice = bid_price;
                         this.stg_orders.Add(this.live_buyorder_id);
                         this.live_buyorder_time = DateTime.UtcNow;
                     }
                     if(newSellOrder)
                     {
-                        this.live_sellorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, this.ToBsize, ask_price, null, true, false);
+                        this.live_sellorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, ordersize_ask, ask_price, null, true, false);
                         this.live_askprice = ask_price;
                         this.stg_orders.Add(this.live_sellorder_id);
                         this.live_sellorder_time = DateTime.UtcNow;
@@ -734,14 +737,14 @@ namespace Crypto_Trading
                 {
                     if (newSellOrder)
                     {
-                        this.live_sellorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, this.ToBsize, ask_price, null, true, false);
+                        this.live_sellorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, ordersize_ask, ask_price, null, true, false);
                         this.live_askprice = ask_price;
                         this.stg_orders.Add(this.live_sellorder_id);
                         this.live_sellorder_time = DateTime.UtcNow;
                     }
                     if (newBuyOrder)
                     {
-                        this.live_buyorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, this.ToBsize, bid_price, null, true, false);
+                        this.live_buyorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, ordersize_bid, bid_price, null, true, false);
                         this.live_bidprice = bid_price;
                         this.stg_orders.Add(this.live_buyorder_id);
                         this.live_buyorder_time = DateTime.UtcNow;

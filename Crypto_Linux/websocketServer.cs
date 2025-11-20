@@ -449,7 +449,7 @@ namespace Crypto_Linux
                 }
                 catch (OperationCanceledException)
                 {
-                    Console.WriteLine("sendAsync time out");
+                    this.addLog("sendAsync time out");
                     _clients.Remove(ws);
                 }
                 catch (WebSocketException)
@@ -459,8 +459,8 @@ namespace Crypto_Linux
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Error occured during broadcasting data.");
-                    Console.WriteLine(e.Message);
+                    this.addLog("Error occured during broadcasting data.");
+                    this.addLog(e.Message);
                 }
             }
         }

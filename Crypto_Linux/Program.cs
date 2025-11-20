@@ -106,6 +106,7 @@ namespace Crypto_Linux
         static int log_index = 0;
         static async Task Main(string[] args)
         {
+
             Console.CancelKeyPress += async (sender, e) =>
             {
                 addLog("Terminating the app...");

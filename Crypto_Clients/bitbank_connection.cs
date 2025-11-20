@@ -8,6 +8,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
@@ -74,17 +77,7 @@ namespace Crypto_Clients
             this.sw_Public = new Stopwatch();
 
             this.websocket_client = new ClientWebSocket();
-            this._handler = new()
-            {
-                ConnectTimeout = TimeSpan.FromSeconds(3),
-                PooledConnectionLifetime = TimeSpan.FromHours(1),
-
-                PooledConnectionIdleTimeout = TimeSpan.FromMinutes(10),
-
-                KeepAlivePingDelay = TimeSpan.FromMinutes(1),
-                KeepAlivePingTimeout = TimeSpan.FromSeconds(15),
-                KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always
-            };
+            this._handler = this.createHandler();
             this.http_client = new HttpClient(_handler)
             {
                 BaseAddress = new Uri(URL),
@@ -106,22 +99,63 @@ namespace Crypto_Clients
 
         }
 
+
+        private SocketsHttpHandler createHandler()
+        {
+            var handler = new SocketsHttpHandler
+            {
+                ConnectTimeout = TimeSpan.FromSeconds(3),
+                PooledConnectionLifetime = TimeSpan.FromHours(1),
+
+                PooledConnectionIdleTimeout = TimeSpan.FromMinutes(10),
+
+                KeepAlivePingDelay = TimeSpan.FromMinutes(1),
+                KeepAlivePingTimeout = TimeSpan.FromSeconds(15),
+                KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always
+            };
+            handler.ConnectCallback = async (context, cancellationToken) =>
+            {
+                IPAddress[] ips = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host);
+
+                Exception last = null;
+
+                foreach (var ip in ips)
+                {
+                    try
+                    {
+                        var socket = new Socket(ip.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
+                        {
+                            NoDelay = true
+                        };
+
+                        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                        cts.CancelAfter(TimeSpan.FromSeconds(3)); // connect timeout
+
+                        await socket.ConnectAsync(new IPEndPoint(ip, context.DnsEndPoint.Port), cts.Token);
+
+                        return new NetworkStream(socket, ownsSocket: true);
+                    }
+                    catch (Exception ex)
+                    {
+                        last = ex;
+                    }
+                }
+
+                throw last ?? new Exception("Connect failed");
+            };
+
+            return handler;
+        }
+
         public bool refreshHttpClient()
         {
             if(Interlocked.CompareExchange(ref this.refreshing,1,0) == 0)
             {
                 this.http_client.Dispose();
-                this._handler = new()
-                {
-                    ConnectTimeout = TimeSpan.FromSeconds(3),
-                    PooledConnectionLifetime = TimeSpan.FromHours(1),
+                this._handler.Dispose();
+                Thread.Sleep(1000);
+                this._handler = this.createHandler();
 
-                    PooledConnectionIdleTimeout = TimeSpan.FromMinutes(10),
-
-                    KeepAlivePingDelay = TimeSpan.FromMinutes(1),
-                    KeepAlivePingTimeout = TimeSpan.FromSeconds(15),
-                    KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always
-                };
                 this.http_client = new HttpClient(_handler)
                 {
                     BaseAddress = new Uri(URL),

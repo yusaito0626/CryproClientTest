@@ -695,7 +695,7 @@ namespace Crypto_Trading
                     output.is_trigger_order = true;
                     output.last_trade = "";
                     output.msg = sndOrd.msg;
-
+                    output.err_code = code;
                     switch (code)
                     {
                         case 10000:
@@ -1908,7 +1908,7 @@ namespace Crypto_Trading
                                     }
                                     else if(ord.err_code == (int)Enums.ordError.RATE_LIMIT_EXCEEDED)
                                     {
-                                        if (DateTime.UtcNow - takerPosAdjustment > TimeSpan.FromSeconds(10))
+                                        if (DateTime.UtcNow - takerPosAdjustment > TimeSpan.FromSeconds(1))
                                         {
                                             takerPosAdjustment = DateTime.UtcNow;
                                             stg.Value.lastPosAdjustment = DateTime.UtcNow;
