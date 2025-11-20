@@ -26,6 +26,8 @@ namespace Crypto_Linux
         public Dictionary<string, strategySetting> strategySetting;
         public List<logEntry> logList = new List<logEntry>();
         public List<fillInfo> dataFillList = new List<fillInfo>();
+
+        public ConcurrentStack<logEntry> logEntryStack;
         
         public int sendingLogs = 0;
         public int sendingFills = 0;
@@ -391,7 +393,9 @@ namespace Crypto_Linux
             }
             if(log.msg != null && log.msg.Contains("Error code:10009"))
             {
-
+                log.msg = "";
+                log.logtype = "";
+                logEntryStack.Push(log);
             }
             else
             {
