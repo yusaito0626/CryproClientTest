@@ -1946,6 +1946,8 @@ namespace Crypto_Trading
                                 if (prevord.status != orderStatus.Canceled)
                                 {
                                     ord.filled_quantity = prevord.filled_quantity;
+                                    ord.order_price = prevord.order_price;
+                                    ord.order_quantity = prevord.order_quantity;
                                     this.orders[ord.internal_order_id] = ord;
                                     if (this.live_orders.ContainsKey(ord.internal_order_id))
                                     {
