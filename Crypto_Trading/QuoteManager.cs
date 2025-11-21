@@ -724,7 +724,7 @@ namespace Crypto_Trading
                             {
                                 if (symbol_market == stg.Value.maker.symbol_market)
                                 {
-                                    stg.Value.onTrades(msg);
+                                    //stg.Value.onTrades(msg);
                                 }
                             }
 

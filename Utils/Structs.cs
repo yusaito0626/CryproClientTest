@@ -36,6 +36,7 @@ namespace Utils
         public decimal skew_widening { get; set; }
         public decimal baseCcy_quantity { get; set; }
         public decimal ToBsize { get; set; }
+        public decimal ToBsizeMultiple { get; set; }
         public decimal intervalAfterFill { get; set; }
         public decimal modThreshold { get; set; }
         public decimal skewThreshold { get; set; }

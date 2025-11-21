@@ -49,7 +49,7 @@ namespace Crypto_Linux
         {
             WriteIndented = true
         };
-        static int logSize = 10000;
+        static int logSize = 50000;
         static Stack<logEntry> logEntryStack;
         static Stack<fillInfo> fillInfoStack;
 
@@ -242,6 +242,7 @@ namespace Crypto_Linux
                 setting.skew_widening = stg.Value.skewWidening;
                 setting.baseCcy_quantity = stg.Value.baseCcyQuantity;
                 setting.ToBsize = stg.Value.ToBsize;
+                setting.ToBsizeMultiple = stg.Value.ToBsizeMultiple;
                 setting.intervalAfterFill = stg.Value.intervalAfterFill;
                 setting.modThreshold = stg.Value.modThreshold;
                 setting.skewThreshold = stg.Value.skewThreshold;

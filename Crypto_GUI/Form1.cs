@@ -124,6 +124,8 @@ namespace Crypto_GUI
             comboStgVariables.Items.Add("One Side Quote");
             comboStgVariables.Items.Add("Interval After Fill");
             comboStgVariables.Items.Add("Update Threshold");
+            comboStgVariables.Items.Add("Decaying Time");
+            comboStgVariables.Items.Add("ToB Multiple");
 
             this.button_receiveFeed.Enabled = false;
             this.button_startTrading.Enabled = false;
@@ -832,6 +834,12 @@ namespace Crypto_GUI
                                                             stg.ToBsize = newvalue;
                                                         }
                                                         break;
+                                                    case "tobsizemultiple":
+                                                        if (decimal.TryParse(update.value, out newvalue))
+                                                        {
+                                                            stg.ToBsizeMultiple = newvalue;
+                                                        }
+                                                        break;
                                                     case "intervalafterfill":
                                                         if (decimal.TryParse(update.value, out newvalue))
                                                         {
@@ -854,6 +862,12 @@ namespace Crypto_GUI
                                                         if (decimal.TryParse(update.value, out newvalue))
                                                         {
                                                             stg.oneSideThreshold = newvalue;
+                                                        }
+                                                        break;
+                                                    case "decayingtime":
+                                                        if (decimal.TryParse(update.value, out newvalue))
+                                                        {
+                                                            stg.markup_decay_basetime = newvalue;
                                                         }
                                                         break;
                                                     default:
@@ -2071,6 +2085,7 @@ namespace Crypto_GUI
                 this.lbl_minMarkup.Text = this.selected_stg.min_markup.ToString("N0");
                 this.lbl_maxSkew.Text = this.selected_stg.maxSkew.ToString("N0");
                 this.lbl_tobsize.Text = this.selected_stg.ToBsize.ToString("N5");
+                this.lbl_tobmulti.Text = this.selected_stg.ToBsizeMultiple.ToString("N2");
                 this.lbl_maxpos.Text = this.selected_stg.baseCcyQuantity.ToString("N5");
                 this.lbl_skewWidening.Text = this.selected_stg.skewWidening.ToString("N2");
                 this.lbl_skew.Text = this.selected_stg.skewThreshold.ToString("N0");
@@ -2586,6 +2601,107 @@ namespace Crypto_GUI
                             }
                         }
                     }
+                    break;
+
+                case "Decaying Time":
+                    if (!decimal.TryParse(this.txtBox_newValue.Text, out value))
+                    {
+                        DialogResult result = MessageBox.Show(
+                            "The value must be a number",
+                            "",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error
+                        );
+                    }
+                    else
+                    {
+                        if (this.selected_stg == null)
+                        {
+                            DialogResult result = MessageBox.Show(
+                            "Select a strategy",
+                            "",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error
+                        );
+                        }
+                        else
+                        {
+                            DialogResult result = MessageBox.Show(
+                                "You're changing the decaying time of " + this.selected_stg.name + " from " + this.selected_stg.markup_decay_basetime.ToString("N2") + " to " + this.txtBox_newValue.Text + ".",
+                                "Updating a variable",
+                                MessageBoxButtons.OKCancel,
+                                MessageBoxIcon.Question
+                                );
+                            if (result == DialogResult.OK)
+                            {
+                                variableUpdate upd = new variableUpdate();
+                                upd.stg_name = this.selected_stg.name;
+                                upd.type = "decayingtime";
+                                upd.value = this.txtBox_newValue.Text;
+                                string body = JsonSerializer.Serialize(upd);
+                                dict = new Dictionary<string, string>();
+                                dict["data_type"] = data_type;
+                                dict["data"] = body;
+                                string msg = JsonSerializer.Serialize(dict);
+                                var bytes = Encoding.UTF8.GetBytes(msg);
+                                if (this.info_receiver.State == WebSocketState.Open)
+                                {
+                                    await this.info_receiver.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                                }
+                            }
+                        }
+                    }
+                    break;
+                case "ToB Multiple":
+                    if (!decimal.TryParse(this.txtBox_newValue.Text, out value))
+                    {
+                        DialogResult result = MessageBox.Show(
+                            "The value must be a number",
+                            "",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error
+                        );
+                    }
+                    else
+                    {
+                        if (this.selected_stg == null)
+                        {
+                            DialogResult result = MessageBox.Show(
+                            "Select a strategy",
+                            "",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error
+                        );
+                        }
+                        else
+                        {
+                            DialogResult result = MessageBox.Show(
+                                "You're changing the ToB multiple of " + this.selected_stg.name + " from " + this.selected_stg.ToBsizeMultiple.ToString("N2") + " to " + this.txtBox_newValue.Text + ".",
+                                "Updating a variable",
+                                MessageBoxButtons.OKCancel,
+                                MessageBoxIcon.Question
+                                );
+                            if (result == DialogResult.OK)
+                            {
+                                variableUpdate upd = new variableUpdate();
+                                upd.stg_name = this.selected_stg.name;
+                                upd.type = "tobsizemultiple";
+                                upd.value = this.txtBox_newValue.Text;
+                                string body = JsonSerializer.Serialize(upd);
+                                dict = new Dictionary<string, string>();
+                                dict["data_type"] = data_type;
+                                dict["data"] = body;
+                                string msg = JsonSerializer.Serialize(dict);
+                                var bytes = Encoding.UTF8.GetBytes(msg);
+                                if (this.info_receiver.State == WebSocketState.Open)
+                                {
+                                    await this.info_receiver.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                                }
+                            }
+                        }
+                    }
+                    break;
+                default:
                     break;
             }
         }

@@ -115,6 +115,7 @@ namespace Crypto_Linux
                     setting.skew_widening = stg.Value.skewWidening;
                     setting.baseCcy_quantity = stg.Value.baseCcyQuantity;
                     setting.ToBsize = stg.Value.ToBsize;
+                    setting.ToBsizeMultiple = stg.Value.ToBsizeMultiple;
                     setting.intervalAfterFill = stg.Value.intervalAfterFill;
                     setting.modThreshold = stg.Value.modThreshold;
                     setting.skewThreshold = stg.Value.skewThreshold;
@@ -139,6 +140,7 @@ namespace Crypto_Linux
                     setting.skew_widening = stg.Value.skewWidening;
                     setting.baseCcy_quantity = stg.Value.baseCcyQuantity;
                     setting.ToBsize = stg.Value.ToBsize;
+                    setting.ToBsizeMultiple = stg.Value.ToBsizeMultiple;
                     setting.intervalAfterFill = stg.Value.intervalAfterFill;
                     setting.modThreshold = stg.Value.modThreshold;
                     setting.skewThreshold = stg.Value.skewThreshold;
@@ -306,6 +308,14 @@ namespace Crypto_Linux
                                                     await BroadcastAsync(message);
                                                 }
                                                 break;
+                                            case "tobsizemultiple":
+                                                if (decimal.TryParse(newVar.value, out newvalue))
+                                                {
+                                                    addLog("The TOB size multiple of " + stg.name + " has been changed from " + stg.ToBsize.ToString("N0") + " to " + newVar.value);
+                                                    stg.ToBsizeMultiple = newvalue;
+                                                    await BroadcastAsync(message);
+                                                }
+                                                break;
                                             case "intervalafterfill":
                                                 if (decimal.TryParse(newVar.value, out newvalue))
                                                 {
@@ -335,6 +345,14 @@ namespace Crypto_Linux
                                                 {
                                                     addLog("The one-side threshold of " + stg.name + " has been changed from " + stg.oneSideThreshold.ToString("N0") + " to " + newVar.value);
                                                     stg.oneSideThreshold = newvalue;
+                                                    await BroadcastAsync(message);
+                                                }
+                                                break;
+                                            case "decayingtime":
+                                                if (decimal.TryParse(newVar.value, out newvalue))
+                                                {
+                                                    addLog("The decaying time of " + stg.name + " has been changed from " + stg.markup_decay_basetime.ToString("N0") + " to " + newVar.value);
+                                                    stg.markup_decay_basetime = newvalue;
                                                     await BroadcastAsync(message);
                                                 }
                                                 break;
