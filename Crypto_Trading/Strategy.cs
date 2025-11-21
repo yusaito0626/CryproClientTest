@@ -78,6 +78,9 @@ namespace Crypto_Trading
         public decimal live_bidprice;
         public decimal skew_point;
 
+        decimal cancelling_qty_buy;
+        decimal cancelling_qty_sell;
+
         public DateTime prevMarkupTime;
         public decimal prev_markup;
         public double RVMarkup_multiplier = 1;
@@ -151,6 +154,9 @@ namespace Crypto_Trading
             this.skew_point = 0;
             this.prev_markup = 0;
             this.prevMarkupTime = DateTime.UtcNow;
+
+            this.cancelling_qty_buy = 0;
+            this.cancelling_qty_sell = 0;
 
             this.taker_last_updated_mid = 0;
             this.maker_last_updated_mid = 0;
@@ -743,11 +749,13 @@ namespace Crypto_Trading
                     if (bid_price == 0 || (this.maker.baseBalance.total > this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200)))
                     {
                         cancelling_ord.Add(this.live_buyorder_id);
+                        this.cancelling_qty_buy += ord.order_quantity - ord.filled_quantity;
                         this.live_buyorder_id = "";
                     }
                     else if ((isPriceChanged || bid_price > this.live_bidprice) && ord.status == orderStatus.Open && this.live_bidprice != bid_price)
                     {
                         cancelling_ord.Add(this.live_buyorder_id);
+                        this.cancelling_qty_buy += ord.order_quantity - ord.filled_quantity;
                         this.live_buyorder_id = "";
                         newBuyOrder = true;
                     }
@@ -765,11 +773,13 @@ namespace Crypto_Trading
                     if (ask_price == 0 || (this.maker.baseBalance.total < this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200)))
                     {
                         cancelling_ord.Add(this.live_sellorder_id);
+                        this.cancelling_qty_sell += ord.order_quantity - ord.filled_quantity;
                         this.live_sellorder_id = "";
                     }
                     else if ((isPriceChanged || ask_price < this.live_askprice) && ord.status == orderStatus.Open && this.live_askprice != ask_price)
                     {
                         cancelling_ord.Add(this.live_sellorder_id);
+                        this.cancelling_qty_sell += ord.order_quantity - ord.filled_quantity;
                         this.live_sellorder_id = "";
                         newSellOrder = true;
                     }
@@ -784,7 +794,18 @@ namespace Crypto_Trading
 
                 this.oManager.placeCancelSpotOrders(this.maker, cancelling_ord);
 
-                if(this.live_buyorder_id != "" && this.live_sellorder_id != "")//Both orders exist
+                if(this.maker.baseBalance.total - this.cancelling_qty_sell < this.ToBsize)
+                {
+                    ask_price = 0;
+                }
+                if(this.maker.quoteBalance.total / bid_price - this.cancelling_qty_buy < this.ToBsize)
+                {
+                    bid_price = 0;
+                }
+                this.cancelling_qty_sell = 0;
+                this.cancelling_qty_buy = 0;
+
+                if (this.live_buyorder_id != "" && this.live_sellorder_id != "")//Both orders exist
                 {
                     if(bid_price == 0)
                     {
@@ -878,6 +899,15 @@ namespace Crypto_Trading
                         if(this.maker.symbol_market == ord.Value.symbol_market)
                         {
                             maker_orders.Add(ord.Key);
+                            switch(ord.Value.side)
+                            {
+                                case orderSide.Buy:
+                                    this.cancelling_qty_buy += ord.Value.order_quantity - ord.Value.filled_quantity;
+                                    break;
+                                case orderSide.Sell:
+                                    this.cancelling_qty_sell += ord.Value.order_quantity - ord.Value.filled_quantity;
+                                    break;
+                            }
                         }
                         else if (this.taker.symbol_market == ord.Value.symbol_market)
                         {
