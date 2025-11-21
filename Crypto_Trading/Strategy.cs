@@ -32,6 +32,7 @@ namespace Crypto_Trading
 
         public decimal intervalAfterFill;
         public decimal modThreshold;
+        public decimal config_modThreshold;
 
         public skewType skew_type;
         public decimal skew_step;
@@ -289,6 +290,7 @@ namespace Crypto_Trading
             if (root.TryGetProperty("modThreshold", out item))
             {
                 this.modThreshold = item.GetDecimal();
+                this.config_modThreshold = this.modThreshold;
             }
             else
             {
@@ -470,11 +472,16 @@ namespace Crypto_Trading
                         markup_ask = vr_markup;
                         this.prev_markup = vr_markup;
                         this.prevMarkupTime = DateTime.UtcNow;
+                        if(vr_markup / 3 > this.modThreshold)
+                        {
+                            this.modThreshold = vr_markup / 3;
+                        }
                     }
                     else
                     {
                         //this.prev_markup = vr_markup;
                         this.prev_markup = this.markup;
+                        this.modThreshold = this.config_modThreshold;
                         //this.prevMarkupTime = DateTime.UtcNow;
                     }
                 }
@@ -491,11 +498,16 @@ namespace Crypto_Trading
                                 markup_ask = vr_markup;
                                 this.prev_markup = vr_markup;
                                 //this.prevMarkupTime = DateTime.UtcNow;
+                                if (vr_markup / 3 > this.modThreshold)
+                                {
+                                    this.modThreshold = vr_markup / 3;
+                                }
                             }
                             else
                             {
                                 //this.prev_markup = vr_markup;
                                 this.prev_markup = this.markup;
+                                this.modThreshold = this.config_modThreshold;
                                 //this.prevMarkupTime = DateTime.UtcNow;
                             }
                         }
@@ -762,7 +774,11 @@ namespace Crypto_Trading
                 }
                 else if(this.live_buyorder_id == "")
                 {
-                    if (bid_price > 0 && (this.last_filled_time_buy == null || (decimal)(DateTime.UtcNow - this.last_filled_time_buy).Value.TotalSeconds > this.intervalAfterFill))
+                    if (bid_price == 0 || (this.maker.baseBalance.total > this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200)))
+                    {
+
+                    }
+                    else if (this.last_filled_time_buy == null || (decimal)(DateTime.UtcNow - this.last_filled_time_buy).Value.TotalSeconds > this.intervalAfterFill)
                     {
                         newBuyOrder = true;
                     }
@@ -786,7 +802,11 @@ namespace Crypto_Trading
                 }
                 else if (this.live_sellorder_id == "")
                 {
-                    if (ask_price > 0 && (this.last_filled_time_sell == null || (decimal)(DateTime.UtcNow - this.last_filled_time_sell).Value.TotalSeconds > this.intervalAfterFill))
+                    if (ask_price == 0 || (this.maker.baseBalance.total < this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200)))
+                    {
+
+                    }
+                    else if (this.last_filled_time_sell == null || (decimal)(DateTime.UtcNow - this.last_filled_time_sell).Value.TotalSeconds > this.intervalAfterFill)
                     {
                         newSellOrder = true;
                     }
@@ -794,11 +814,11 @@ namespace Crypto_Trading
 
                 this.oManager.placeCancelSpotOrders(this.maker, cancelling_ord);
 
-                if(this.maker.baseBalance.total - this.cancelling_qty_sell < this.ToBsize)
+                if(this.maker.baseBalance.total - this.maker.baseBalance.inuse < ordersize_ask)
                 {
                     ask_price = 0;
                 }
-                if(this.maker.quoteBalance.total / bid_price - this.cancelling_qty_buy < this.ToBsize)
+                if(this.maker.quoteBalance.total - this.maker.quoteBalance.inuse < ordersize_bid * bid_price)
                 {
                     bid_price = 0;
                 }
@@ -894,7 +914,10 @@ namespace Crypto_Trading
             }
             diff_amount = Math.Round(diff_amount / this.taker.quantity_unit) * this.taker.quantity_unit; 
 
-            this.oManager.placeNewSpotOrder(this.taker, orderSide.Sell, orderType.Market, diff_amount, 0, null, true);
+            if(diff_amount > 0)
+            {
+                this.oManager.placeNewSpotOrder(this.taker, orderSide.Sell, orderType.Market, diff_amount, 0, null, true);
+            }
         }
 
         public async Task checkLiveOrders()
