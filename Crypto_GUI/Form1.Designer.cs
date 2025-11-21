@@ -112,6 +112,8 @@
             col_price = new DataGridViewTextBoxColumn();
             col_Bid = new DataGridViewTextBoxColumn();
             tabPage2 = new TabPage();
+            lbl_RV = new Label();
+            label42 = new Label();
             gridView_insOrders = new DataGridView();
             dataGridViewTextBoxColumn12 = new DataGridViewTextBoxColumn();
             dataGridViewTextBoxColumn13 = new DataGridViewTextBoxColumn();
@@ -170,6 +172,8 @@
             combo_StgSetting = new ComboBox();
             label37 = new Label();
             groupBox1 = new GroupBox();
+            lbl_tobmulti = new Label();
+            label47 = new Label();
             lbl_decayingtime = new Label();
             label46 = new Label();
             lbl_skewstep = new Label();
@@ -213,8 +217,8 @@
             col_roundTrip = new DataGridViewTextBoxColumn();
             timer_statusCheck = new System.Windows.Forms.Timer(components);
             timer_PeriodicMsg = new System.Windows.Forms.Timer(components);
-            lbl_tobmulti = new Label();
-            label47 = new Label();
+            lbl_avgRV = new Label();
+            label49 = new Label();
             tabControl.SuspendLayout();
             tabPage1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)gridView_PnL).BeginInit();
@@ -918,6 +922,10 @@
             // tabPage2
             // 
             tabPage2.BackColor = Color.WhiteSmoke;
+            tabPage2.Controls.Add(lbl_avgRV);
+            tabPage2.Controls.Add(label49);
+            tabPage2.Controls.Add(lbl_RV);
+            tabPage2.Controls.Add(label42);
             tabPage2.Controls.Add(gridView_insOrders);
             tabPage2.Controls.Add(groupBox3);
             tabPage2.Controls.Add(groupBox2);
@@ -938,6 +946,26 @@
             tabPage2.Size = new Size(1040, 838);
             tabPage2.TabIndex = 1;
             tabPage2.Text = "Instrument";
+            // 
+            // lbl_RV
+            // 
+            lbl_RV.AutoSize = true;
+            lbl_RV.Location = new Point(884, 437);
+            lbl_RV.Margin = new Padding(2, 0, 2, 0);
+            lbl_RV.Name = "lbl_RV";
+            lbl_RV.Size = new Size(44, 20);
+            lbl_RV.TabIndex = 34;
+            lbl_RV.Text = "value";
+            // 
+            // label42
+            // 
+            label42.AutoSize = true;
+            label42.Location = new Point(636, 437);
+            label42.Margin = new Padding(2, 0, 2, 0);
+            label42.Name = "label42";
+            label42.Size = new Size(128, 20);
+            label42.TabIndex = 31;
+            label42.Text = "Realized Volatility";
             // 
             // gridView_insOrders
             // 
@@ -1583,6 +1611,26 @@
             groupBox1.TabStop = false;
             groupBox1.Text = "Setting";
             // 
+            // lbl_tobmulti
+            // 
+            lbl_tobmulti.AutoSize = true;
+            lbl_tobmulti.Location = new Point(520, 106);
+            lbl_tobmulti.Margin = new Padding(2, 0, 2, 0);
+            lbl_tobmulti.Name = "lbl_tobmulti";
+            lbl_tobmulti.Size = new Size(44, 20);
+            lbl_tobmulti.TabIndex = 36;
+            lbl_tobmulti.Text = "value";
+            // 
+            // label47
+            // 
+            label47.AutoSize = true;
+            label47.Location = new Point(356, 106);
+            label47.Margin = new Padding(2, 0, 2, 0);
+            label47.Name = "label47";
+            label47.Size = new Size(95, 20);
+            label47.TabIndex = 35;
+            label47.Text = "ToB multiple:";
+            // 
             // lbl_decayingtime
             // 
             lbl_decayingtime.AutoSize = true;
@@ -2046,25 +2094,25 @@
             timer_PeriodicMsg.Interval = 60000;
             timer_PeriodicMsg.Tick += timer_PeriodicMsg_Tick;
             // 
-            // lbl_tobmulti
+            // lbl_avgRV
             // 
-            lbl_tobmulti.AutoSize = true;
-            lbl_tobmulti.Location = new Point(520, 106);
-            lbl_tobmulti.Margin = new Padding(2, 0, 2, 0);
-            lbl_tobmulti.Name = "lbl_tobmulti";
-            lbl_tobmulti.Size = new Size(44, 20);
-            lbl_tobmulti.TabIndex = 36;
-            lbl_tobmulti.Text = "value";
+            lbl_avgRV.AutoSize = true;
+            lbl_avgRV.Location = new Point(884, 474);
+            lbl_avgRV.Margin = new Padding(2, 0, 2, 0);
+            lbl_avgRV.Name = "lbl_avgRV";
+            lbl_avgRV.Size = new Size(44, 20);
+            lbl_avgRV.TabIndex = 36;
+            lbl_avgRV.Text = "value";
             // 
-            // label47
+            // label49
             // 
-            label47.AutoSize = true;
-            label47.Location = new Point(356, 106);
-            label47.Margin = new Padding(2, 0, 2, 0);
-            label47.Name = "label47";
-            label47.Size = new Size(95, 20);
-            label47.TabIndex = 35;
-            label47.Text = "ToB multiple:";
+            label49.AutoSize = true;
+            label49.Location = new Point(636, 474);
+            label49.Margin = new Padding(2, 0, 2, 0);
+            label49.Name = "label49";
+            label49.Size = new Size(187, 20);
+            label49.TabIndex = 35;
+            label49.Text = "Average Realized Volatility";
             // 
             // Form1
             // 
@@ -2277,5 +2325,9 @@
         private Label label46;
         private Label lbl_tobmulti;
         private Label label47;
+        private Label lbl_RV;
+        private Label label42;
+        private Label lbl_avgRV;
+        private Label label49;
     }
 }

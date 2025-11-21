@@ -78,6 +78,10 @@ namespace Crypto_Trading
         public decimal live_bidprice;
         public decimal skew_point;
 
+        public DateTime prevMarkupTime;
+        public decimal prev_markup;
+        public double RVMarkup_multiplier = 1;
+
         public decimal taker_last_updated_mid;
         public decimal maker_last_updated_mid;
 
@@ -145,6 +149,8 @@ namespace Crypto_Trading
             this.live_askprice = 0;
             this.live_bidprice = 0;
             this.skew_point = 0;
+            this.prev_markup = 0;
+            this.prevMarkupTime = DateTime.UtcNow;
 
             this.taker_last_updated_mid = 0;
             this.maker_last_updated_mid = 0;
@@ -422,6 +428,7 @@ namespace Crypto_Trading
             bool ret = true;
             if (this.enabled)
             {
+                DateTime current = DateTime.UtcNow;
                 bool buyFirst = true;
                 this.skew_point = this.skew();
                 decimal modTh_buffer = 100 * Math.Abs(this.skew_point) / this.maxSkew / 1000000;
@@ -441,6 +448,79 @@ namespace Crypto_Trading
 
                 decimal markup_bid = this.markup;
                 decimal markup_ask = this.markup;
+
+                double taker_VR = this.taker.realized_volatility;
+                if(this.taker.prev_RV > 0)
+                {
+                    taker_VR = (taker_VR + this.taker.prev_RV) / 2;
+                }
+                decimal vr_markup = (decimal)(taker_VR / Math.Sqrt(this.taker.RV_minute * 60) * 1_000_000 * this.RVMarkup_multiplier);
+
+                if (vr_markup >= this.prev_markup)
+                {
+                    if (vr_markup > this.markup)
+                    {
+                        markup_bid = vr_markup;
+                        markup_ask = vr_markup;
+                        this.prev_markup = vr_markup;
+                        this.prevMarkupTime = DateTime.UtcNow;
+                    }
+                    else
+                    {
+                        //this.prev_markup = vr_markup;
+                        this.prev_markup = this.markup;
+                        //this.prevMarkupTime = DateTime.UtcNow;
+                    }
+                }
+                else
+                {
+                    if(this.prev_markup > this.markup)
+                    {
+                        double elapsedTime = (DateTime.UtcNow - this.prevMarkupTime).TotalMinutes;
+                        if (elapsedTime > this.taker.RV_minute * 2)
+                        {
+                            if (vr_markup > this.markup)
+                            {
+                                markup_bid = vr_markup;
+                                markup_ask = vr_markup;
+                                this.prev_markup = vr_markup;
+                                //this.prevMarkupTime = DateTime.UtcNow;
+                            }
+                            else
+                            {
+                                //this.prev_markup = vr_markup;
+                                this.prev_markup = this.markup;
+                                //this.prevMarkupTime = DateTime.UtcNow;
+                            }
+                        }
+                        else
+                        {
+                            markup_bid = this.prev_markup;
+                            markup_ask = this.prev_markup;
+                        }
+                    }
+                    else
+                    {
+                        this.prev_markup = this.markup;
+                        //this.prevMarkupTime = DateTime.UtcNow;
+                        //if (vr_markup > this.markup)
+                        //{
+                        //    markup_bid = vr_markup;
+                        //    markup_ask = vr_markup;
+                        //    this.prev_markup = vr_markup;
+                        //    this.prevMarkupTime = DateTime.UtcNow;
+                        //}
+                        //else
+                        //{
+                        //    //this.prev_markup = vr_markup;
+                        //    this.prev_markup = this.markup;
+                        //    this.prevMarkupTime = DateTime.UtcNow;
+                        //}
+                    }
+                }
+
+                this.temp_markup_ask = markup_ask;
+                this.temp_markup_bid = markup_bid;
 
                 decimal ordersize_bid = this.ToBsize;
                 decimal ordersize_ask = this.ToBsize;
@@ -482,11 +562,19 @@ namespace Crypto_Trading
                     ordersize_ask *= this.ToBsizeMultiple;
                     ordersize_bid *= this.ToBsizeMultiple;
                 }
-                this.temp_markup_ask = markup_ask;
-                this.temp_markup_bid = markup_bid;
+                //this.temp_markup_ask = markup_ask;
+                //this.temp_markup_bid = markup_bid;
 
-                bid_price *= (1 - markup_bid / 1000000);
-                ask_price *= (1 + markup_ask / 1000000);
+                if(vr_markup > 5000)
+                {
+                    bid_price = 0;
+                    ask_price = 0;
+                }
+                else
+                {
+                    bid_price *= (1 - markup_bid / 1000000);
+                    ask_price *= (1 + markup_ask / 1000000);
+                }
 
                 //if (this.skew_point > 0)
                 //{

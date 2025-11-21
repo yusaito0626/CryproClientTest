@@ -744,6 +744,8 @@ namespace Crypto_GUI
                                                 ins.sell_notional = i.Value.notional_sell;
                                                 ins.buy_quantity = i.Value.quantity_buy;
                                                 ins.sell_quantity = i.Value.quantity_sell;
+                                                ins.realized_volatility_display = i.Value.realized_volatility;
+                                                ins.avg_RV_display = i.Value.avg_RV;
                                                 ins.baseBalance = new Balance();
                                                 ins.baseBalance.ccy = ins.baseCcy;
                                                 ins.baseBalance.total = i.Value.baseCcy_total;
@@ -772,6 +774,8 @@ namespace Crypto_GUI
                                                 ins.sell_notional = i.Value.notional_sell;
                                                 ins.buy_quantity = i.Value.quantity_buy;
                                                 ins.sell_quantity = i.Value.quantity_sell;
+                                                ins.realized_volatility_display = i.Value.realized_volatility;
+                                                ins.avg_RV_display = i.Value.avg_RV;
                                                 ins.baseBalance = new Balance();
                                                 ins.baseBalance.ccy = ins.baseCcy;
                                                 ins.baseBalance.total = i.Value.baseCcy_total;
@@ -1202,6 +1206,8 @@ namespace Crypto_GUI
                 this.lbl_buyQuantity.Text = this.selected_ins.my_buy_quantity.ToString("N" + this.selected_ins.quantity_scale);
                 this.lbl_sellNotional.Text = this.selected_ins.my_sell_notional.ToString("N2");
                 this.lbl_buyNotional.Text = this.selected_ins.my_buy_notional.ToString("N2");
+                this.lbl_RV.Text = this.selected_ins.realized_volatility_display.ToString("N5");
+                this.lbl_avgRV.Text = this.selected_ins.avg_RV_display.ToString("N5");
                 if (this.selected_ins.my_sell_quantity > 0)
                 {
                     this.lbl_sellAvgPrice.Text = (this.selected_ins.my_sell_notional / this.selected_ins.my_sell_quantity).ToString("N" + this.selected_ins.price_scale);

@@ -62,6 +62,20 @@ namespace Crypto_Trading
         public decimal my_sell_notional;
         public decimal my_buy_notional;
 
+        public double RV_minute;
+        public double cumlative_RV;
+        public double prev_cumRV;
+        public double avg_RV;
+        public double realized_volatility;
+        public double prev_RV;
+        DateTime? RV_startTime;
+        DateTime? RV_currentPeriodStart;
+
+
+        public double avg_RV_display;
+        public double realized_volatility_display;
+
+
         public decimal base_fee;
         public decimal quote_fee;
         public decimal unknown_fee;
@@ -127,6 +141,14 @@ namespace Crypto_Trading
             this.my_buy_quantity = 0;
             this.my_sell_notional = 0;
             this.my_buy_notional = 0;
+
+            this.RV_minute = 0.5;
+            this.cumlative_RV = 0;
+            this.avg_RV = 0;
+            this.realized_volatility = 0;
+            this.prev_cumRV = 0;
+            this.RV_startTime = null;
+            this.RV_currentPeriodStart = null;
 
             this.base_fee = 0;
             this.quote_fee = 0;
@@ -444,6 +466,31 @@ namespace Crypto_Trading
             else
             {
                 this.mid = 0;
+            }
+
+            if(this.mid > 0 && this.prev_mid > 0)
+            {
+                this.cumlative_RV += Math.Pow(Math.Log((double)this.mid / (double)this.prev_mid), 2);
+                if (this.RV_startTime == null)
+                {
+                    this.RV_startTime = current;
+                }
+                else
+                {
+                    this.avg_RV = Math.Sqrt(this.cumlative_RV / ((current - this.RV_startTime.Value).TotalMinutes * this.RV_minute));
+                }
+                if(this.RV_currentPeriodStart == null)
+                {
+                    this.RV_currentPeriodStart = current;
+                    this.prev_cumRV = this.cumlative_RV;
+                }
+                else if((current - this.RV_currentPeriodStart.Value).TotalMinutes > this.RV_minute)
+                {
+                    this.prev_RV = this.realized_volatility;
+                    this.realized_volatility = Math.Sqrt((this.cumlative_RV - this.prev_cumRV) / (current - this.RV_currentPeriodStart.Value).TotalMinutes * this.RV_minute);
+                    this.prev_cumRV = this.cumlative_RV;
+                    this.RV_currentPeriodStart = current;
+                }
             }
 
             if(this.open_mid < 0 && this.mid > 0)
