@@ -1,5 +1,6 @@
 ﻿using Crypto_Clients;
 using CryptoExchange.Net.Objects.Options;
+using DeepCoin.Net.Objects.Models;
 using Discord;
 using Discord.Audio.Streams;
 using Enums;
@@ -59,7 +60,7 @@ namespace Crypto_Trading
         public int cum_LatentOrderUpdates;
         public int cum_AllFill;
         public int cum_LatentFill;
-        public double latencyTh = 1000;
+        public double latencyTh = 200;
 
         public ValueTuple<decimal, decimal> bestask;
         public ValueTuple<decimal, decimal> bestbid;
@@ -176,7 +177,7 @@ namespace Crypto_Trading
             this.my_sell_notional = 0;
             this.my_buy_notional = 0;
 
-            this.RV_minute = 0.5;
+            this.RV_minute = 0.2;
             this.cumlative_RV = 0;
             this.avg_RV = 0;
             this.realized_volatility = 0;
@@ -625,7 +626,7 @@ namespace Crypto_Trading
                 }
                 else
                 {
-                    this.avg_RV = Math.Sqrt(this.cumlative_RV / ((current - this.RV_startTime.Value).TotalMinutes * this.RV_minute));
+                    this.avg_RV = Math.Sqrt(this.cumlative_RV / (current - this.RV_startTime.Value).TotalMinutes * this.RV_minute);
                 }
                 if(this.RV_currentPeriodStart == null)
                 {

@@ -1477,7 +1477,8 @@ namespace Crypto_Linux
                 stginfo.totalPnL = stginfo.posPnL + stginfo.tradingPnL - stginfo.totalFee;
 
                 stginfo.skew = stg.skew_point;
-                if(stginfo.bid > 0 && stginfo.ask > 0)
+                stginfo.markup = stg.base_markup;
+                if (stginfo.bid > 0 && stginfo.ask > 0)
                 {
                     stginfo.spread = stginfo.ask - stginfo.bid;
                 }

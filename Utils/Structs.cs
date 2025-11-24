@@ -69,6 +69,7 @@ namespace Utils
         public string? taker_symbol_market { get; set; }
 
         public decimal spread { get; set; }
+        public decimal markup { get; set; }
         public decimal skew { get; set; }
 
         public decimal ask { get; set; }

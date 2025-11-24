@@ -694,6 +694,7 @@ namespace Crypto_GUI
                                             {
                                                 Strategy stg = this.strategies[s.Key];
                                                 stg.skew_point = s.Value.skew;
+                                                stg.base_markup = s.Value.markup;
                                                 stg.live_askprice = s.Value.ask;
                                                 stg.live_bidprice = s.Value.bid;
                                                 stg.notionalVolume = s.Value.notionalVolume;
@@ -721,6 +722,7 @@ namespace Crypto_GUI
                                                     stg.taker = this.qManager.instruments[stg.taker_symbol_market];
                                                 }
                                                 stg.skew_point = s.Value.skew;
+                                                stg.base_markup = s.Value.markup;
                                                 stg.live_askprice = s.Value.ask;
                                                 stg.live_bidprice = s.Value.bid;
                                                 stg.notionalVolume = s.Value.notionalVolume;
@@ -1313,6 +1315,7 @@ namespace Crypto_GUI
                     this.lbl_askprice.Text = this.selected_stg.live_askprice.ToString("N" + this.selected_stg.maker.price_scale);
                     this.lbl_bidprice.Text = this.selected_stg.live_bidprice.ToString("N" + this.selected_stg.maker.price_scale);
                     this.lbl_skewpoint.Text = this.selected_stg.skew_point.ToString("N");
+                    this.lbl_stgmarkup.Text = this.selected_stg.base_markup.ToString("N");
                 }
                 foreach (DataGridViewRow row in this.gridView_orders.Rows)
                 {

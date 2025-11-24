@@ -81,6 +81,7 @@ namespace Crypto_Trading
         public decimal live_askprice;
         public decimal live_bidprice;
         public decimal skew_point;
+        public decimal base_markup;
 
         decimal cancelling_qty_buy;
         decimal cancelling_qty_sell;
@@ -490,32 +491,32 @@ namespace Crypto_Trading
                 {
                     taker_VR = (taker_VR + this.taker.prev_RV) / 2;
                 }
-                decimal vr_markup = (decimal)(taker_VR / Math.Sqrt(this.taker.RV_minute * 60) * 1_000_000) * this.RVMarkup_multiplier;
+                //decimal vr_markup = (decimal)(taker_VR / Math.Sqrt(this.taker.RV_minute * 60) * 1_000_000) * this.RVMarkup_multiplier;
+                decimal vr_markup = this.markup * (decimal)Math.Exp(taker_VR / Math.Sqrt(this.taker.RV_minute * 60) * 1_000_000 / (double)this.markup) * this.RVMarkup_multiplier;
 
-                if(vr_markup > this.markup)
+
+                if (vr_markup > this.markup)
                 {
                     vr_markup = Math.Ceiling(vr_markup / this.markup) * this.markup;
                 }
+
+                this.modThreshold = this.config_modThreshold;
 
                 if (vr_markup >= this.prev_markup)
                 {
                     if (vr_markup > this.markup)
                     {
-                        markup_bid = vr_markup;
-                        markup_ask = vr_markup;
+                        this.base_markup = vr_markup;
+                        //markup_bid = vr_markup;
+                        //markup_ask = vr_markup;
                         this.prev_markup = vr_markup;
                         this.prevMarkupTime = DateTime.UtcNow;
-                        if(vr_markup / 3 > this.modThreshold)
-                        {
-                            this.modThreshold = vr_markup / 3;
-                        }
                     }
                     else
                     {
-                        //this.prev_markup = vr_markup;
+
+                        this.base_markup = this.markup;
                         this.prev_markup = this.markup;
-                        this.modThreshold = this.config_modThreshold;
-                        //this.prevMarkupTime = DateTime.UtcNow;
                     }
                 }
                 else
@@ -527,49 +528,33 @@ namespace Crypto_Trading
                         {
                             if (vr_markup > this.markup)
                             {
-                                markup_bid = vr_markup;
-                                markup_ask = vr_markup;
+                                this.base_markup = vr_markup;
+                                //markup_bid = vr_markup;
+                                //markup_ask = vr_markup;
                                 this.prev_markup = vr_markup;
-                                //this.prevMarkupTime = DateTime.UtcNow;
-                                if (vr_markup / 3 > this.modThreshold)
-                                {
-                                    this.modThreshold = vr_markup / 3;
-                                }
                             }
                             else
                             {
-                                //this.prev_markup = vr_markup;
+                                this.base_markup = this.markup;
                                 this.prev_markup = this.markup;
-                                this.modThreshold = this.config_modThreshold;
-                                //this.prevMarkupTime = DateTime.UtcNow;
                             }
                         }
                         else
                         {
+                            this.base_markup = this.prev_markup;
                             markup_bid = this.prev_markup;
                             markup_ask = this.prev_markup;
                         }
                     }
                     else
                     {
+
+                        this.base_markup = this.markup;
                         this.prev_markup = this.markup;
-                        //this.prevMarkupTime = DateTime.UtcNow;
-                        //if (vr_markup > this.markup)
-                        //{
-                        //    markup_bid = vr_markup;
-                        //    markup_ask = vr_markup;
-                        //    this.prev_markup = vr_markup;
-                        //    this.prevMarkupTime = DateTime.UtcNow;
-                        //}
-                        //else
-                        //{
-                        //    //this.prev_markup = vr_markup;
-                        //    this.prev_markup = this.markup;
-                        //    this.prevMarkupTime = DateTime.UtcNow;
-                        //}
                     }
                 }
-
+                markup_bid = this.base_markup;
+                markup_ask = this.base_markup;
 
                 decimal ordersize_bid = this.ToBsize;
                 decimal ordersize_ask = this.ToBsize;
