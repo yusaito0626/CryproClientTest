@@ -490,11 +490,11 @@ namespace Crypto_Trading
                 {
                     taker_VR = (taker_VR + this.taker.prev_RV) / 2;
                 }
-                decimal vr_markup = this. markup + ((decimal)(taker_VR / Math.Sqrt(this.taker.RV_minute * 60) * 1_000_000) - this.markup) * this.RVMarkup_multiplier;
+                decimal vr_markup = (decimal)(taker_VR / Math.Sqrt(this.taker.RV_minute * 60) * 1_000_000) * this.RVMarkup_multiplier;
 
                 if(vr_markup > this.markup)
                 {
-                    vr_markup = Math.Ceiling(vr_markup / this.markup) + this.markup;
+                    vr_markup = Math.Ceiling(vr_markup / this.markup) * this.markup;
                 }
 
                 if (vr_markup >= this.prev_markup)

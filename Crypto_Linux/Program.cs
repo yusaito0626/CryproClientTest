@@ -366,6 +366,25 @@ namespace Crypto_Linux
             {
                 if (stg.maker != null && stg.taker != null)
                 {
+                    msg += "Maker Latency:\n";
+                    msg += "<QuotesUpdate> All count:" + stg.maker.count_Allquotes.ToString("N0") + "  Latent Feed:" + stg.maker.count_Latentquotes.ToString("N0") + "\n";
+                    msg += "<Trades> All count:" + stg.maker.count_AllTrade.ToString("N0") + "  Latent Feed:" + stg.maker.count_LatentTrade.ToString("N0") + "\n";
+                    msg += "<OrderUpdate> All count:" + stg.maker.count_AllOrderUpdates.ToString("N0") + "  Latent Feed:" + stg.maker.count_LatentOrderUpdates.ToString("N0") + "\n";
+                    msg += "<Fill> All count:" + stg.maker.count_AllFill.ToString("N0") + "  Latent Feed:" + stg.maker.count_LatentFill.ToString("N0") + "\n";
+                    stg.maker.count_Allquotes = 0;
+                    stg.maker.count_Latentquotes = 0;
+                    stg.maker.count_AllTrade = 0;
+                    stg.maker.count_LatentTrade = 0;
+                    stg.maker.count_AllOrderUpdates = 0;
+                    stg.maker.count_LatentOrderUpdates = 0;
+                    stg.maker.count_AllFill = 0;
+                    stg.maker.count_LatentFill = 0;
+                    msg += "Cumulative Count:\n";
+                    msg += "<QuotesUpdate> All count:" + stg.maker.cum_Allquotes.ToString("N0") + "  Latent Feed:" + stg.maker.cum_Latentquotes.ToString("N0") + "\n";
+                    msg += "<Trades> All count:" + stg.maker.cum_AllTrade.ToString("N0") + "  Latent Feed:" + stg.maker.cum_LatentTrade.ToString("N0") + "\n";
+                    msg += "<OrderUpdate> All count:" + stg.maker.cum_AllOrderUpdates.ToString("N0") + "  Latent Feed:" + stg.maker.cum_LatentOrderUpdates.ToString("N0") + "\n";
+                    msg += "<Fill> All count:" + stg.maker.cum_AllFill.ToString("N0") + "  Latent Feed:" + stg.maker.cum_LatentFill.ToString("N0") + "\n";
+
                     stg.netExposure = stg.maker.baseBalance.total + stg.taker.baseBalance.total - stg.baseCcyQuantity;
                     stg.notionalVolume = stg.maker.my_buy_notional + stg.maker.my_sell_notional;
                     stg.posPnL = stg.SoD_baseCcyPos * (stg.taker.mid - stg.taker.open_mid);
@@ -381,25 +400,6 @@ namespace Crypto_Linux
                     feeAll += stg.totalFee;
                     totalAll += stg.totalPnL;
                     msg += "markup_bid:" + stg.temp_markup_bid.ToString("N2") + "  markup_ask:" + stg.temp_markup_ask.ToString("N2") + "   Base markup:" + stg.prev_markup.ToString("N2")  + "\n";
-
-                    msg += "Maker Latency:\n";
-                    msg += "<QuotesUpdate> All count:" + stg.maker.count_Allquotes.ToString("N0") + "  Latent Feed:" + stg.maker.count_Latentquotes.ToString("N0") + "\n";
-                    msg += "<Trades> All count:" + stg.maker.count_AllTrade.ToString("N0") + "  Latent Feed:" + stg.maker.count_LatentTrade.ToString("N0") + "\n";
-                    msg += "<OrderUpdate> All count:" + stg.maker.count_AllOrderUpdates.ToString("N0") + "  Latent Feed:" + stg.maker.count_LatentOrderUpdates.ToString("N0") + "\n";
-                    msg += "<Fill> All count:" + stg.maker.count_AllFill.ToString("N0") + "  Latent Feed:" + stg.maker.count_LatentFill.ToString("N0") + "\n";
-                    stg.maker.count_Allquotes = 0;
-                    stg.maker.count_Latentquotes = 0;
-                    stg.maker.count_AllTrade = 0;
-                    stg.maker.count_LatentTrade = 0;
-                    stg.maker.count_AllOrderUpdates= 0;
-                    stg.maker.count_LatentOrderUpdates = 0;
-                    stg.maker.count_AllFill = 0;
-                    stg.maker.count_LatentFill = 0;
-                    msg += "Cumulative Count:\n";
-                    msg += "<QuotesUpdate> All count:" + stg.maker.cum_Allquotes.ToString("N0") + "  Latent Feed:" + stg.maker.cum_Latentquotes.ToString("N0") + "\n";
-                    msg += "<Trades> All count:" + stg.maker.cum_AllTrade.ToString("N0") + "  Latent Feed:" + stg.maker.cum_LatentTrade.ToString("N0") + "\n";
-                    msg += "<OrderUpdate> All count:" + stg.maker.cum_AllOrderUpdates.ToString("N0") + "  Latent Feed:" + stg.maker.cum_LatentOrderUpdates.ToString("N0") + "\n";
-                    msg += "<Fill> All count:" + stg.maker.cum_AllFill.ToString("N0") + "  Latent Feed:" + stg.maker.cum_LatentFill.ToString("N0") + "\n";
 
                 }
             }
@@ -1583,27 +1583,10 @@ namespace Crypto_Linux
                 addLog(e.Message, logType.WARNING);
             }
 
+            crypto_client.checkStackCount();
+
             if (DateTime.UtcNow > nextMsgTime)
             {
-                //foreach (var stg in strategies.Values)
-                //{
-                //    if (stg.maker != null && stg.taker != null)
-                //    {
-                //        volume = stg.maker.my_buy_notional + stg.maker.my_sell_notional;
-                //        tradingPL = (stg.taker.my_sell_notional - stg.taker.my_sell_quantity * stg.taker.mid) + (stg.taker.my_buy_quantity * stg.taker.mid - stg.taker.my_buy_notional);
-                //        tradingPL += (stg.maker.my_sell_notional - stg.maker.my_sell_quantity * stg.taker.mid) + (stg.maker.my_buy_quantity * stg.taker.mid - stg.maker.my_buy_notional);
-                //        fee = stg.taker.base_fee * stg.taker.mid + stg.taker.quote_fee + stg.maker.base_fee * stg.taker.mid + stg.maker.quote_fee;
-                //        total = tradingPL - fee;
-
-                //        msg += DateTime.UtcNow.ToString() + " - Strategy " + stg.name + " -    Notional Volume:" + volume.ToString("N2") + " Trading PnL:" + tradingPL.ToString("N2") + " Fee:" + fee.ToString("N2") + " Total:" + total.ToString("N2") + "\n";
-                //        volumeAll += volume;
-                //        tradingPLAll += tradingPL;
-                //        feeAll += fee;
-                //        totalAll += total;
-                //        addLog("onFill Latency(" + stg.name + "):" + stg.onFill_latency.ToString("N2") + " micro sec");
-                //    }
-                //}
-                //msg += DateTime.UtcNow.ToString() + " - All -    Notional Volume:" + volumeAll.ToString("N2") + " Trading PnL:" + tradingPLAll.ToString("N2") + " Fee:" + feeAll.ToString("N2") + " Total:" + totalAll.ToString("N2") + "\n";
                 msg = stgPnLMsg();
                 await MsgDeliverer.sendMessage(msg);
                 nextMsgTime += TimeSpan.FromMinutes(msg_Interval);

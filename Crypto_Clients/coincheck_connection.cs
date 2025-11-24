@@ -154,7 +154,7 @@ namespace Crypto_Clients
             {
                 this.http_client.Dispose();
                 this._handler.Dispose();
-                Thread.Sleep(1000);
+                Thread.Sleep(2000);
                 this._handler = this.createHandler();
 
                 this.http_client = new HttpClient(_handler)

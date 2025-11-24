@@ -47,11 +47,12 @@ namespace Crypto_Clients
         public ConcurrentQueue<DataTrade> tradeQueue;
         public ConcurrentStack<DataTrade> tradeStack;
 
-        public ConcurrentQueue<DataSpotOrderUpdate> ordUpdateQueue;
-        public ConcurrentStack<DataSpotOrderUpdate> ordUpdateStack;
-
         public ConcurrentQueue<DataFill> fillQueue;
         public ConcurrentStack<DataFill> fillStack;
+
+        const int ORDUPDATE_STACK_SIZE = 300000;
+        public ConcurrentQueue<DataSpotOrderUpdate> ordUpdateQueue;
+        public ConcurrentStack<DataSpotOrderUpdate> ordUpdateStack;
 
         public ConcurrentQueue<string> strQueue;
 
@@ -102,6 +103,56 @@ namespace Crypto_Clients
                 this.tradeStack.Push(new DataTrade());
                 this.fillStack.Push(new DataFill());
                 ++i;
+            }
+
+            while (i < ORDUPDATE_STACK_SIZE)
+            {
+                this.ordUpdateStack.Push(new DataSpotOrderUpdate());
+                ++i;
+            }
+        }
+
+        public void checkStackCount()
+        {
+            if(this.ordBookStack.Count < STACK_SIZE / 10)
+            {
+                addLog("Pushing new objects into ordBookStack.");
+                int i = 0;
+                while(i < STACK_SIZE / 2)
+                {
+                    this.ordBookStack.Push(new DataOrderBook());
+                    ++i;
+                }
+            }
+            if (this.tradeStack.Count < STACK_SIZE / 10)
+            {
+                addLog("Pushing new objects into tradeStack.");
+                int i = 0;
+                while (i < STACK_SIZE / 2)
+                {
+                    this.tradeStack.Push(new DataTrade());
+                    ++i;
+                }
+            }
+            if (this.fillStack.Count < STACK_SIZE / 10)
+            {
+                addLog("Pushing new objects into fillStack.");
+                int i = 0;
+                while (i < STACK_SIZE / 2)
+                {
+                    this.fillStack.Push(new DataFill());
+                    ++i;
+                }
+            }
+            if (this.ordUpdateStack.Count < ORDUPDATE_STACK_SIZE / 10)
+            {
+                addLog("Pushing new objects into ordUpdateStack.");
+                int i = 0;
+                while (i < ORDUPDATE_STACK_SIZE / 2)
+                {
+                    this.ordUpdateStack.Push(new DataSpotOrderUpdate());
+                    ++i;
+                }
             }
         }
 
@@ -431,10 +482,13 @@ namespace Crypto_Clients
             switch (market)
             {
                 case "bitbank":
+                    this.addLog("getActiveOrders bitbank");
                     js = await this.bitbank_client.getActiveOrders();
-                    //this.addLog(JsonSerializer.Serialize(js));
-                    if(js.RootElement.GetProperty("success").GetInt16() == 1)
+                    //this.addLog("REST API");
+                    this.addLog(JsonSerializer.Serialize(js));
+                    if (js.RootElement.GetProperty("success").GetInt16() == 1)
                     {
+                        this.addLog("Order found");
                         var data = js.RootElement.GetProperty("data").GetProperty("orders");
                         foreach(var item in data.EnumerateArray())
                         {
@@ -449,6 +503,7 @@ namespace Crypto_Clients
                     }
                     else
                     {
+                        this.addLog("Returning null");
                         l = null;
                     }
                     break;

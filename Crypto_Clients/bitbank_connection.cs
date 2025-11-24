@@ -148,7 +148,7 @@ namespace Crypto_Clients
             {
                 this.http_client.Dispose();
                 this._handler.Dispose();
-                Thread.Sleep(1000);
+                Thread.Sleep(2000);
                 this._handler = this.createHandler();
 
                 this.http_client = new HttpClient(_handler)
@@ -733,9 +733,8 @@ namespace Crypto_Clients
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                 using var watchDogCts = new CancellationTokenSource();
 
-                var watchDog = Task.Delay(TimeSpan.FromSeconds(10),watchDogCts.Token);
+                var watchDog = Task.Delay(10000,watchDogCts.Token);
                 var task = this.http_client.SendAsync(request, cts.Token);
-
                 var compleretedTask = await Task.WhenAny(task, watchDog);
 
                 if(compleretedTask == watchDog)
@@ -793,7 +792,7 @@ namespace Crypto_Clients
                     //this.logFilePublic.Flush();
                 }
 
-                var watchDog = Task.Delay(TimeSpan.FromSeconds(10), watchDogCts.Token);
+                var watchDog = Task.Delay(10000, watchDogCts.Token);
                 sw_POST.Restart();
                 var task = this.http_client.SendAsync(request, cts.Token);
 

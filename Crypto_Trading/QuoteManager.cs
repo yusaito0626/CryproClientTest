@@ -446,6 +446,8 @@ namespace Crypto_Trading
                 //await this.oManager.cancelAllOrders();
                 //Thread.Sleep(1000);
                 this.addLog("Requesting order list....", Enums.logType.WARNING);
+                this.addLog("ordUpdateStack.Count:" + this.crypto_client.ordUpdateStack.Count.ToString("N0"));
+                this.addLog("order_pool.Count:" + this.oManager.order_pool.Count.ToString("N0"));
                 foreach (string mkt in this._markets.Keys)
                 {
                     addLog("Order List of " + mkt,logType.WARNING);
@@ -455,6 +457,8 @@ namespace Crypto_Trading
                     {
                         ++i;
                         addLog("Failed to get active orders. Retrying..." + i.ToString(), Enums.logType.WARNING);
+                        this.oManager.refreshHttpClient(mkt);
+                        Thread.Sleep(1000);
                         ordList = await this.crypto_client.getActiveOrders(mkt);
                         if (i >= 5)
                         {
@@ -519,12 +523,15 @@ namespace Crypto_Trading
                 //await this.oManager.cancelAllOrders();
                 Thread.Sleep(1000);
                 this.addLog("Requesting order list....", Enums.logType.WARNING);
+                this.addLog("ordUpdateStack.Count:" + this.crypto_client.ordUpdateStack.Count.ToString("N0"));
+                this.addLog("order_pool.Count:" + this.oManager.order_pool.Count.ToString("N0"));
                 List<DataSpotOrderUpdate> ordList = await this.crypto_client.getActiveOrders(market);
                 int i = 0;
                 while (ordList == null)
                 {
                     ++i;
                     addLog("Failed to get active orders. Retrying..." + i.ToString(), Enums.logType.WARNING);
+
                     ordList = await this.crypto_client.getActiveOrders(market);
                     if (i >= 5)
                     {
