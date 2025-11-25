@@ -36,12 +36,18 @@ namespace Crypto_Trading
 
         DateTime sample1Time;
         double sample_latency1;
-        DateTime intercept_time;
-        public double intercept_latency;
+        DateTime intercept_time1;
+        public double intercept_latency1;
+        DateTime intercept_time2;
+        public double intercept_latency2;
         double sample_gap = 60;
+        double sample_gap2 = 3600;
         int count = 0;
+        int currentSampling = 0;
         int NofSample = 100;
         public double coef;
+        public double intercept;
+        DateTime intercept_time;
         public double base_latency = 20;
 
         public int count_Allquotes;
@@ -285,7 +291,7 @@ namespace Crypto_Trading
         {
             if (this.readyToTrade)
             {
-                return this.coef * (currentTime - this.intercept_time).TotalSeconds + this.intercept_latency;
+                return this.coef * (currentTime - this.intercept_time).TotalSeconds + this.intercept;
             }
             else
             {
@@ -305,21 +311,28 @@ namespace Crypto_Trading
                 {
                     if(this.count == 0)
                     {
-                        if(this.sample_latency1 == 0)
+                        if(this.currentSampling == 0)
                         {
                             this.sample_latency1 = (this.last_quote_updated_time.Value - this.quoteTime).TotalMilliseconds;
                             this.sample1Time = this.last_quote_updated_time.Value;
+                            ++(this.count);
                         }
-                        else
+                        else if(currentSampling == 1 && (this.last_quote_updated_time.Value - this.sample1Time).TotalSeconds > this.sample_gap)
                         {
-                            this.intercept_latency = (this.last_quote_updated_time.Value - this.quoteTime).TotalMilliseconds;
-                            this.intercept_time = this.last_quote_updated_time.Value;
+                            this.intercept_latency1 = (this.last_quote_updated_time.Value - this.quoteTime).TotalMilliseconds;
+                            this.intercept_time1 = this.last_quote_updated_time.Value;
+                            ++(this.count);
                         }
-                        ++(this.count);
+                        else if(currentSampling == 2 && (this.last_quote_updated_time.Value - this.sample1Time).TotalSeconds > this.sample_gap2)
+                        {
+                            this.intercept_latency2 = (this.last_quote_updated_time.Value - this.quoteTime).TotalMilliseconds;
+                            this.intercept_time2 = this.last_quote_updated_time.Value;
+                            ++(this.count);
+                        }
                     }
                     else
                     {
-                        if(this.intercept_latency == 0)
+                        if(this.currentSampling == 0)
                         {
                             double currentValue = (this.last_quote_updated_time.Value - this.quoteTime).TotalMilliseconds;
                             if(currentValue < this.sample_latency1)
@@ -328,24 +341,46 @@ namespace Crypto_Trading
                                 this.sample1Time = this.last_quote_updated_time.Value;
                             }
                             ++(this.count);
-                            if(count == 100)
+                            if(count == this.NofSample)
                             {
                                 count = 0;
+                                ++(this.currentSampling);
                             }
                         }
-                        else if((this.last_quote_updated_time.Value - this.sample1Time).TotalSeconds > this.sample_gap)
+                        else if(currentSampling == 1)
                         {
                             double currentValue = (this.last_quote_updated_time.Value - this.quoteTime).TotalMilliseconds;
-                            if (currentValue < this.intercept_latency)
+                            if (currentValue < this.intercept_latency1)
                             {
-                                this.intercept_latency = currentValue;
-                                this.intercept_time = this.last_quote_updated_time.Value;
+                                this.intercept_latency1 = currentValue;
+                                this.intercept_time1 = this.last_quote_updated_time.Value;
                             }
                             ++(this.count);
-                            if (count == 100)
+                            if (count == this.NofSample)
                             {
-                                this.coef = (this.intercept_latency - this.sample_latency1) / (this.intercept_time - this.sample1Time).TotalSeconds;
+                                this.coef = (this.intercept_latency1 - this.sample_latency1) / (this.intercept_time1 - this.sample1Time).TotalSeconds;
+                                this.intercept = this.intercept_latency1;
+                                this.intercept_time = this.intercept_time1;
                                 this.readyToTrade = true;
+                                count = 0;
+                                ++(this.currentSampling);
+                            }
+                        }
+                        else if (currentSampling == 2)
+                        {
+                            double currentValue = (this.last_quote_updated_time.Value - this.quoteTime).TotalMilliseconds;
+                            if (currentValue < this.intercept_latency2)
+                            {
+                                this.intercept_latency2 = currentValue;
+                                this.intercept_time2 = this.last_quote_updated_time.Value;
+                            }
+                            ++(this.count);
+                            if (count == this.NofSample)
+                            {
+                                this.coef = (this.intercept_latency2 - this.sample_latency1) / (this.intercept_time2 - this.sample1Time).TotalSeconds;
+                                this.intercept = this.intercept_latency2;
+                                this.intercept_time = this.intercept_time2;
+                                ++(this.currentSampling);
                             }
                         }
                     }

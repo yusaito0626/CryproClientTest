@@ -1631,7 +1631,7 @@ namespace Crypto_Linux
 
             logEntry log;
             int i = 0;
-            while(logEntryStack.TryPop(out log))
+            while(!logEntryStack.TryPop(out log))
             {
                 ++i;
                 if(i > 100000)

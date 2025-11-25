@@ -453,8 +453,8 @@ namespace Crypto_Trading
                     if(this.maker.readyToTrade && this.taker.readyToTrade)
                     {
                         addLog("Strategy " + this.name + " ready to trade.");
-                        addLog(this.maker.symbol_market + " Latency coef:" + this.maker.coef.ToString() + "  intercept:" + this.maker.intercept_latency);
-                        addLog(this.taker.symbol_market +  " Latency coef:" + this.taker.coef.ToString() + "  intercept:" + this.taker.intercept_latency);
+                        addLog(this.maker.symbol_market + " Latency coef:" + this.maker.coef.ToString() + "  intercept:" + this.maker.intercept);
+                        addLog(this.taker.symbol_market +  " Latency coef:" + this.taker.coef.ToString() + "  intercept:" + this.taker.intercept);
                         this.ready = true;
                     }
                     else
