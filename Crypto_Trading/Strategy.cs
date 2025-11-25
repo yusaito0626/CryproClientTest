@@ -48,7 +48,8 @@ namespace Crypto_Trading
 
         public bool predictFill;
         public volatile int fill_lock;
-        public Dictionary<string, DataSpotOrderUpdate> executed_Orders;
+        public Dictionary<string, DataSpotOrderUpdate> executed_Orders_old;
+        public Dictionary<string, fillType> executed_OrderIds;
 
         public string baseCcy;
         public string quoteCcy;
@@ -156,7 +157,8 @@ namespace Crypto_Trading
             this.live_buyorder_time = DateTime.UtcNow; 
             this.live_sellorder_time = DateTime.UtcNow;
             this.stg_orders = new List<string>();
-            this.executed_Orders = new Dictionary<string, DataSpotOrderUpdate>();
+            this.executed_Orders_old = new Dictionary<string, DataSpotOrderUpdate>();
+            this.executed_OrderIds = new Dictionary<string, fillType>();
 
             this.live_askprice = 0;
             this.live_bidprice = 0;
@@ -1135,8 +1137,9 @@ namespace Crypto_Trading
                         {
                             if (ord.order_price < trade.price && ord.update_time < trade.filled_time)//Assuming those 2 times are from same clock. If the buy trade price is higher than our ask
                             {
-                                if (this.executed_Orders.ContainsKey(ord.internal_order_id))
-                                {
+                                //if (this.executed_Orders_old.ContainsKey(ord.internal_order_id))
+                                if (this.executed_OrderIds.ContainsKey(ord.internal_order_id))
+                                    {
                                     //Do nothing
                                 }
                                 else
@@ -1156,7 +1159,8 @@ namespace Crypto_Trading
                                     }
                                     this.last_filled_time_sell = DateTime.UtcNow;
                                     this.last_filled_time = this.last_filled_time_sell;
-                                    this.executed_Orders[ord.internal_order_id] = ord;
+                                    //this.executed_Orders_old[ord.internal_order_id] = ord;
+                                    this.executed_OrderIds[ord.internal_order_id] = fillType.onTrade;
                                     ord.msg += "  onTrades at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat);
                                     addLog(ord.ToString());
                                 }
@@ -1182,7 +1186,8 @@ namespace Crypto_Trading
                         {
                             if (ord.order_price > trade.price && ord.update_time < trade.filled_time)//Assuming those 2 times are from same clock. If the sell trade price is lower than our bid
                             {
-                                if (this.executed_Orders.ContainsKey(ord.internal_order_id))
+                                //if (this.executed_Orders_old.ContainsKey(ord.internal_order_id))
+                                if (this.executed_OrderIds.ContainsKey(ord.internal_order_id))
                                 {
                                     //Do nothing
                                 }
@@ -1202,7 +1207,8 @@ namespace Crypto_Trading
                                     }
                                     this.last_filled_time_buy = DateTime.UtcNow;
                                     this.last_filled_time = this.last_filled_time_buy;
-                                    this.executed_Orders[ord.internal_order_id] = ord;
+                                    //this.executed_Orders_old[ord.internal_order_id] = ord;
+                                    this.executed_OrderIds[ord.internal_order_id] = fillType.onTrade;
                                     ord.msg += "  onTrades at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat);
                                     addLog(ord.ToString());
                                 }
@@ -1256,7 +1262,8 @@ namespace Crypto_Trading
                         {
 
                         }
-                        if (this.executed_Orders.ContainsKey(ord.internal_order_id))
+                        //if (this.executed_Orders_old.ContainsKey(ord.internal_order_id))
+                        if (this.executed_OrderIds.ContainsKey(ord.internal_order_id))
                         {
                             //Do nothing
                         }
@@ -1275,7 +1282,8 @@ namespace Crypto_Trading
                             }
                             this.last_filled_time_sell = DateTime.UtcNow;
                             this.last_filled_time = this.last_filled_time_sell;
-                            this.executed_Orders[ord.internal_order_id] = ord;
+                            //this.executed_Orders_old[ord.internal_order_id] = ord;
+                            this.executed_OrderIds[ord.internal_order_id] = fillType.onQuotes;
                             ord.msg += "  onMakerQuotes at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat);
                             addLog(ord.ToString());
                         }
@@ -1300,7 +1308,8 @@ namespace Crypto_Trading
                         {
 
                         }
-                        if (this.executed_Orders.ContainsKey(ord.internal_order_id))
+                        //if (this.executed_Orders_old.ContainsKey(ord.internal_order_id))
+                        if (this.executed_OrderIds.ContainsKey(ord.internal_order_id))
                         {
                             //Do nothing
                         }
@@ -1315,7 +1324,8 @@ namespace Crypto_Trading
                             this.oManager.placeNewSpotOrder(this.taker, orderSide.Sell, orderType.Market, filled_quantity, 0, null, true);
                             this.last_filled_time_buy = DateTime.UtcNow;
                             this.last_filled_time = this.last_filled_time_buy;
-                            this.executed_Orders[ord.internal_order_id] = ord;
+                            //this.executed_Orders_old[ord.internal_order_id] = ord;
+                            this.executed_OrderIds[ord.internal_order_id] = fillType.onQuotes;
                             ord.msg += "  onMakerQuotes at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat);
                             addLog(ord.ToString());
                         }
@@ -1363,7 +1373,8 @@ namespace Crypto_Trading
                     {
 
                     }
-                    if (this.executed_Orders.ContainsKey(ord.internal_order_id) || this.executed_Orders.ContainsKey(ord.market + ord.order_id))
+                    //if (this.executed_Orders_old.ContainsKey(ord.internal_order_id) || this.executed_Orders_old.ContainsKey(ord.market + ord.order_id))
+                    if (this.executed_OrderIds.ContainsKey(ord.internal_order_id) || this.executed_OrderIds.ContainsKey(ord.market + ord.order_id))
                     {
                         //Do nothing
                     }
@@ -1392,7 +1403,7 @@ namespace Crypto_Trading
 
                             }
                         }
-                        
+
                         switch (ord.side)
                         {
                             case orderSide.Buy:
@@ -1405,7 +1416,7 @@ namespace Crypto_Trading
                                 break;
                             case orderSide.Sell:
 
-                                if(filled_quantity > 0)
+                                if (filled_quantity > 0)
                                 {
                                     this.oManager.placeNewSpotOrder(this.taker, orderSide.Buy, orderType.Market, filled_quantity, 0, null, true);
                                 }
@@ -1413,9 +1424,8 @@ namespace Crypto_Trading
                                 this.last_filled_time = this.last_filled_time_sell;
                                 break;
                         }
-                        
-                        
-                        this.executed_Orders[ord.internal_order_id] = ord;
+                        //this.executed_Orders_old[ord.internal_order_id] = ord;
+                        this.executed_OrderIds[ord.internal_order_id] = fillType.onOrderUpdate;
                         ord.msg += "  onOrdUpdate at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat);
                         addLog(ord.ToString());
                     }
@@ -1476,7 +1486,8 @@ namespace Crypto_Trading
                     {
 
                     }
-                    if (this.executed_Orders.ContainsKey(fill.internal_order_id) || this.executed_Orders.ContainsKey(fill.market + fill.order_id))
+                    if ((this.executed_OrderIds.ContainsKey(fill.internal_order_id) && this.executed_OrderIds[fill.internal_order_id] != fillType.onFill) 
+                        || (this.executed_OrderIds.ContainsKey(fill.market + fill.order_id) && this.executed_OrderIds[fill.market + fill.order_id] != fillType.onFill))
                     {
                         //Do nothing
                     }
@@ -1509,7 +1520,7 @@ namespace Crypto_Trading
                                         ord = this.oManager.orders[fill.internal_order_id];
                                         if (ord.order_quantity - ord.filled_quantity <= fill.quantity || ord.status == orderStatus.Filled)
                                         {
-                                            this.executed_Orders[ord.internal_order_id] = ord;
+                                            //this.executed_Orders_old[ord.internal_order_id] = ord;
                                             ord.msg += "  onFill at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat) + fill.internal_order_id;
                                             addLog(ord.ToString());
                                             fill.msg = ord.msg;
@@ -1522,7 +1533,7 @@ namespace Crypto_Trading
                                         this.addLog("[OnFill]Order Not Found:" + fill.ToString(), Enums.logType.WARNING);
                                         if (fill.quantity == this.ToBsize)
                                         {
-                                            this.executed_Orders[fill.internal_order_id] = null;
+                                            //this.executed_Orders_old[fill.internal_order_id] = null;
                                             this.last_filled_time_buy = DateTime.UtcNow;
                                             this.last_filled_time = this.last_filled_time_buy;
                                             fill.msg = "  onFill at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat) + fill.internal_order_id;
@@ -1537,7 +1548,7 @@ namespace Crypto_Trading
 
                                         if (ord.order_quantity - ord.filled_quantity <= fill.quantity || ord.status == orderStatus.Filled)
                                         {
-                                            this.executed_Orders[ord.internal_order_id] = ord;
+                                            //this.executed_Orders_old[ord.internal_order_id] = ord;
                                             this.last_filled_time_sell = DateTime.UtcNow;
                                             this.last_filled_time = this.last_filled_time_sell;
                                             ord.msg += "  onFill at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat) + fill.internal_order_id;
@@ -1550,7 +1561,7 @@ namespace Crypto_Trading
                                         this.addLog("[OnFill]Order Not Found:" + fill.ToString(),Enums.logType.WARNING);
                                         if(fill.quantity == this.ToBsize)
                                         {
-                                            this.executed_Orders[fill.internal_order_id] = null;
+                                            //this.executed_Orders_old[fill.internal_order_id] = null;
                                             this.last_filled_time_sell = DateTime.UtcNow;
                                             this.last_filled_time = this.last_filled_time_sell;
                                             fill.msg = "  onFill at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat) + fill.internal_order_id;
@@ -1558,6 +1569,8 @@ namespace Crypto_Trading
                                     }
                                     break;
                             }
+                            //Once onFill triggered, onFill has the responsibility to hedge the entire order.
+                            this.executed_OrderIds[fill.internal_order_id] = fillType.onFill;
                         }
                         
                     }

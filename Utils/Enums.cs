@@ -56,6 +56,14 @@
         ImmediateOrCancel = 2,
         FillOrKill = 3
     }
+    public enum fillType
+    {
+        NONE = -1,
+        onFill = 1,
+        onOrderUpdate = 2,
+        onTrade = 3,
+        onQuotes = 4
+    }
     public enum  ordError
     {
         NONE = 0,
