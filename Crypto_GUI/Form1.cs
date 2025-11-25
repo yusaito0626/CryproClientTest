@@ -1297,7 +1297,7 @@ namespace Crypto_GUI
                 {
                     this.lbl_takerName.Text = this.selected_stg.taker.symbol_market;
                     this.lbl_baseCcy_taker.Text = this.selected_stg.taker.baseBalance.total.ToString("N5");
-                    this.lbl_quoteCcy_taker.Text = this.selected_stg.taker.quoteBalance.total.ToString("N5");
+                    this.lbl_quoteCcy_taker.Text = this.selected_stg.taker.quoteBalance.total.ToString("N2");
                     this.lbl_makerfee_taker.Text = this.selected_stg.taker.maker_fee.ToString("N5");
                     this.lbl_takerfee_taker.Text = this.selected_stg.taker.taker_fee.ToString("N5");
                     this.updateQuotesView(this.gridView_Taker, this.selected_stg.taker);
@@ -1308,14 +1308,14 @@ namespace Crypto_GUI
                 {
                     this.lbl_makerName.Text = this.selected_stg.maker.symbol_market;
                     this.lbl_baseCcy_maker.Text = this.selected_stg.maker.baseBalance.total.ToString("N5");
-                    this.lbl_quoteCcy_maker.Text = this.selected_stg.maker.quoteBalance.total.ToString("N5");
+                    this.lbl_quoteCcy_maker.Text = this.selected_stg.maker.quoteBalance.total.ToString("N2");
                     this.lbl_makerfee_maker.Text = this.selected_stg.maker.maker_fee.ToString("N5");
                     this.lbl_takerfee_maker.Text = this.selected_stg.maker.taker_fee.ToString("N5");
                     this.updateQuotesView(this.gridView_Maker, this.selected_stg.maker);
                     this.lbl_askprice.Text = this.selected_stg.live_askprice.ToString("N" + this.selected_stg.maker.price_scale);
                     this.lbl_bidprice.Text = this.selected_stg.live_bidprice.ToString("N" + this.selected_stg.maker.price_scale);
-                    this.lbl_skewpoint.Text = this.selected_stg.skew_point.ToString("N");
-                    this.lbl_stgmarkup.Text = this.selected_stg.base_markup.ToString("N");
+                    this.lbl_skewpoint.Text = this.selected_stg.skew_point.ToString("N2");
+                    this.lbl_stgmarkup.Text = this.selected_stg.base_markup.ToString("N2");
                 }
                 foreach (DataGridViewRow row in this.gridView_orders.Rows)
                 {
@@ -1396,7 +1396,7 @@ namespace Crypto_GUI
             {
                 if (!this.monitoringMode)
                 {
-                    this.oManager.setVirtualMode(!liveTrading);
+                    //this.oManager.setVirtualMode(!liveTrading);
                     foreach (var mkt in this.qManager._markets)
                     {
                         if (this.msgLogging)

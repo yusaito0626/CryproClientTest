@@ -472,17 +472,19 @@
             // lbl_stgmarkup
             // 
             lbl_stgmarkup.AutoSize = true;
-            lbl_stgmarkup.Location = new Point(450, 487);
+            lbl_stgmarkup.ImageAlign = ContentAlignment.MiddleRight;
+            lbl_stgmarkup.Location = new Point(444, 483);
             lbl_stgmarkup.Margin = new Padding(2, 0, 2, 0);
             lbl_stgmarkup.Name = "lbl_stgmarkup";
             lbl_stgmarkup.Size = new Size(44, 20);
             lbl_stgmarkup.TabIndex = 35;
             lbl_stgmarkup.Text = "value";
+            lbl_stgmarkup.TextAlign = ContentAlignment.MiddleRight;
             // 
             // label52
             // 
             label52.AutoSize = true;
-            label52.Location = new Point(376, 487);
+            label52.Location = new Point(379, 483);
             label52.Margin = new Padding(2, 0, 2, 0);
             label52.Name = "label52";
             label52.Size = new Size(62, 20);
@@ -592,22 +594,26 @@
             // lbl_adjustedbid
             // 
             lbl_adjustedbid.AutoSize = true;
-            lbl_adjustedbid.Location = new Point(804, 520);
+            lbl_adjustedbid.ImageAlign = ContentAlignment.MiddleRight;
+            lbl_adjustedbid.Location = new Point(817, 520);
             lbl_adjustedbid.Margin = new Padding(2, 0, 2, 0);
             lbl_adjustedbid.Name = "lbl_adjustedbid";
             lbl_adjustedbid.Size = new Size(44, 20);
             lbl_adjustedbid.TabIndex = 30;
             lbl_adjustedbid.Text = "value";
+            lbl_adjustedbid.TextAlign = ContentAlignment.MiddleRight;
             // 
             // lbl_adjustedask
             // 
             lbl_adjustedask.AutoSize = true;
-            lbl_adjustedask.Location = new Point(635, 520);
+            lbl_adjustedask.ImageAlign = ContentAlignment.MiddleRight;
+            lbl_adjustedask.Location = new Point(634, 520);
             lbl_adjustedask.Margin = new Padding(2, 0, 2, 0);
             lbl_adjustedask.Name = "lbl_adjustedask";
             lbl_adjustedask.Size = new Size(44, 20);
             lbl_adjustedask.TabIndex = 29;
             lbl_adjustedask.Text = "value";
+            lbl_adjustedask.TextAlign = ContentAlignment.MiddleRight;
             // 
             // label28
             // 
@@ -622,17 +628,19 @@
             // lbl_skewpoint
             // 
             lbl_skewpoint.AutoSize = true;
-            lbl_skewpoint.Location = new Point(450, 525);
+            lbl_skewpoint.ImageAlign = ContentAlignment.MiddleRight;
+            lbl_skewpoint.Location = new Point(444, 521);
             lbl_skewpoint.Margin = new Padding(2, 0, 2, 0);
             lbl_skewpoint.Name = "lbl_skewpoint";
             lbl_skewpoint.Size = new Size(44, 20);
             lbl_skewpoint.TabIndex = 27;
             lbl_skewpoint.Text = "value";
+            lbl_skewpoint.TextAlign = ContentAlignment.MiddleRight;
             // 
             // label24
             // 
             label24.AutoSize = true;
-            label24.Location = new Point(376, 525);
+            label24.Location = new Point(379, 521);
             label24.Margin = new Padding(2, 0, 2, 0);
             label24.Name = "label24";
             label24.Size = new Size(44, 20);
@@ -652,22 +660,26 @@
             // lbl_bidprice
             // 
             lbl_bidprice.AutoSize = true;
-            lbl_bidprice.Location = new Point(278, 520);
+            lbl_bidprice.ImageAlign = ContentAlignment.MiddleRight;
+            lbl_bidprice.Location = new Point(287, 520);
             lbl_bidprice.Margin = new Padding(2, 0, 2, 0);
             lbl_bidprice.Name = "lbl_bidprice";
             lbl_bidprice.Size = new Size(44, 20);
             lbl_bidprice.TabIndex = 24;
             lbl_bidprice.Text = "value";
+            lbl_bidprice.TextAlign = ContentAlignment.MiddleRight;
             // 
             // lbl_askprice
             // 
             lbl_askprice.AutoSize = true;
-            lbl_askprice.Location = new Point(109, 520);
+            lbl_askprice.ImageAlign = ContentAlignment.MiddleRight;
+            lbl_askprice.Location = new Point(104, 520);
             lbl_askprice.Margin = new Padding(2, 0, 2, 0);
             lbl_askprice.Name = "lbl_askprice";
             lbl_askprice.Size = new Size(44, 20);
             lbl_askprice.TabIndex = 23;
             lbl_askprice.Text = "value";
+            lbl_askprice.TextAlign = ContentAlignment.MiddleRight;
             // 
             // label20
             // 
@@ -682,22 +694,26 @@
             // lbl_quoteCcy_taker
             // 
             lbl_quoteCcy_taker.AutoSize = true;
-            lbl_quoteCcy_taker.Location = new Point(804, 555);
+            lbl_quoteCcy_taker.ImageAlign = ContentAlignment.MiddleRight;
+            lbl_quoteCcy_taker.Location = new Point(817, 555);
             lbl_quoteCcy_taker.Margin = new Padding(2, 0, 2, 0);
             lbl_quoteCcy_taker.Name = "lbl_quoteCcy_taker";
             lbl_quoteCcy_taker.Size = new Size(44, 20);
             lbl_quoteCcy_taker.TabIndex = 21;
             lbl_quoteCcy_taker.Text = "value";
+            lbl_quoteCcy_taker.TextAlign = ContentAlignment.MiddleRight;
             // 
             // lbl_baseCcy_taker
             // 
             lbl_baseCcy_taker.AutoSize = true;
-            lbl_baseCcy_taker.Location = new Point(636, 555);
+            lbl_baseCcy_taker.ImageAlign = ContentAlignment.MiddleRight;
+            lbl_baseCcy_taker.Location = new Point(635, 555);
             lbl_baseCcy_taker.Margin = new Padding(2, 0, 2, 0);
             lbl_baseCcy_taker.Name = "lbl_baseCcy_taker";
             lbl_baseCcy_taker.Size = new Size(44, 20);
             lbl_baseCcy_taker.TabIndex = 20;
             lbl_baseCcy_taker.Text = "value";
+            lbl_baseCcy_taker.TextAlign = ContentAlignment.MiddleRight;
             // 
             // label22
             // 
@@ -722,22 +738,26 @@
             // lbl_quoteCcy_maker
             // 
             lbl_quoteCcy_maker.AutoSize = true;
-            lbl_quoteCcy_maker.Location = new Point(278, 555);
+            lbl_quoteCcy_maker.ImageAlign = ContentAlignment.MiddleRight;
+            lbl_quoteCcy_maker.Location = new Point(287, 555);
             lbl_quoteCcy_maker.Margin = new Padding(2, 0, 2, 0);
             lbl_quoteCcy_maker.Name = "lbl_quoteCcy_maker";
             lbl_quoteCcy_maker.Size = new Size(44, 20);
             lbl_quoteCcy_maker.TabIndex = 17;
             lbl_quoteCcy_maker.Text = "value";
+            lbl_quoteCcy_maker.TextAlign = ContentAlignment.MiddleRight;
             // 
             // lbl_baseCcy_maker
             // 
             lbl_baseCcy_maker.AutoSize = true;
-            lbl_baseCcy_maker.Location = new Point(109, 555);
+            lbl_baseCcy_maker.ImageAlign = ContentAlignment.MiddleRight;
+            lbl_baseCcy_maker.Location = new Point(104, 555);
             lbl_baseCcy_maker.Margin = new Padding(2, 0, 2, 0);
             lbl_baseCcy_maker.Name = "lbl_baseCcy_maker";
             lbl_baseCcy_maker.Size = new Size(44, 20);
             lbl_baseCcy_maker.TabIndex = 16;
             lbl_baseCcy_maker.Text = "value";
+            lbl_baseCcy_maker.TextAlign = ContentAlignment.MiddleRight;
             // 
             // label19
             // 
@@ -762,12 +782,14 @@
             // lbl_takerfee_taker
             // 
             lbl_takerfee_taker.AutoSize = true;
-            lbl_takerfee_taker.Location = new Point(804, 484);
+            lbl_takerfee_taker.ImageAlign = ContentAlignment.MiddleRight;
+            lbl_takerfee_taker.Location = new Point(817, 484);
             lbl_takerfee_taker.Margin = new Padding(2, 0, 2, 0);
             lbl_takerfee_taker.Name = "lbl_takerfee_taker";
             lbl_takerfee_taker.Size = new Size(44, 20);
             lbl_takerfee_taker.TabIndex = 12;
             lbl_takerfee_taker.Text = "value";
+            lbl_takerfee_taker.TextAlign = ContentAlignment.MiddleRight;
             // 
             // label10
             // 
@@ -782,12 +804,14 @@
             // lbl_makerfee_taker
             // 
             lbl_makerfee_taker.AutoSize = true;
-            lbl_makerfee_taker.Location = new Point(636, 484);
+            lbl_makerfee_taker.ImageAlign = ContentAlignment.MiddleRight;
+            lbl_makerfee_taker.Location = new Point(635, 484);
             lbl_makerfee_taker.Margin = new Padding(2, 0, 2, 0);
             lbl_makerfee_taker.Name = "lbl_makerfee_taker";
             lbl_makerfee_taker.Size = new Size(44, 20);
             lbl_makerfee_taker.TabIndex = 10;
             lbl_makerfee_taker.Text = "value";
+            lbl_makerfee_taker.TextAlign = ContentAlignment.MiddleRight;
             // 
             // label12
             // 
@@ -802,12 +826,14 @@
             // lbl_takerfee_maker
             // 
             lbl_takerfee_maker.AutoSize = true;
-            lbl_takerfee_maker.Location = new Point(278, 484);
+            lbl_takerfee_maker.ImageAlign = ContentAlignment.MiddleRight;
+            lbl_takerfee_maker.Location = new Point(287, 484);
             lbl_takerfee_maker.Margin = new Padding(2, 0, 2, 0);
             lbl_takerfee_maker.Name = "lbl_takerfee_maker";
             lbl_takerfee_maker.Size = new Size(44, 20);
             lbl_takerfee_maker.TabIndex = 8;
             lbl_takerfee_maker.Text = "value";
+            lbl_takerfee_maker.TextAlign = ContentAlignment.MiddleRight;
             // 
             // label9
             // 
@@ -822,12 +848,14 @@
             // lbl_makerfee_maker
             // 
             lbl_makerfee_maker.AutoSize = true;
-            lbl_makerfee_maker.Location = new Point(109, 484);
+            lbl_makerfee_maker.ImageAlign = ContentAlignment.MiddleRight;
+            lbl_makerfee_maker.Location = new Point(104, 484);
             lbl_makerfee_maker.Margin = new Padding(2, 0, 2, 0);
             lbl_makerfee_maker.Name = "lbl_makerfee_maker";
             lbl_makerfee_maker.Size = new Size(44, 20);
             lbl_makerfee_maker.TabIndex = 6;
             lbl_makerfee_maker.Text = "value";
+            lbl_makerfee_maker.TextAlign = ContentAlignment.MiddleRight;
             // 
             // label7
             // 

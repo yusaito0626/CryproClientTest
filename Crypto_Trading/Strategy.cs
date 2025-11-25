@@ -489,7 +489,7 @@ namespace Crypto_Trading
                 double taker_VR = this.taker.realized_volatility;
                 if(this.taker.prev_RV > 0)
                 {
-                    taker_VR = (taker_VR + this.taker.prev_RV) / 2;
+                    taker_VR = 0.7 * taker_VR + 0.3 * this.taker.prev_RV;
                 }
                 //decimal vr_markup = (decimal)(taker_VR / Math.Sqrt(this.taker.RV_minute * 60) * 1_000_000) * this.RVMarkup_multiplier;
                 decimal vr_markup = this.markup * (decimal)Math.Exp(taker_VR / Math.Sqrt(this.taker.RV_minute * 60) * 1_000_000 / (double)this.markup) * this.RVMarkup_multiplier;
@@ -497,7 +497,7 @@ namespace Crypto_Trading
 
                 if (vr_markup > this.markup)
                 {
-                    vr_markup = Math.Ceiling(vr_markup / this.markup) * this.markup;
+                    vr_markup = Math.Ceiling(vr_markup / 50) * 50;
                 }
 
                 this.modThreshold = this.config_modThreshold;

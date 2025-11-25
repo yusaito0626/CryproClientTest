@@ -55,6 +55,7 @@ namespace Crypto_Clients
         Stopwatch sw_Public;
 
         bool closeSent;
+        bool pubnubReconnecting = false;
         bool pubnubReconnected = false;
 
         private List<string> subscribingChannels;
@@ -1106,10 +1107,12 @@ namespace Crypto_Clients
                         case PNStatusCategory.PNDisconnectedCategory:
                         case PNStatusCategory.PNUnexpectedDisconnectCategory:
                         case PNStatusCategory.PNAccessDeniedCategory:
+                            this.pubnubReconnecting = true;
                             this.pubnub_state = WebSocketState.Closed;
                             this.addLog("pubnub reconnecting...");
                             await connectPrivateAsync();
                             this.pubnubReconnected = true;
+                            this.pubnubReconnecting = false;
                             break;
 
                         default:
