@@ -1998,24 +1998,26 @@ namespace Crypto_Trading
 
                                     }
 
-                                    if (ord.status < prevord.status || ord.filled_quantity < prevord.filled_quantity)
+                                    if ((ord.status < prevord.status || ord.filled_quantity < prevord.filled_quantity) && !(prevord.status == orderStatus.WaitCancel && ord.status == orderStatus.Open))
                                     {
-                                        if(prevord.status == orderStatus.WaitCancel && ord.status == orderStatus.Open)
-                                        {
-                                            this.orders[ord.internal_order_id] = ord;
-                                            this.live_orders[ord.internal_order_id] = ord;
-                                            if (ins != null)
-                                            {
-                                                ins.live_orders[ord.internal_order_id] = ord;
-                                            }
-                                            prevord.update_time = DateTime.UtcNow;
-                                            this.order_pool.Enqueue(prevord);
-                                        }
-                                        else
-                                        {
-                                            ord.update_time = DateTime.UtcNow;
-                                            this.order_pool.Enqueue(ord);
-                                        }
+                                        //if(prevord.status == orderStatus.WaitCancel && ord.status == orderStatus.Open)
+                                        //{
+                                        //    this.orders[ord.internal_order_id] = ord;
+                                        //    this.live_orders[ord.internal_order_id] = ord;
+                                        //    if (ins != null)
+                                        //    {
+                                        //        ins.live_orders[ord.internal_order_id] = ord;
+                                        //    }
+                                        //    prevord.update_time = DateTime.UtcNow;
+                                        //    this.order_pool.Enqueue(prevord);
+                                        //}
+                                        //else
+                                        //{
+                                        //    ord.update_time = DateTime.UtcNow;
+                                        //    this.order_pool.Enqueue(ord);
+                                        //}
+                                        ord.update_time = DateTime.UtcNow;
+                                        this.order_pool.Enqueue(ord);
                                     }
                                     else
                                     {
