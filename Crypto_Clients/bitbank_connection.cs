@@ -81,7 +81,6 @@ namespace Crypto_Clients
                 BaseAddress = new Uri(URL),
                 Timeout = TimeSpan.FromSeconds(10)
             };
-
             //this.orderQueue = new ConcurrentQueue<JsonElement>();
             //this.fillQueue = new ConcurrentQueue<JsonElement>();
 
@@ -149,9 +148,10 @@ namespace Crypto_Clients
         {
             if(Interlocked.CompareExchange(ref this.refreshing,1,0) == 0)
             {
+                Thread.Sleep(2000);
                 this.http_client.Dispose();
                 this._handler.Dispose();
-                Thread.Sleep(2000);
+                Thread.Sleep(1000);
                 this._handler = this.createHandler();
 
                 this.http_client = new HttpClient(_handler)
@@ -710,48 +710,56 @@ namespace Crypto_Clients
             
             try
             {
-                var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                var timeWindow = "5000";
-                var message = $"{nonce}{timeWindow}{endpoint}{body}";
-
-                HttpRequestMessage request;
-
-                if (url != "")
+                if(this.refreshing == 0)
                 {
-                    request = new HttpRequestMessage(HttpMethod.Get, url + endpoint + body);
+                    var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                    var timeWindow = "5000";
+                    var message = $"{nonce}{timeWindow}{endpoint}{body}";
+
+                    HttpRequestMessage request;
+
+                    if (url != "")
+                    {
+                        request = new HttpRequestMessage(HttpMethod.Get, url + endpoint + body);
+                    }
+                    else
+                    {
+                        request = new HttpRequestMessage(HttpMethod.Get, bitbank_connection.URL + endpoint + body);
+                    }
+
+
+                    request.Headers.Add("ACCESS-KEY", this.apiName);
+                    request.Headers.Add("ACCESS-REQUEST-TIME", nonce.ToString());
+                    request.Headers.Add("ACCESS-TIME-WINDOW", timeWindow);
+                    request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
+
+                    request.Content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
+
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    using var watchDogCts = new CancellationTokenSource();
+
+                    var watchDog = Task.Delay(10000, watchDogCts.Token);
+                    var task = this.http_client.SendAsync(request, cts.Token);
+                    var compleretedTask = await Task.WhenAny(task, watchDog);
+
+                    if (compleretedTask == watchDog)
+                    {
+                        this.addLog("The request has timed out.(WatchDog)", Enums.logType.WARNING);
+                        return "{\"success\":0,\"data\":{\"code\":80001}}";
+                    }
+
+                    watchDogCts.Cancel();
+                    var response = await task;
+
+                    //var response = await this.http_client.SendAsync(request,cts.Token);
+                    var resString = await response.Content.ReadAsStringAsync();
+                    return resString;
                 }
                 else
                 {
-                    request = new HttpRequestMessage(HttpMethod.Get, bitbank_connection.URL + endpoint + body);
+                    this.addLog("The http client is being refreshed.", Enums.logType.WARNING);
+                    return "{\"success\":0,\"data\":{\"code\":80002}}";
                 }
-
-
-                request.Headers.Add("ACCESS-KEY", this.apiName);
-                request.Headers.Add("ACCESS-REQUEST-TIME", nonce.ToString());
-                request.Headers.Add("ACCESS-TIME-WINDOW", timeWindow);
-                request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
-
-                request.Content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
-                
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                using var watchDogCts = new CancellationTokenSource();
-
-                var watchDog = Task.Delay(10000,watchDogCts.Token);
-                var task = this.http_client.SendAsync(request, cts.Token);
-                var compleretedTask = await Task.WhenAny(task, watchDog);
-
-                if(compleretedTask == watchDog)
-                {
-                    this.addLog("The request has timed out.(WatchDog)", Enums.logType.WARNING);
-                    return "{\"success\":0,\"data\":{\"code\":80001}}";
-                }
-
-                watchDogCts.Cancel();
-                var response = await task;
-
-                //var response = await this.http_client.SendAsync(request,cts.Token);
-                var resString = await response.Content.ReadAsStringAsync();
-                return resString;
             }
             catch (TaskCanceledException tce)
             {
@@ -773,56 +781,64 @@ namespace Crypto_Clients
         {
             try
             {
-                var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                var timeWindow = "5000";
-                var message = $"{nonce}{timeWindow}{body}";
-
-                var request = new HttpRequestMessage(HttpMethod.Post, bitbank_connection.URL + endpoint);
-
-                request.Content = new StringContent(body, Encoding.UTF8, "application/json");
-
-                request.Headers.Add("ACCESS-KEY", this.apiName);
-                request.Headers.Add("ACCESS-REQUEST-TIME", nonce.ToString());
-                request.Headers.Add("ACCESS-TIME-WINDOW", timeWindow);
-                request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
-
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                using var watchDogCts = new CancellationTokenSource();
-
-                if (this.logging)
+                if(this.refreshing == 0)
                 {
-                    this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   POST " + endpoint + " " + body);
-                    //this.logFilePublic.Flush();
+                    var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                    var timeWindow = "5000";
+                    var message = $"{nonce}{timeWindow}{body}";
+
+                    var request = new HttpRequestMessage(HttpMethod.Post, bitbank_connection.URL + endpoint);
+
+                    request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+                    request.Headers.Add("ACCESS-KEY", this.apiName);
+                    request.Headers.Add("ACCESS-REQUEST-TIME", nonce.ToString());
+                    request.Headers.Add("ACCESS-TIME-WINDOW", timeWindow);
+                    request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
+
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    using var watchDogCts = new CancellationTokenSource();
+
+                    if (this.logging)
+                    {
+                        this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   POST " + endpoint + " " + body);
+                        //this.logFilePublic.Flush();
+                    }
+
+                    var watchDog = Task.Delay(10000, watchDogCts.Token);
+                    sw_POST.Restart();
+                    var task = this.http_client.SendAsync(request, cts.Token);
+
+                    var compleretedTask = await Task.WhenAny(task, watchDog);
+
+                    sw_POST.Stop();
+                    this.elapsedTime_POST = (this.elapsedTime_POST * this.count + sw_POST.Elapsed.TotalNanoseconds / 1000) / (this.count + 1);
+                    ++this.count;
+
+                    if (compleretedTask == watchDog)
+                    {
+                        this.addLog("The request has timed out.(WatchDog)", Enums.logType.WARNING);
+                        return "{\"success\":0,\"data\":{\"code\":80001}}";
+                    }
+                    watchDogCts.Cancel();
+
+                    if (sw_POST.Elapsed.TotalNanoseconds > 3_000_000_000)
+                    {
+                        this.addLog("The roundtrip time exceeded 3 sec.    Time:" + (sw_POST.Elapsed.TotalNanoseconds / 1_000_000_000).ToString("N3") + "[sec]", Enums.logType.WARNING);
+                    }
+
+                    var response = await task;
+
+                    //sw_POST.Reset();
+                    var resString = await response.Content.ReadAsStringAsync();
+
+                    return resString;
                 }
-
-                var watchDog = Task.Delay(10000, watchDogCts.Token);
-                sw_POST.Restart();
-                var task = this.http_client.SendAsync(request, cts.Token);
-
-                var compleretedTask = await Task.WhenAny(task, watchDog);
-
-                sw_POST.Stop();
-                this.elapsedTime_POST = (this.elapsedTime_POST * this.count + sw_POST.Elapsed.TotalNanoseconds / 1000) / (this.count + 1);
-                ++this.count;
-
-                if (compleretedTask == watchDog)
+                else
                 {
-                    this.addLog("The request has timed out.(WatchDog)", Enums.logType.WARNING);
-                    return "{\"success\":0,\"data\":{\"code\":80001}}";
+                    this.addLog("The http client is being refreshed.", Enums.logType.WARNING);
+                    return "{\"success\":0,\"data\":{\"code\":80002}}";
                 }
-                watchDogCts.Cancel();
-                
-                if (sw_POST.Elapsed.TotalNanoseconds > 3_000_000_000)
-                {
-                    this.addLog("The roundtrip time exceeded 3 sec.    Time:" + (sw_POST.Elapsed.TotalNanoseconds / 1_000_000_000).ToString("N3") + "[sec]", Enums.logType.WARNING);
-                }
-
-                var response = await task;
-
-                //sw_POST.Reset();
-                var resString = await response.Content.ReadAsStringAsync();
-
-                return resString;
             }
             catch (TaskCanceledException tce)
             {

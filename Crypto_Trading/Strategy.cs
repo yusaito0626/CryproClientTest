@@ -506,10 +506,10 @@ namespace Crypto_Trading
                 decimal vr_markup = this.markup * (decimal)Math.Exp(taker_VR / Math.Sqrt(this.taker.RV_minute * 60) * 1_000_000 / (double)this.markup) * this.RVMarkup_multiplier;
 
 
-                if (vr_markup > this.markup)
-                {
-                    vr_markup = Math.Ceiling(vr_markup / 50) * 50;
-                }
+                //if (vr_markup > this.markup)
+                //{
+                //    vr_markup = Math.Ceiling(vr_markup / 50) * 50;
+                //}
 
                 this.modThreshold = this.config_modThreshold;
 
@@ -604,6 +604,7 @@ namespace Crypto_Trading
                 {
                     markup_bid += Math.Max(markup_decay, -1) * this.markup;
                     markup_ask += Math.Max(markup_decay, -1) * this.markup;
+
                     decimal temp_askSize = ordersize_ask * this.ToBsizeMultiplier;
                     if(this.maker.baseBalance.total - temp_askSize >= this.baseCcyQuantity * ((decimal)0.5 - this.skewThreshold / 200))
                     {
@@ -615,8 +616,6 @@ namespace Crypto_Trading
                     {
                         ordersize_bid = temp_bidSize;
                     }
-                    //ordersize_ask *= this.ToBsizeMultiplier;
-                    //ordersize_bid *= this.ToBsizeMultiplier;
                 }
                 this.temp_markup_ask = markup_ask;
                 this.temp_markup_bid = markup_bid;
@@ -632,21 +631,6 @@ namespace Crypto_Trading
                     ask_price *= (1 + markup_ask / 1000000);
                 }
 
-                //if (this.skew_point > 0)
-                //{
-                //    bid_price *= (1 + (-this.markup + this.skew_point) / 1000000);
-                //    ask_price *= (1 + (this.markup + (decimal)(1 + this.skewWidening) * this.skew_point) / 1000000);
-                //}
-                //else if (this.skew_point < 0)
-                //{
-                //    bid_price *= (1 + (-this.markup + (decimal)(1 + this.skewWidening) * this.skew_point) / 1000000);
-                //    ask_price *= (1 + (this.markup + this.skew_point) / 1000000);
-                //}
-                //else
-                //{
-                //    bid_price *= (1 + (-this.markup) / 1000000);
-                //    ask_price *= (1 + (this.markup) / 1000000);
-                //}
                 while (Interlocked.CompareExchange(ref this.maker.quotes_lock, 1, 0) != 0)
                 {
                 }
@@ -742,13 +726,7 @@ namespace Crypto_Trading
                     ask_price = 0;
                 }
 
-                bool isPriceChanged = this.checkPriceChange(modTh_buffer);
-
-                if (isPriceChanged)
-                {
-                    this.taker_last_updated_mid = this.taker.adj_mid;
-                    this.maker_last_updated_mid = this.maker.adj_mid;
-                }
+                bool isPriceChanged = this.checkPriceChange("taker",modTh_buffer);
 
                 while (Interlocked.CompareExchange(ref this.updating, 1, 0) != 0)
                 {
@@ -1022,11 +1000,30 @@ namespace Crypto_Trading
 
             return ret;
         }
-        public bool checkPriceChange(decimal buf = 0)
+        public bool checkPriceChange(string takerORmaker = "",decimal buf = 0)
         {
-            bool taker_check = (this.taker_last_updated_mid == 0 || this.taker.mid / this.taker_last_updated_mid > 1 + this.modThreshold + buf || this.taker.mid / this.taker_last_updated_mid < 1 - this.modThreshold - buf);
-            bool maker_check = (this.maker_last_updated_mid == 0 || this.maker.mid / this.maker_last_updated_mid > 1 + this.modThreshold + buf || this.maker.mid / this.maker_last_updated_mid < 1 - this.modThreshold - buf);
-            return (taker_check || maker_check);
+            bool taker_check = (this.taker_last_updated_mid == 0 || this.taker.adj_mid / this.taker_last_updated_mid > 1 + this.modThreshold + buf || this.taker.adj_mid / this.taker_last_updated_mid < 1 - this.modThreshold - buf);
+            bool maker_check = (this.maker_last_updated_mid == 0 || this.maker.adj_mid / this.maker_last_updated_mid > 1 + this.modThreshold + buf || this.maker.adj_mid / this.maker_last_updated_mid < 1 - this.modThreshold - buf);
+            if(taker_check)
+            {
+                this.taker_last_updated_mid = this.taker.adj_mid;
+            }
+            if(maker_check)
+            {
+                this.maker_last_updated_mid = this.maker.adj_mid;
+            }
+            if(takerORmaker.ToLower() == "taker")
+            {
+                return taker_check;
+            }
+            else if(takerORmaker.ToLower() == "maker")
+            {
+                return maker_check;
+            }
+            else
+            {
+                return (taker_check || maker_check);
+            }
         }
 
         public async Task adjustPosition()

@@ -1186,7 +1186,7 @@ namespace Crypto_Linux
                     if (!File.Exists(performanceFile))
                     {
                         lines = new List<string>();
-                        lines.Add("date,strategy,baseBalance_open,quoteBalance_open,baseBalance_close,quoteBalance_close,baseHedge_quantity,open_mid,close_mid,TotalPnL,pos_diff");
+                        lines.Add("date,strategy,baseBalance_open,quoteBalance_open,baseBalance_close,quoteBalance_close,baseHedge_quantity,notional_volume,open_mid,close_mid,TotalPnL,pos_diff");
 
                     }
                     else
@@ -1208,12 +1208,13 @@ namespace Crypto_Linux
                         decimal quoteBalance_open = stg.maker.SoD_quoteBalance.total + stg.taker.SoD_quoteBalance.total;
                         decimal baseBalance_close = stg.maker.baseBalance.total + stg.taker.baseBalance.total;
                         decimal quoteBalance_close = stg.maker.quoteBalance.total + stg.taker.quoteBalance.total;
-                        decimal baseHedge_quantity = stg.baseCcyQuantity;
-                        decimal open_mid = stg.taker.open_mid;
+                        
                         stg.taker.mid = await crypto_client.getCurrentMid(stg.taker.market, stg.taker.symbol);
                         stg.maker.mid = await crypto_client.getCurrentMid(stg.maker.market, stg.taker.symbol);
 
-                        decimal totalPnL = (baseBalance_open - baseHedge_quantity) * (stg.taker.mid - stg.taker.open_mid)
+                        decimal notionalVolume = stg.maker.my_buy_notional + stg.maker.my_sell_notional;
+
+                        decimal totalPnL = (baseBalance_open - stg.baseCcyQuantity) * (stg.taker.mid - stg.taker.open_mid)
                             + (stg.taker.my_sell_notional - stg.taker.my_sell_quantity * stg.taker.mid) + (stg.taker.my_buy_quantity * stg.taker.mid - stg.taker.my_buy_notional)
                             + (stg.maker.my_sell_notional - stg.maker.my_sell_quantity * stg.taker.mid) + (stg.maker.my_buy_quantity * stg.taker.mid - stg.maker.my_buy_notional)
                             - (stg.taker.base_fee * stg.taker.mid + stg.taker.quote_fee + stg.maker.base_fee * stg.taker.mid + stg.maker.quote_fee);
@@ -1221,7 +1222,7 @@ namespace Crypto_Linux
                             + quoteBalance_close - quoteBalance_open;
 
                         string line = today + "," + stg.name + "," + baseBalance_open.ToString() + "," + quoteBalance_open.ToString() + ","
-                            + baseBalance_close.ToString() + "," + quoteBalance_close.ToString() + "," + stg.baseCcyQuantity.ToString() + "," + stg.taker.open_mid.ToString() + "," + stg.taker.mid.ToString() + ","
+                            + baseBalance_close.ToString() + "," + quoteBalance_close.ToString() + "," + stg.baseCcyQuantity.ToString() + "," + notionalVolume.ToString() + "," + stg.taker.open_mid.ToString() + "," + stg.taker.mid.ToString() + ","
                             + totalPnL.ToString() + "," + pos_diff.ToString();
 
                         lines.Add(line);

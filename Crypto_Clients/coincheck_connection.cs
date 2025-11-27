@@ -68,6 +68,7 @@ namespace Crypto_Clients
 
 
         volatile int refreshing = 0;
+        volatile int httpReady = 0;
 
         private coincheck_connection()
         {
@@ -152,9 +153,10 @@ namespace Crypto_Clients
         {
             if (Interlocked.CompareExchange(ref this.refreshing, 1, 0) == 0)
             {
+                Thread.Sleep(2000);
                 this.http_client.Dispose();
                 this._handler.Dispose();
-                Thread.Sleep(2000);
+                Thread.Sleep(1000);
                 this._handler = this.createHandler();
 
                 this.http_client = new HttpClient(_handler)
@@ -1002,43 +1004,50 @@ namespace Crypto_Clients
         {
             try
             {
-                while (Interlocked.CompareExchange(ref this.nonceChecking, 1, 0) != 0)
+                if(this.refreshing == 0)
                 {
+                    while (Interlocked.CompareExchange(ref this.nonceChecking, 1, 0) != 0)
+                    {
 
-                }
-                var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                if (nonce <= this.lastnonce)
-                {
-                    nonce = this.lastnonce + 1;
-                }
-                this.lastnonce = nonce;
-                var message = $"{nonce}{coincheck_connection.URL}{endpoint}";
+                    }
+                    var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                    if (nonce <= this.lastnonce)
+                    {
+                        nonce = this.lastnonce + 1;
+                    }
+                    this.lastnonce = nonce;
+                    var message = $"{nonce}{coincheck_connection.URL}{endpoint}";
 
-                var request = new HttpRequestMessage(HttpMethod.Get, coincheck_connection.URL + endpoint);
+                    var request = new HttpRequestMessage(HttpMethod.Get, coincheck_connection.URL + endpoint);
 
-                request.Headers.Add("ACCESS-KEY", this.apiName);
-                request.Headers.Add("ACCESS-NONCE", nonce.ToString());
-                request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
+                    request.Headers.Add("ACCESS-KEY", this.apiName);
+                    request.Headers.Add("ACCESS-NONCE", nonce.ToString());
+                    request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
 
-                if (body == "")
-                {
-                    request.Content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
+                    if (body == "")
+                    {
+                        request.Content = new StringContent(string.Empty, Encoding.UTF8, "application/json");
+                    }
+                    else
+                    {
+                        request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+                    }
+                    if (this.logging)
+                    {
+                        this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   GET" + endpoint + body);
+                    }
+                    Volatile.Write(ref this.nonceChecking, 0);
+                    var response = await this.http_client.SendAsync(request);
+                    var resString = await response.Content.ReadAsStringAsync();
+
+                    return resString;
                 }
                 else
                 {
-                    request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+                    this.addLog("The http client is being refreshed.", Enums.logType.WARNING);
+                    return "{\"success\":false,\"error\":\"The httpclient is not ready\"}";
                 }
-                if (this.logging)
-                {
-                    this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   GET" + endpoint + body);
-                }
-
-
-                Volatile.Write(ref this.nonceChecking, 0);
-                var response = await this.http_client.SendAsync(request);
-                var resString = await response.Content.ReadAsStringAsync();
-
-                return resString;
+                
             }
             catch (TaskCanceledException tce)
             {
@@ -1055,52 +1064,59 @@ namespace Crypto_Clients
                 this.addLog("Error occured during getAsync. " + ex.Message, Enums.logType.ERROR);
                 return "{\"success\":false,\"error\":\"" + ex.Message + "\"}";
             }
-            
         }
 
         private async Task<string> postAsync(string endpoint, string body)
         {
             try
             {
-                while (Interlocked.CompareExchange(ref this.nonceChecking, 1, 0) != 0)
+                if(this.refreshing == 0)
                 {
+                    while (Interlocked.CompareExchange(ref this.nonceChecking, 1, 0) != 0)
+                    {
 
+                    }
+                    var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                    if (nonce <= this.lastnonce)
+                    {
+                        nonce = this.lastnonce + 1;
+                        Thread.Sleep(1);
+                    }
+                    this.lastnonce = nonce;
+                    var message = $"{nonce}{coincheck_connection.URL}{endpoint}{body}";
+
+                    var request = new HttpRequestMessage(HttpMethod.Post, coincheck_connection.URL + endpoint);
+
+                    request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+                    request.Headers.Add("ACCESS-KEY", this.apiName);
+                    request.Headers.Add("ACCESS-NONCE", nonce.ToString());
+                    request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
+
+                    sw_POST = Stopwatch.StartNew();
+                    Volatile.Write(ref this.nonceChecking, 0);
+                    var response = await this.http_client.SendAsync(request);
+                    sw_POST.Stop();
+                    this.elapsedTime_POST = (this.elapsedTime_POST * this.count + sw_POST.Elapsed.TotalNanoseconds / 1000) / (this.count + 1);
+
+                    if (sw_POST.Elapsed.TotalNanoseconds > 3_000_000_000)
+                    {
+                        this.addLog("The roundtrip time exceeded 3 sec.    Time:" + (sw_POST.Elapsed.TotalNanoseconds / 1_000_000_000).ToString("N3") + "[sec]", Enums.logType.WARNING);
+                    }
+                    ++this.count;
+                    sw_POST.Reset();
+                    if (this.logging)
+                    {
+                        this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   POST" + endpoint + body);
+                    }
+                    var resString = await response.Content.ReadAsStringAsync();
+                    return resString;
                 }
-                var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                if (nonce <= this.lastnonce)
+                else
                 {
-                    nonce = this.lastnonce + 1;
-                    Thread.Sleep(1);
+                    this.addLog("The http client is being refreshed.", Enums.logType.WARNING);
+                    return "{\"success\":false,\"error\":\"The httpclient is not ready\"}";
                 }
-                this.lastnonce = nonce;
-                var message = $"{nonce}{coincheck_connection.URL}{endpoint}{body}";
-
-                var request = new HttpRequestMessage(HttpMethod.Post, coincheck_connection.URL + endpoint);
-
-                request.Content = new StringContent(body, Encoding.UTF8, "application/json");
-
-                request.Headers.Add("ACCESS-KEY", this.apiName);
-                request.Headers.Add("ACCESS-NONCE", nonce.ToString());
-                request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
-
-                sw_POST = Stopwatch.StartNew();
-                Volatile.Write(ref this.nonceChecking, 0);
-                var response = await this.http_client.SendAsync(request);
-                sw_POST.Stop();
-                this.elapsedTime_POST = (this.elapsedTime_POST * this.count + sw_POST.Elapsed.TotalNanoseconds / 1000) / (this.count + 1);
-
-                if (sw_POST.Elapsed.TotalNanoseconds > 3_000_000_000)
-                {
-                    this.addLog("The roundtrip time exceeded 3 sec.    Time:" + (sw_POST.Elapsed.TotalNanoseconds / 1_000_000_000).ToString("N3") + "[sec]", Enums.logType.WARNING);
-                }
-                ++this.count;
-                sw_POST.Reset();
-                if (this.logging)
-                {
-                    this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   POST" + endpoint + body);
-                }
-                var resString = await response.Content.ReadAsStringAsync();
-                return resString;
             }
             catch (TaskCanceledException tce)
             {
@@ -1124,34 +1140,43 @@ namespace Crypto_Clients
         {
             try
             {
-                while (Interlocked.CompareExchange(ref this.nonceChecking, 1, 0) != 0)
+                if(this.refreshing == 0)
                 {
+                    while (Interlocked.CompareExchange(ref this.nonceChecking, 1, 0) != 0)
+                    {
 
+                    }
+                    var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                    if (nonce <= this.lastnonce)
+                    {
+                        nonce = this.lastnonce + 1;
+                    }
+                    this.lastnonce = nonce;
+                    var message = $"{nonce}{coincheck_connection.URL}{endpoint}{body}";
+
+                    var request = new HttpRequestMessage(HttpMethod.Delete, coincheck_connection.URL + endpoint);
+
+                    request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+                    request.Headers.Add("ACCESS-KEY", this.apiName);
+                    request.Headers.Add("ACCESS-NONCE", nonce.ToString());
+                    request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
+
+                    Volatile.Write(ref this.nonceChecking, 0);
+                    var response = await this.http_client.SendAsync(request);
+                    var resString = await response.Content.ReadAsStringAsync();
+                    if (this.logging)
+                    {
+                        this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   DELETE" + endpoint + body);
+                    }
+                    return resString;
                 }
-                var nonce = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                if (nonce <= this.lastnonce)
+                else
                 {
-                    nonce = this.lastnonce + 1;
+                    this.addLog("The http client is being refreshed.", Enums.logType.WARNING);
+                    return "{\"success\":false,\"error\":\"The httpclient is not ready\"}";
                 }
-                this.lastnonce = nonce;
-                var message = $"{nonce}{coincheck_connection.URL}{endpoint}{body}";
 
-                var request = new HttpRequestMessage(HttpMethod.Delete, coincheck_connection.URL + endpoint);
-
-                request.Content = new StringContent(body, Encoding.UTF8, "application/json");
-
-                request.Headers.Add("ACCESS-KEY", this.apiName);
-                request.Headers.Add("ACCESS-NONCE", nonce.ToString());
-                request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
-
-                Volatile.Write(ref this.nonceChecking, 0);
-                var response = await this.http_client.SendAsync(request);
-                var resString = await response.Content.ReadAsStringAsync();
-                if (this.logging)
-                {
-                    this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString() + "   DELETE" + endpoint + body);
-                }
-                return resString;
             }
             catch (TaskCanceledException tce)
             {

@@ -504,7 +504,7 @@ namespace Crypto_Clients
                     }
                     else
                     {
-                        this.addLog("Returning null");
+                        this.addLog("Failed to get active orders from bitbank",logType.WARNING);
                         l = null;
                     }
                     break;
@@ -548,6 +548,7 @@ namespace Crypto_Clients
                     }
                     else
                     {
+                        this.addLog("Failed to get active orders from coincheck", logType.WARNING);
                         l = null;
                     }
                     break;
@@ -815,38 +816,68 @@ namespace Crypto_Clients
                     break;
                 case "coincheck":
                     js = await this.coincheck_client.getTicker(symbol);
-                    JsonElement js_bid;
-                    JsonElement js_ask;
-                    decimal bid = 0;
-                    decimal ask = 0;    
-                    if (js.RootElement.TryGetProperty("bid",out js_bid))
+                    JsonElement success;
+                    if(js.RootElement.TryGetProperty("success",out success))
                     {
-                        bid = js_bid.GetDecimal();
+                        if(success.GetBoolean() == true)
+                        {
+                            JsonElement js_bid;
+                            JsonElement js_ask;
+                            decimal bid = 0;
+                            decimal ask = 0;
+                            if (js.RootElement.TryGetProperty("bid", out js_bid))
+                            {
+                                bid = js_bid.GetDecimal();
+                            }
+                            if (js.RootElement.TryGetProperty("ask", out js_ask))
+                            {
+                                ask = js_ask.GetDecimal();
+                            }
+                            if (ask > 0 && bid > 0)
+                            {
+                                mid = (ask + bid) / 2;
+                            }
+                            else if (ask > 0)
+                            {
+                                mid = ask;
+                            }
+                            else if (bid > 0)
+                            {
+                                mid = bid;
+                            }
+                        }
+                        else
+                        {
+                            addLog("Failed to get the ticker from coincheck.", logType.WARNING);
+                        }
                     }
-                    if (js.RootElement.TryGetProperty("ask", out js_ask))
+                    else
                     {
-                        ask = js_ask.GetDecimal();
+                        JsonElement js_bid;
+                        JsonElement js_ask;
+                        decimal bid = 0;
+                        decimal ask = 0;
+                        if (js.RootElement.TryGetProperty("bid", out js_bid))
+                        {
+                            bid = js_bid.GetDecimal();
+                        }
+                        if (js.RootElement.TryGetProperty("ask", out js_ask))
+                        {
+                            ask = js_ask.GetDecimal();
+                        }
+                        if (ask > 0 && bid > 0)
+                        {
+                            mid = (ask + bid) / 2;
+                        }
+                        else if (ask > 0)
+                        {
+                            mid = ask;
+                        }
+                        else if (bid > 0)
+                        {
+                            mid = bid;
+                        }
                     }
-                    if(ask > 0 && bid > 0)
-                    {
-                        mid = (ask + bid) / 2;
-                    }
-                    else if(ask > 0)
-                    {
-                        mid = ask;
-                    }
-                    else if(bid > 0)
-                    {
-                        mid = bid;
-                    }
-                        //if(js.RootElement.GetProperty("success").GetBoolean())
-                        //{
-                        //    mid = (decimal.Parse(js.RootElement.GetProperty("ask").GetString()) + decimal.Parse(js.RootElement.GetProperty("bid").GetString())) / 2;
-                        //}
-                        //else
-                        //{
-                        //    addLog("Failed to get the ticker from coincheck.", logType.WARNING);
-                        //}
                     break;
             }
             return mid;

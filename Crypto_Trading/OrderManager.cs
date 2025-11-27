@@ -738,6 +738,10 @@ namespace Crypto_Trading
                             output.err_code = code;
                             this.refreshHttpClient("bitbank");
                             break;
+                        case 80002:
+                            this.addLog("New order failed. The http client is not ready. code:" + code.ToString() + "   ord_id:" + sndOrd.internalOrdId, Enums.logType.WARNING);
+                            output.err_code = code;
+                            break;
                         default:
                             this.addLog("New Order Failed   ord_id:" + sndOrd.internalOrdId, Enums.logType.ERROR);
                             this.addLog(js.RootElement.GetRawText(), Enums.logType.ERROR);
@@ -929,6 +933,11 @@ namespace Crypto_Trading
                     else if(err.StartsWith("Rate limit"))
                     {
                         output.err_code = (int)Enums.ordError.RATE_LIMIT_EXCEEDED;
+                        this.addLog(err, Enums.logType.WARNING);
+                    }
+                    else if(err.StartsWith("The httpclient"))
+                    {
+                        output.err_code = (int)Enums.ordError.HTTP_NOT_READY;
                         this.addLog(err, Enums.logType.WARNING);
                     }
                     else
@@ -1274,6 +1283,10 @@ namespace Crypto_Trading
                             this.refreshHttpClient("bitbank");
                             //output.err_code = code;
                             break;
+                        case 80002:
+                            this.addLog("New order failed. The http client is not ready. code:" + code.ToString() + "   ord_id:" + sndOrd.internalOrdId, Enums.logType.WARNING);
+                            //output.err_code = code;
+                            break;
                         default:
                             this.addLog("Cancel Order Failed   ord_id:" + sndOrd.internalOrdId, Enums.logType.ERROR);
                             this.addLog(js.RootElement.GetRawText(), Enums.logType.ERROR);
@@ -1323,6 +1336,34 @@ namespace Crypto_Trading
                     output.filled_quantity = 0;
                     output.status = orderStatus.WaitCancel;
                     this.ord_client.ordUpdateQueue.Enqueue(output);
+                }
+                else
+                {
+                    string err = js.RootElement.GetProperty("error").GetString();
+                    if (err.StartsWith("Amount"))
+                    {
+                        this.addLog(err, Enums.logType.WARNING);
+                    }
+                    else if (err.StartsWith("Nonce"))//Nonce must be incremented
+                    {
+                        output.err_code = (int)Enums.ordError.NONCE_ERROR;
+                        this.addLog(err, Enums.logType.WARNING);
+                    }
+                    else if (err.StartsWith("Rate limit"))
+                    {
+                        output.err_code = (int)Enums.ordError.RATE_LIMIT_EXCEEDED;
+                        this.addLog(err, Enums.logType.WARNING);
+                    }
+                    else if (err.StartsWith("The httpclient"))
+                    {
+                        output.err_code = (int)Enums.ordError.HTTP_NOT_READY;
+                        this.addLog(err, Enums.logType.WARNING);
+                    }
+                    else
+                    {
+                        string msg = JsonSerializer.Serialize(js);
+                        this.addLog(msg, Enums.logType.ERROR);
+                    }
                 }
             }
             else if (sndOrd.ins.market == "bittrade")
@@ -1510,6 +1551,10 @@ namespace Crypto_Trading
                                 this.refreshHttpClient("bitbank");
                                 //output.err_code = code;
                                 break;
+                            case 80002:
+                                this.addLog("New order failed. The http client is not ready. code:" + code.ToString() + "   ord_id:" + sndOrd.internalOrdId, Enums.logType.WARNING);
+                                //output.err_code = code;
+                                break;
                             default:
                                 this.addLog("Cancel Order Failed   orderCount:" + ord_ids.Count.ToString(), Enums.logType.ERROR);
                                 this.addLog(elem.RootElement.GetRawText(), Enums.logType.ERROR);
@@ -1581,32 +1626,28 @@ namespace Crypto_Trading
                     }
                     else
                     {
-                        //foreach (string ordid in sndOrd.order_ids)
-                        //{
-                        //    while (!this.ord_client.ordUpdateStack.TryPop(out ordObj))
-                        //    {
-
-                        //    }
-                        //    DataSpotOrderUpdate prev = this.orders[ordid];
-
-                        //    ordObj.status = orderStatus.Open;
-                        //    ordObj.timestamp = sendTime;
-                        //    ordObj.internal_order_id = ordid;
-                        //    ordObj.side = prev.side;
-                        //    ordObj.symbol = prev.symbol;
-                        //    ordObj.market = prev.market;
-                        //    ordObj.symbol_market = prev.symbol_market;
-                        //    ordObj.order_quantity = prev.order_quantity;
-                        //    ordObj.order_price = prev.order_price;
-                        //    ordObj.filled_quantity = 0;
-                        //    ordObj.average_price = 0;
-                        //    ordObj.fee = 0;
-                        //    ordObj.fee_asset = "";
-                        //    ordObj.is_trigger_order = true;
-                        //    ordObj.last_trade = "";
-                        //    ordObj.msg = sndOrd.msg;
-                        //    this.ord_client.ordUpdateQueue.Enqueue(ordObj);
-                        //}
+                        string err = elem.RootElement.GetProperty("error").GetString();
+                        if (err.StartsWith("Amount"))
+                        {
+                            this.addLog(err, Enums.logType.WARNING);
+                        }
+                        else if (err.StartsWith("Nonce"))//Nonce must be incremented
+                        {
+                            this.addLog(err, Enums.logType.WARNING);
+                        }
+                        else if (err.StartsWith("Rate limit"))
+                        {
+                            this.addLog(err, Enums.logType.WARNING);
+                        }
+                        else if (err.StartsWith("The httpclient"))
+                        {
+                            this.addLog(err, Enums.logType.WARNING);
+                        }
+                        else
+                        {
+                            string msg = JsonSerializer.Serialize(js);
+                            this.addLog(msg, Enums.logType.ERROR);
+                        }
                     }
                 }
                 

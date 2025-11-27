@@ -69,6 +69,7 @@
         NONE = 0,
         RATE_LIMIT_EXCEEDED = 10009,
         TIMED_OUT = 80001,
+        HTTP_NOT_READY = 80002,
         NONCE_ERROR = 90001
     }
 }
