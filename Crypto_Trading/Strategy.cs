@@ -76,7 +76,7 @@ namespace Crypto_Trading
         public string live_buyorder_id;
         public DateTime live_sellorder_time;
         public DateTime live_buyorder_time;
-        public List<string> stg_orders;
+        public HashSet<string> stg_orders;
 
 
         public decimal live_askprice;
@@ -160,7 +160,7 @@ namespace Crypto_Trading
             this.live_buyorder_id = "";
             this.live_buyorder_time = DateTime.UtcNow; 
             this.live_sellorder_time = DateTime.UtcNow;
-            this.stg_orders = new List<string>();
+            this.stg_orders = new HashSet<string>();
             this.executed_Orders_old = new Dictionary<string, DataSpotOrderUpdate>();
             this.executed_OrderIds = new Dictionary<string, fillType>();
 
@@ -502,7 +502,6 @@ namespace Crypto_Trading
                 {
                     taker_VR = 0.7 * taker_VR + 0.3 * this.taker.prev_RV;
                 }
-                //decimal vr_markup = (decimal)(taker_VR / Math.Sqrt(this.taker.RV_minute * 60) * 1_000_000) * this.RVMarkup_multiplier;
                 decimal vr_markup = this.markup * (decimal)Math.Exp(taker_VR / Math.Sqrt(this.taker.RV_minute * 60) * 1_000_000 / (double)this.markup) * this.RVMarkup_multiplier;
 
 
@@ -797,6 +796,16 @@ namespace Crypto_Trading
                     this.live_askprice = 0;
                 }
 
+
+                if (this.maker.baseBalance.total - this.maker.baseBalance.inuse < ordersize_ask)
+                {
+                    ask_price = 0;
+                }
+                if (this.maker.quoteBalance.total - this.maker.quoteBalance.inuse < ordersize_bid * bid_price)
+                {
+                    bid_price = 0;
+                }
+
                 await this.checkLiveOrders();
 
                 bool newBuyOrder = false;
@@ -874,14 +883,6 @@ namespace Crypto_Trading
                     return ret;
                 }
 
-                if (this.maker.baseBalance.total - this.maker.baseBalance.inuse < ordersize_ask)
-                {
-                    ask_price = 0;
-                }
-                if(this.maker.quoteBalance.total - this.maker.quoteBalance.inuse < ordersize_bid * bid_price)
-                {
-                    bid_price = 0;
-                }
                 this.cancelling_qty_sell = 0;
                 this.cancelling_qty_buy = 0;
 
@@ -1563,7 +1564,7 @@ namespace Crypto_Trading
                             switch (fill.side)
                             {
                                 case orderSide.Buy:
-                                    this.oManager.placeNewSpotOrder(this.taker, orderSide.Sell, orderType.Market, filled_quantity, 0, null, true);
+                                    this.oManager.placeNewSpotOrder(this.taker, orderSide.Sell, orderType.Market, filled_quantity, 0, null,true);
                                     if (this.oManager.orders.ContainsKey(fill.internal_order_id))
                                     {
                                         ord = this.oManager.orders[fill.internal_order_id];

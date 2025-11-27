@@ -260,7 +260,7 @@ namespace Crypto_Trading
             this.Instruments = dic;
         }
 
-        public async Task<string> placeNewSpotOrder(Instrument ins, orderSide side, orderType ordtype, decimal quantity, decimal price, timeInForce? timeinforce = null,bool sendNow = true,bool wait = false,string msg = "")
+        public async Task<string> placeNewSpotOrder(Instrument ins, orderSide side, orderType ordtype, decimal quantity, decimal price, timeInForce? timeinforce = null,bool sendNow = true,bool wait = true,string msg = "")
         {
             sendingOrder ord;
             string ordid;
@@ -305,7 +305,7 @@ namespace Crypto_Trading
                 return "";
             }
         }
-        public async Task<string> placeCancelSpotOrder(Instrument ins, string orderId, bool sendNow = true, bool wait = false,string msg = "")
+        public async Task<string> placeCancelSpotOrder(Instrument ins, string orderId, bool sendNow = true, bool wait = true,string msg = "")
         {
             sendingOrder ord;
             if(this.ready)
@@ -346,7 +346,7 @@ namespace Crypto_Trading
                 return "";
             }
         }
-        public async Task<IEnumerable<string>> placeCancelSpotOrders(Instrument ins,IEnumerable<string> order_ids,bool sendNow = true,bool wait = false, string msg = "")
+        public async Task<IEnumerable<string>> placeCancelSpotOrders(Instrument ins,IEnumerable<string> order_ids,bool sendNow = true,bool wait = true, string msg = "")
         {
             sendingOrder ord;
             if(this.ready)
@@ -385,7 +385,7 @@ namespace Crypto_Trading
                 return new List<string>() ;
             }
         }
-        public async Task<string> placeModSpotOrder(Instrument ins, string orderId, decimal quantity, decimal price,bool waitCancel, bool sendNow = true,bool wait = false,string msg = "")
+        public async Task<string> placeModSpotOrder(Instrument ins, string orderId, decimal quantity, decimal price,bool waitCancel, bool sendNow = true,bool wait = true,string msg = "")
         {
             sendingOrder ord;
             string ordid;
@@ -1361,8 +1361,8 @@ namespace Crypto_Trading
                     }
                     else
                     {
-                        string msg = JsonSerializer.Serialize(js);
-                        this.addLog(msg, Enums.logType.ERROR);
+                        //string msg = JsonSerializer.Serialize(js);
+                        //this.addLog(msg, Enums.logType.ERROR);
                     }
                 }
             }
@@ -1645,8 +1645,8 @@ namespace Crypto_Trading
                         }
                         else
                         {
-                            string msg = JsonSerializer.Serialize(js);
-                            this.addLog(msg, Enums.logType.ERROR);
+                            //string msg = JsonSerializer.Serialize(js);
+                            //this.addLog(msg, Enums.logType.ERROR);
                         }
                     }
                 }
@@ -1755,6 +1755,7 @@ namespace Crypto_Trading
         {
             this.addLog("Cancelling all orders...");
             Instrument ins;
+            Dictionary<Instrument, List<string>> order_list = new Dictionary<Instrument, List<string>>();
             while (Interlocked.CompareExchange(ref this.order_lock, 1, 0) != 0)
             {
 
@@ -1764,13 +1765,22 @@ namespace Crypto_Trading
                 if(this.Instruments.ContainsKey(ord.symbol_market))
                 {
                     ins = this.Instruments[ord.symbol_market];
-                    this.placeCancelSpotOrder(ins, ord.internal_order_id, true);
+                    if(!order_list.ContainsKey(ins))
+                    {
+                        order_list[ins] = new List<string>();
+                    }
+                    order_list[ins].Add(ord.internal_order_id);
+                    //this.placeCancelSpotOrder(ins, ord.internal_order_id, true);
                 }
                 else
                 {
-                    addLog("Unknown order.", logType.WARNING);
+                    addLog("Unknown symbol.", logType.WARNING);
                     addLog(ord.ToString(), logType.WARNING);
                 }
+            }
+            foreach(var list in order_list)
+            {
+                await this.placeCancelSpotOrders(list.Key, list.Value,true,true);
             }
             Volatile.Write(ref this.order_lock, 0);
         }

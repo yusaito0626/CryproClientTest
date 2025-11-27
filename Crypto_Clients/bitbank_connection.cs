@@ -57,8 +57,8 @@ namespace Crypto_Clients
         Stopwatch sw_Public;
 
         bool closeSent;
-        bool pubnubReconnecting = false;
-        bool pubnubReconnected = false;
+        public bool pubnubReconnecting = false;
+        public bool pubnubReconnected = false;
 
         private List<string> subscribingChannels;
 

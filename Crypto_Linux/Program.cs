@@ -182,7 +182,7 @@ namespace Crypto_Linux
 
             ws_server.onExitCommand = async () =>
             {
-                await stopTrading();
+                await EoDProcess();
                 isRunning = false;
             };
 

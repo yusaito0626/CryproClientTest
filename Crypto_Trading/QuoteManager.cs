@@ -631,6 +631,46 @@ namespace Crypto_Trading
                             }
                             addLog("All the strategy orders have been reset.");
                         }
+                        else if(stg.maker.market == "bitbank" && (this.crypto_client.bitbank_client.pubnubReconnected || this.crypto_client.bitbank_client.pubnubReconnecting))
+                        {
+                            int i = 0;
+                            while (!this.crypto_client.bitbank_client.pubnubReconnected)
+                            {
+                                Thread.Sleep(1);
+                                ++i;
+                                if (i > 10000)
+                                {
+                                    this.addLog("Pubnub is not connected.", logType.ERROR);
+                                    return false;
+                                }
+                            }
+                            Task t = Task.Run(async () =>
+                            {
+                                await this.refreshAndCancelAllorders();
+                            });
+                            foreach (var stg_obj in this.strategies.Values)
+                            {
+                                stg_obj.maker.baseBalance.inuse = 0;
+                                stg_obj.maker.quoteBalance.inuse = 0;
+                                stg_obj.live_bidprice = 0;
+                                stg_obj.live_buyorder_id = "";
+                                stg_obj.live_askprice = 0;
+                                stg_obj.live_sellorder_id = "";
+                            }
+                            t.Wait();
+                            Thread.Sleep(1000);
+                            addLog("Resetting positions...");
+                            foreach (var m in _markets)
+                            {
+                                setBalance(await crypto_client.getBalance([m.Key]));
+                            }
+                            foreach (var stg_obj in this.strategies.Values)
+                            {
+                                stg.adjustPosition();
+                            }
+                            this.crypto_client.bitbank_client.pubnubReconnected = false;
+                            addLog("All the strategy orders have been reset.");
+                        }
                         start();
                         if(!await stg.updateOrders())
                         {
