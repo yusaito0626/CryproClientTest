@@ -1734,6 +1734,7 @@ namespace Crypto_Linux
                     addLog("Part1:" + stg.onFill_latency1.ToString("N3") + "micro sec");
                     addLog("Part2:" + stg.onFill_latency2.ToString("N3") + "micro sec");
                     addLog("Part3:" + stg.onFill_latency3.ToString("N3") + "micro sec");
+                    addLog("Placing Orders:" + stg.placingOrderLatency.ToString("N3") + "micro sec");
                 }
             }
 

@@ -2289,6 +2289,10 @@ namespace Crypto_Trading
                                             {
                                                 if (stg.maker.symbol_market == ord.symbol_market)
                                                 {
+                                                    while(Interlocked.CompareExchange(ref stg.updating,1,0) != 0)
+                                                    {
+
+                                                    }
                                                     switch (ord.side)
                                                     {
                                                         case orderSide.Buy:
@@ -2298,6 +2302,7 @@ namespace Crypto_Trading
                                                             stg.live_sellorder_id = "";
                                                             break;
                                                     }
+                                                    Volatile.Write(ref stg.updating, 0);
                                                 }
                                             }
                                             this.placeCancelSpotOrder(ins, ord.market + ord.order_id, true, false);

@@ -609,12 +609,17 @@ namespace Crypto_Trading
                             });
                             foreach(var stg_obj in this.strategies.Values)
                             {
+                                while (Interlocked.CompareExchange(ref stg_obj.updating, 1, 0) != 0)
+                                {
+
+                                }
                                 stg_obj.maker.baseBalance.inuse = 0;
                                 stg_obj.maker.quoteBalance.inuse = 0;
                                 stg_obj.live_bidprice = 0;
                                 stg_obj.live_buyorder_id = "";
                                 stg_obj.live_askprice = 0;
                                 stg_obj.live_sellorder_id = "";
+                                Volatile.Write(ref stg_obj.updating, 0);
                             }
                             t.Wait();
                             Thread.Sleep(1000);
@@ -648,12 +653,17 @@ namespace Crypto_Trading
                             });
                             foreach (var stg_obj in this.strategies.Values)
                             {
+                                while (Interlocked.CompareExchange(ref stg_obj.updating, 1, 0) != 0)
+                                {
+
+                                }
                                 stg_obj.maker.baseBalance.inuse = 0;
                                 stg_obj.maker.quoteBalance.inuse = 0;
                                 stg_obj.live_bidprice = 0;
                                 stg_obj.live_buyorder_id = "";
                                 stg_obj.live_askprice = 0;
                                 stg_obj.live_sellorder_id = "";
+                                Volatile.Write(ref stg_obj.updating, 0);
                             }
                             t.Wait();
                             Thread.Sleep(1000);
@@ -690,12 +700,17 @@ namespace Crypto_Trading
                             });
                             foreach (var stg_obj in this.strategies.Values)
                             {
+                                while (Interlocked.CompareExchange(ref stg_obj.updating, 1, 0) != 0)
+                                {
+
+                                }
                                 stg_obj.maker.baseBalance.inuse = 0;
                                 stg_obj.maker.quoteBalance.inuse = 0;
                                 stg_obj.live_bidprice = 0;
                                 stg_obj.live_buyorder_id = "";
                                 stg_obj.live_askprice = 0;
                                 stg_obj.live_sellorder_id = "";
+                                Volatile.Write(ref stg_obj.updating, 0);
                             }
                             t.Wait();
                             addLog("Resetting positions...");

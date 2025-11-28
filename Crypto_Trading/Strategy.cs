@@ -118,7 +118,10 @@ namespace Crypto_Trading
         public int onFill_count1;
         public int onFill_count2;
         public int onFill_count3;
+        public double placingOrderLatency;
+        public double placingOrdercount;
         Stopwatch sw;
+        Stopwatch sw2;
 
         public Action<string, Enums.logType> _addLog;
         public Strategy() 
@@ -193,22 +196,34 @@ namespace Crypto_Trading
             this.onFill_latency1 = 0;
             this.onFill_latency2 = 0;
             this.onFill_latency3 = 0;
+            this.placingOrderLatency = 0;
             this.onFill_count1 = 0;
             this.onFill_count2 = 0;
             this.onFill_count3 = 0;
+            this.placingOrdercount = 0;
             this.sw = new Stopwatch();
+            this.sw2 = new Stopwatch();
             this.sw.Start();
+            this.sw2.Start();
             Thread.Sleep(1);
             this.sw.Stop();
             this.sw.Reset();
             this.sw.Start();
+            this.sw2.Stop();
+            this.sw2.Reset();
+            this.sw2.Start();
             Thread.Sleep(1);
             this.sw.Stop();
             this.sw.Reset();
             this.sw.Start();
+            this.sw2.Stop();
+            this.sw2.Reset();
+            this.sw2.Start();
             Thread.Sleep(1);
             this.sw.Stop();
             this.sw.Reset();
+            this.sw2.Stop();
+            this.sw2.Reset();
         }
 
         public void readStrategyFile(string jsonfilename)
@@ -754,6 +769,11 @@ namespace Crypto_Trading
                                 this.live_bidprice = 0;
                                 break;
                         }
+                        if (ord.status == orderStatus.Open && !this.oManager.live_orders.ContainsKey(ord.internal_order_id))
+                        {
+                            addLog("The order status is open but doesn't exist in liveorders", logType.WARNING);
+                            addLog(ord.ToString(), logType.WARNING);
+                        }
                     }
                     else if(currentTime - this.live_buyorder_time > TimeSpan.FromSeconds(10))
                     {
@@ -788,6 +808,11 @@ namespace Crypto_Trading
                                 this.live_sellorder_id = "";
                                 this.live_askprice = 0;
                                 break;
+                        }
+                        if(ord.status == orderStatus.Open && !this.oManager.live_orders.ContainsKey(ord.internal_order_id))
+                        {
+                            addLog("The order status is open but doesn't exist in liveorders", logType.WARNING);
+                            addLog(ord.ToString(), logType.WARNING);
                         }
                     }
                     else if (currentTime - this.live_sellorder_time > TimeSpan.FromSeconds(10))
@@ -1558,7 +1583,12 @@ namespace Crypto_Trading
                             switch (fill.side)
                             {
                                 case orderSide.Buy:
-                                    this.oManager.placeNewSpotOrder(this.taker, orderSide.Sell, orderType.Market, filled_quantity, 0, null,true);
+                                    this.sw2.Start();
+                                    this.oManager.placeNewSpotOrder(this.taker, orderSide.Sell, orderType.Market, filled_quantity, 0, null,true,false);
+                                    this.sw2.Stop();
+                                    this.placingOrderLatency = (this.sw2.Elapsed.TotalNanoseconds + this.placingOrderLatency * 1000 * this.placingOrdercount) / (this.placingOrdercount+ 1) / 1000;
+                                    ++(this.placingOrdercount);
+                                    this.sw2.Reset();
                                     if (this.oManager.orders.ContainsKey(fill.internal_order_id))
                                     {
                                         ord = this.oManager.orders[fill.internal_order_id];
@@ -1585,7 +1615,12 @@ namespace Crypto_Trading
                                     }
                                     break;
                                 case orderSide.Sell:
-                                    this.oManager.placeNewSpotOrder(this.taker, orderSide.Buy, orderType.Market, filled_quantity, 0, null, true);
+                                    this.sw2.Start();
+                                    this.oManager.placeNewSpotOrder(this.taker, orderSide.Buy, orderType.Market, filled_quantity, 0, null, true,false);
+                                    this.sw2.Stop();
+                                    this.placingOrderLatency = (this.sw2.Elapsed.TotalNanoseconds + this.placingOrderLatency * 1000 * this.placingOrdercount) / (this.placingOrdercount + 1) / 1000;
+                                    ++(this.placingOrdercount);
+                                    this.sw2.Reset();
                                     if (this.oManager.orders.ContainsKey(fill.internal_order_id))
                                     {
                                         ord = this.oManager.orders[fill.internal_order_id];
