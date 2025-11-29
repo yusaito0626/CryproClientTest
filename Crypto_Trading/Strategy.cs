@@ -487,10 +487,6 @@ namespace Crypto_Trading
                     }
                 }
 
-                if (!this.checkLatency(2000))
-                {
-
-                }
 
                 bool buyFirst = true;
                 this.skew_point = this.skew();
@@ -916,6 +912,13 @@ namespace Crypto_Trading
                     return ret;
                 }
 
+
+                if (!this.checkLatency(this.taker, 1000))
+                {
+                    Volatile.Write(ref this.updating, 0);
+                    return ret;
+                }
+
                 this.cancelling_qty_sell = 0;
                 this.cancelling_qty_buy = 0;
 
@@ -978,49 +981,30 @@ namespace Crypto_Trading
             return ret;
         }
 
-        public bool checkLatency(double threshold = 1000)
+        public bool checkLatency(Instrument ins,double threshold = 1000)
         {
             double theoLatency;
             double currentLatency;
 
             bool ret = true; 
 
-            theoLatency = this.taker.getTheoLatency(this.taker.last_quote_updated_time.Value);
-            currentLatency = (this.taker.last_quote_updated_time.Value - this.taker.quoteTime).TotalMilliseconds;
+            theoLatency = ins.getTheoLatency(this.taker.last_quote_updated_time.Value);
+            currentLatency = (ins.last_quote_updated_time.Value - ins.quoteTime).TotalMilliseconds;
 
-            if(this.taker.market == "coincheck")
+            if(ins.market == "coincheck")
             {
-                if((this.taker.last_quote_updated_time.Value - this.taker.quoteTime).TotalSeconds > 1.5)
+                if((ins.last_quote_updated_time.Value - ins.quoteTime).TotalMilliseconds > threshold + 500)
                 {
-                    addLog("Observing large latency on " + this.taker.symbol_market + ".   SeqNo:" + this.taker.quoteSeqNo.ToString() +  "  Latency:" + (currentLatency).ToString("N3"), logType.WARNING);
+                    addLog("Observing large latency on " + ins.symbol_market + ".   SeqNo:" + ins.quoteSeqNo.ToString() +  "  Latency:" + (currentLatency).ToString("N3"), logType.WARNING);
                     ret = false;
                 }
             }
             else if (currentLatency - theoLatency > threshold)
             {
-                addLog("Observing large latency on " + this.taker.symbol_market + ".   SeqNo:" + this.taker.quoteSeqNo.ToString() + " Latency:" + (currentLatency - theoLatency).ToString("N3"), logType.WARNING);
+                addLog("Observing large latency on " + ins.symbol_market + ".   SeqNo:" + ins.quoteSeqNo.ToString() + " Latency:" + (currentLatency - theoLatency).ToString("N3"), logType.WARNING);
                 addLog("Raw Latency:" + (currentLatency).ToString("N3"), logType.WARNING);
                 ret = false;
             }
-
-            theoLatency = this.maker.getTheoLatency(this.maker.last_quote_updated_time.Value);
-            currentLatency = (this.maker.last_quote_updated_time.Value - this.maker.quoteTime).TotalMilliseconds;
-
-            if (this.maker.market == "coincheck")
-            {
-                if ((this.maker.last_quote_updated_time.Value - this.maker.quoteTime).TotalSeconds > 1.5)
-                {
-                    addLog("Observing large latency on " + this.maker.symbol_market + ".   SeqNo:" + this.maker.quoteSeqNo.ToString() + " Latency:" + (currentLatency).ToString("N3"), logType.WARNING);
-                    ret = false;
-                }
-            }
-            else if (currentLatency - theoLatency > threshold)
-            {
-                addLog("Observing large latency on " + this.maker.symbol_market + ".   SeqNo:" + this.maker.quoteSeqNo.ToString() + " Latency:" + (currentLatency - theoLatency).ToString("N3"), logType.WARNING);
-                addLog("Raw Latency:" + (currentLatency).ToString("N3"), logType.WARNING);
-                ret = false;
-            }
-
             return ret;
         }
         public bool checkPriceChange(string takerORmaker = "",decimal buf = 0)

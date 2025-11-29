@@ -48,7 +48,8 @@ namespace Crypto_Trading
 
         const int SENDINGORD_STACK_SIZE = 1000;
         public ConcurrentQueue<sendingOrder> sendingOrders;
-        public ConcurrentStack<sendingOrder> sendingOrdersStack;
+        //public ConcurrentStack<sendingOrder> sendingOrdersStack;
+        public ConcurrentQueue<sendingOrder> sendingOrdersStack;
         Thread processingOrdTh;
         CancellationTokenSource OrderProcessingStop;
         public Dictionary<string, string> ordIdMapping;
@@ -124,11 +125,12 @@ namespace Crypto_Trading
             int i = 0;
 
             this.sendingOrders = new ConcurrentQueue<sendingOrder>();
-            this.sendingOrdersStack = new ConcurrentStack<sendingOrder>();
+            //this.sendingOrdersStack = new ConcurrentStack<sendingOrder>();
+            this.sendingOrdersStack = new ConcurrentQueue<sendingOrder>();
 
-            while(i < SENDINGORD_STACK_SIZE)
+            while (i < SENDINGORD_STACK_SIZE)
             {
-                this.sendingOrdersStack.Push(new sendingOrder());
+                this.sendingOrdersStack.Enqueue(new sendingOrder());
                 ++i;
             }
             this.ordIdMapping = new Dictionary<string, string>();
@@ -263,7 +265,7 @@ namespace Crypto_Trading
             string ordid;
             if(this.ready)
             {
-                while (!this.sendingOrdersStack.TryPop(out ord))
+                while (!this.sendingOrdersStack.TryDequeue(out ord))
                 {
 
                 }
@@ -306,7 +308,7 @@ namespace Crypto_Trading
             sendingOrder ord;
             if(this.ready)
             {
-                while (!this.sendingOrdersStack.TryPop(out ord))
+                while (!this.sendingOrdersStack.TryDequeue(out ord))
                 {
 
                 }
@@ -346,7 +348,7 @@ namespace Crypto_Trading
             sendingOrder ord;
             if(this.ready)
             {
-                while (!this.sendingOrdersStack.TryPop(out ord))
+                while (!this.sendingOrdersStack.TryDequeue(out ord))
                 {
 
                 }
@@ -385,7 +387,7 @@ namespace Crypto_Trading
             string ordid;
             if(this.ready)
             {
-                while (!this.sendingOrdersStack.TryPop(out ord))
+                while (!this.sendingOrdersStack.TryDequeue(out ord))
                 {
 
                 }
@@ -1071,7 +1073,7 @@ namespace Crypto_Trading
                 }
             }
             sndOrd.init();
-            this.sendingOrdersStack.Push(sndOrd);
+            this.sendingOrdersStack.Enqueue(sndOrd);
             return output;
         }
         async public Task<DataSpotOrderUpdate?> processModOrder(sendingOrder sndOrd)
@@ -1105,7 +1107,7 @@ namespace Crypto_Trading
                 else
                 {
                     sndOrd.init();
-                    this.sendingOrdersStack.Push(sndOrd);
+                    this.sendingOrdersStack.Enqueue(sndOrd);
                     return null;
                 }
             }
@@ -1119,7 +1121,7 @@ namespace Crypto_Trading
                     sndOrd.time_in_force = ord.time_in_force;
                     if(ord.status == orderStatus.Open)
                     {
-                        while(!this.sendingOrdersStack.TryPop(out sndOrd2))
+                        while(!this.sendingOrdersStack.TryDequeue(out sndOrd2))
                         {
 
                         }
@@ -1132,7 +1134,7 @@ namespace Crypto_Trading
                     else
                     {
                         sndOrd.init();
-                        this.sendingOrdersStack.Push(sndOrd);
+                        this.sendingOrdersStack.Enqueue(sndOrd);
                         output = null;
                     }
                     return output;
@@ -1141,7 +1143,7 @@ namespace Crypto_Trading
                 {
                     addLog("Order not found. order id:" + sndOrd.ref_IntOrdId);
                     sndOrd.init();
-                    this.sendingOrdersStack.Push(sndOrd);
+                    this.sendingOrdersStack.Enqueue(sndOrd);
                     return null;
                 }
             }
@@ -1388,7 +1390,7 @@ namespace Crypto_Trading
                 }
             }
             sndOrd.init();
-            this.sendingOrdersStack.Push(sndOrd);
+            this.sendingOrdersStack.Enqueue(sndOrd);
             return output;
         }
 
@@ -1694,7 +1696,7 @@ namespace Crypto_Trading
                 }
             }
             sndOrd.init();
-            this.sendingOrdersStack.Push(sndOrd);
+            this.sendingOrdersStack.Enqueue(sndOrd);
             return output;
         }
         public void processingOrders(CancellationToken cancellationToken)
