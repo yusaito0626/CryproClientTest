@@ -1,4 +1,5 @@
-﻿using PubnubApi;
+﻿using LockFreeQueue;
+using PubnubApi;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO.Compression;
@@ -14,6 +15,8 @@ using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
 using Utils;
+using LockFreeStack;
+using LockFreeQueue;
 
 namespace Crypto_Clients
 {
@@ -27,11 +30,11 @@ namespace Crypto_Clients
         private const string ws_URL = "wss://stream.bitbank.cc/socket.io/?EIO=4&transport=websocket";
 
         public ConcurrentQueue<DataSpotOrderUpdate> orderQueue;
-        public ConcurrentStack<DataSpotOrderUpdate> orderStack;
+        public LockFreeStack<DataSpotOrderUpdate> orderStack;
         public ConcurrentQueue<DataFill> fillQueue;
-        public ConcurrentStack<DataFill> fillStack;
+        public LockFreeStack<DataFill> fillStack;
 
-        public ConcurrentQueue<string> msgLogQueue;
+        public MISOQueue<string> msgLogQueue;
         string logPath;
         public bool logging;
 
@@ -92,7 +95,7 @@ namespace Crypto_Clients
             //this._addLog = Console.WriteLine;
             //this.onMessage = Console.WriteLine;
 
-            this.msgLogQueue = new ConcurrentQueue<string>();
+            this.msgLogQueue = new MISOQueue<string>();
 
         }
 
@@ -197,7 +200,9 @@ namespace Crypto_Clients
                 while (true)
                 {
                     i = 0;
-                    while (this.msgLogQueue.TryDequeue(out msg))
+                    msg = this.msgLogQueue.Dequeue();
+                    //while (this.msgLogQueue.TryDequeue(out msg))
+                    while(msg != null)
                     {
                         start();
                         msgLog.WriteLine(msg);
@@ -207,6 +212,10 @@ namespace Crypto_Clients
                         if (i == 10000)
                         {
                             break;
+                        }
+                        else
+                        {
+                            msg = this.msgLogQueue.Dequeue();
                         }
                     }
                     if (ct.IsCancellationRequested)
@@ -1077,9 +1086,14 @@ namespace Crypto_Clients
                                     var ord_msg = json.RootElement.GetProperty("params").EnumerateArray();
                                     foreach (var d in ord_msg)
                                     {
-                                        while (!this.orderStack.TryPop(out ord))
-                                        {
+                                        //while (!this.orderStack.TryPop(out ord))
+                                        //{
 
+                                        //}
+                                        ord = this.orderStack.pop();
+                                        if(ord == null)
+                                        {
+                                            ord = new DataSpotOrderUpdate();
                                         }
                                         ord.setBitbankSpotOrder(d);
                                         this.orderQueue.Enqueue(ord);
@@ -1089,9 +1103,14 @@ namespace Crypto_Clients
                                     var trd = json.RootElement.GetProperty("params").EnumerateArray();
                                     foreach (var d in trd)
                                     {
-                                        while(!this.fillStack.TryPop(out fill))
-                                        {
+                                        //while(!this.fillStack.TryPop(out fill))
+                                        //{
 
+                                        //}
+                                        fill = this.fillStack.pop();
+                                        if(fill == null)
+                                        {
+                                            fill = new DataFill();
                                         }
                                         fill.setBitBankFill(d);
                                         this.fillQueue.Enqueue(fill);

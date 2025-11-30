@@ -56,15 +56,15 @@ namespace Crypto_Linux
             WriteIndented = true
         };
         static int logSize = 50000;
-        static ConcurrentStack<logEntry> logEntryStack;
-        static Stack<fillInfo> fillInfoStack;
+        static LockFreeStack<logEntry> logEntryStack;
+        static LockFreeStack<fillInfo> fillInfoStack;
 
         static Strategy selected_stg;
         static public Dictionary<string, Strategy> strategies;
 
         static bool enabled;
 
-        static ConcurrentQueue<string> logQueue;
+        static SISOQueue<string> logQueue;
         static SISOQueue<DataFill> filledOrderQueue;
 
         static Instrument selected_ins;
@@ -136,7 +136,7 @@ namespace Crypto_Linux
 
         static private async Task mainProcess()
         {
-            logQueue = new ConcurrentQueue<string>();
+            logQueue = new SISOQueue<string>();
 
             Console.WriteLine("Crypto Trading App Ver." + GlobalVariables.ver_major + ":" + GlobalVariables.ver_minor + ":" + GlobalVariables.ver_patch);
             aborting = false;
@@ -148,13 +148,13 @@ namespace Crypto_Linux
             msgLogging = false;
 
             filledOrderQueue = new SISOQueue<DataFill>();
-            logEntryStack = new ConcurrentStack<logEntry>();
-            fillInfoStack = new Stack<fillInfo>();
+            logEntryStack = new LockFreeStack<logEntry>();
+            fillInfoStack = new LockFreeStack<fillInfo>();
             int i = 0;
             while (i < logSize)
             {
-                logEntryStack.Push(new logEntry());
-                fillInfoStack.Push(new fillInfo());
+                logEntryStack.push(new logEntry());
+                fillInfoStack.push(new fillInfo());
                 ++i;
             }
 
@@ -710,9 +710,9 @@ namespace Crypto_Linux
                 //}
                 if(fill != null)
                 {
-                    if (fillInfoStack.Count > 0)
+                    if (fillInfoStack.Count() > 0)
                     {
-                        fInfo = fillInfoStack.Pop();
+                        fInfo = fillInfoStack.pop();
                     }
                     else
                     {
@@ -1368,40 +1368,45 @@ namespace Crypto_Linux
                 {
                     await oManager.cancelAllOrders();
                     Thread.Sleep(1000);
-                    foreach(var mkt in qManager._markets.Keys)
+                    if(live)
                     {
-                        List<DataSpotOrderUpdate> unknown_orders = await crypto_client.getActiveOrders(mkt);
-                        if(unknown_orders.Count > 0)
+                        foreach (var mkt in qManager._markets.Keys)
                         {
-                            addLog("Unknown orders found at " + mkt);
-                            Dictionary<Instrument,List<string>> ordId_list = new Dictionary<Instrument,List<string>>();
-                            foreach(var ord in unknown_orders)
+                            List<DataSpotOrderUpdate> unknown_orders = await crypto_client.getActiveOrders(mkt);
+                            if (unknown_orders.Count > 0)
                             {
-                                if(qManager.instruments.ContainsKey(ord.symbol_market))
+                                addLog("Unknown orders found at " + mkt);
+                                Dictionary<Instrument, List<string>> ordId_list = new Dictionary<Instrument, List<string>>();
+                                foreach (var ord in unknown_orders)
                                 {
-                                    Instrument ins = qManager.instruments[ord.symbol_market];
-                                    if(!ordId_list.ContainsKey(ins))
+                                    if (qManager.instruments.ContainsKey(ord.symbol_market))
                                     {
-                                        ordId_list[ins] = new List<string>();
+                                        Instrument ins = qManager.instruments[ord.symbol_market];
+                                        if (!ordId_list.ContainsKey(ins))
+                                        {
+                                            ordId_list[ins] = new List<string>();
+                                        }
+                                        oManager.ordIdMapping[ord.market + ord.order_id] = ord.market + ord.order_id;
+                                        oManager.orders[ord.market + ord.order_id] = ord;
+                                        ordId_list[ins].Add(ord.market + ord.order_id);
                                     }
-                                    oManager.ordIdMapping[ord.market + ord.order_id] = ord.market + ord.order_id;
-                                    oManager.orders[ord.market + ord.order_id] = ord;
-                                    ordId_list[ins].Add(ord.market + ord.order_id);
+                                }
+                                foreach (var item in ordId_list)
+                                {
+                                    await oManager.placeCancelSpotOrders(item.Key, item.Value);
+                                    Thread.Sleep(1000);
                                 }
                             }
-                            foreach(var item in ordId_list)
-                            {
-                                await oManager.placeCancelSpotOrders(item.Key, item.Value);
-                                Thread.Sleep(1000);
-                            }
+                        }
+                        //Just in case
+                        foreach (var m in qManager._markets)
+                        {
+                            qManager.setBalance(await crypto_client.getBalance([m.Key]));
                         }
                     }
+                    
 
-                    //Just in case
-                    foreach(var m in qManager._markets)
-                    {
-                        qManager.setBalance(await crypto_client.getBalance([m.Key]));
-                    }
+                    
 
                     foreach(var stg in strategies.Values)
                     {
@@ -1961,7 +1966,7 @@ namespace Crypto_Linux
                             //}
                             ord = oManager.order_pool.Dequeue();
                             ord.init();
-                            crypto_client.ordUpdateStack.Push(ord);
+                            crypto_client.ordUpdateStack.push(ord);
                         }
                         else
                         {
@@ -1979,19 +1984,19 @@ namespace Crypto_Linux
                         //}
                         ord = oManager.order_pool.Dequeue();
                         ord.init();
-                        crypto_client.ordUpdateStack.Push(ord);
+                        crypto_client.ordUpdateStack.push(ord);
                     }
                 }
             }
 
             crypto_client.checkStackCount();
 
-            if(logEntryStack.Count < logSize / 10)
+            if(logEntryStack.Count() < logSize / 10)
             {
                 int i = 0;
                 while(i < logSize / 5)
                 {
-                    logEntryStack.Push(new logEntry());
+                    logEntryStack.push(new logEntry());
                     ++i;
                 }
             }
@@ -2040,14 +2045,19 @@ namespace Crypto_Linux
             }
 
             logEntry log;
-            int i = 0;
-            while(!logEntryStack.TryPop(out log))
+            //int i = 0;
+            //while(!logEntryStack.TryPop(out log))
+            //{
+            //    ++i;
+            //    if(i > 100000)
+            //    {
+            //        log = new logEntry();
+            //    }
+            //}
+            log = logEntryStack.pop();
+            if(log == null)
             {
-                ++i;
-                if(i > 100000)
-                {
-                    log = new logEntry();
-                }
+                log = new logEntry();
             }
             log.logtype = logtype.ToString();
             log.msg = messageline;
@@ -2061,14 +2071,23 @@ namespace Crypto_Linux
         static private void updateLog()
         {
             string line;
-            while (logQueue.TryDequeue(out line))
+            //while (logQueue.TryDequeue(out line))
+            while(true)
             {
-                Console.Write(line);
-
-                if (logFile != null)
+                line = logQueue.Dequeue();
+                if(line != null)
                 {
-                    logFile.WriteLine(line);
-                    logFile.Flush();
+                    Console.Write(line);
+
+                    if (logFile != null)
+                    {
+                        logFile.WriteLine(line);
+                        logFile.Flush();
+                    }
+                }
+                else
+                {
+                    break;
                 }
             }
         }

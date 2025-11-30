@@ -52,7 +52,6 @@ namespace Crypto_Trading
         //public ConcurrentStack<sendingOrder> sendingOrdersStack;
         public LockFreeStack<sendingOrder> sendingOrdersStack;
         //public ConcurrentQueue<sendingOrder> sendingOrdersStack;
-        Thread processingOrdTh;
         CancellationTokenSource OrderProcessingStop;
         public Dictionary<string, string> ordIdMapping;
 
@@ -61,7 +60,7 @@ namespace Crypto_Trading
         public Dictionary<string, DataSpotOrderUpdate> disposed_orders;// The key is market + order_id, as the internal_order_id might not be exist.
 
         public Dictionary<string, modifingOrd> modifingOrders;
-        public ConcurrentStack<modifingOrd> modifingOrdStack;
+        public LockFreeStack<modifingOrd> modifingOrdStack;
 
         public Dictionary<string, WebSocketState> connections;
 
@@ -116,7 +115,7 @@ namespace Crypto_Trading
             this.connections = new Dictionary<string, WebSocketState>();
 
             this.modifingOrders = new Dictionary<string, modifingOrd>();
-            this.modifingOrdStack = new ConcurrentStack<modifingOrd>();
+            this.modifingOrdStack = new LockFreeStack<modifingOrd>();
 
             this.ordLogQueue = new MISOQueue<string>();
 
@@ -141,7 +140,7 @@ namespace Crypto_Trading
             i = 0;
             while (i < MOD_STACK_SIZE)
             {
-                this.modifingOrdStack.Push(new modifingOrd());
+                this.modifingOrdStack.push(new modifingOrd());
                 ++i;
             }
 
@@ -432,9 +431,14 @@ namespace Crypto_Trading
             if (this.virtualMode)
             {
                 quantity = Math.Round(sndOrd.quantity / sndOrd.ins.quantity_unit) * sndOrd.ins.quantity_unit;
-                while (!this.ord_client.ordUpdateStack.TryPop(out output))
-                {
+                //while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                //{
 
+                //}
+                output = this.ord_client.ordUpdateStack.pop();
+                if (output == null)
+                {
+                    output = new DataSpotOrderUpdate();
                 }
                 output.isVirtual = true;
                 output.order_id = this.getVirtualOrdId();
@@ -466,9 +470,14 @@ namespace Crypto_Trading
                 if (sndOrd.order_type == orderType.Market || (sndOrd.side == orderSide.Buy && sndOrd.price > sndOrd.ins.bestask.Item1) || (sndOrd.side == orderSide.Sell && sndOrd.price < sndOrd.ins.bestbid.Item1))
                 {
                     DataFill fill;
-                    while (!this.ord_client.fillStack.TryPop(out fill))
-                    {
+                    //while (!this.ord_client.fillStack.TryPop(out fill))
+                    //{
 
+                    //}
+                    fill = this.ord_client.fillStack.pop();
+                    if (fill == null)
+                    {
+                        fill = new DataFill();
                     }
                     output.timestamp = DateTime.UtcNow;
                     output.update_time = DateTime.UtcNow;
@@ -537,9 +546,14 @@ namespace Crypto_Trading
                     output.fee_asset = "";
                     this.orders[output.internal_order_id] = output;
                     string ordId = output.order_id;
-                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
-                    {
+                    //while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    //{
 
+                    //}
+                    output = this.ord_client.ordUpdateStack.pop();
+                    if (output == null)
+                    {
+                        output = new DataSpotOrderUpdate();
                     }
                     output.isVirtual = true;
                     output.order_id = ordId;
@@ -610,9 +624,14 @@ namespace Crypto_Trading
                 if (js.RootElement.GetProperty("success").GetUInt16() == 1)
                 {
                     var ord_obj = js.RootElement.GetProperty("data");
-                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
-                    {
+                    //while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    //{
 
+                    //}
+                    output = this.ord_client.ordUpdateStack.pop();
+                    if (output == null)
+                    {
+                        output = new DataSpotOrderUpdate();
                     }
                     output.order_id = ord_obj.GetProperty("order_id").GetInt64().ToString();
                     this.ordIdMapping[sndOrd.ins.market + output.order_id] = sndOrd.internalOrdId;
@@ -671,11 +690,15 @@ namespace Crypto_Trading
                 {
                     int code = js.RootElement.GetProperty("data").GetProperty("code").GetInt32();
 
-                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    //while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    //{
+
+                    //}
+                    output = this.ord_client.ordUpdateStack.pop();
+                    if (output == null)
                     {
-
+                        output = new DataSpotOrderUpdate();
                     }
-
                     output.status = orderStatus.INVALID;
                     output.timestamp = sendTime;
                     output.internal_order_id = sndOrd.internalOrdId;
@@ -780,9 +803,14 @@ namespace Crypto_Trading
                 {
                     JsonElement ord_obj = js.RootElement;
                     string line = JsonSerializer.Serialize(ord_obj);
-                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
-                    {
+                    //while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    //{
 
+                    //}
+                    output = this.ord_client.ordUpdateStack.pop();
+                    if (output == null)
+                    {
+                        output = new DataSpotOrderUpdate();
                     }
                     output.order_id = ord_obj.GetProperty("id").GetInt64().ToString();
                     this.ordIdMapping[sndOrd.ins.market + output.order_id] = sndOrd.internalOrdId;
@@ -834,9 +862,14 @@ namespace Crypto_Trading
                     output.msg = sndOrd.msg;
                     //this.orders.TryAdd(output.order_id, output);
                     this.ord_client.ordUpdateQueue.Enqueue(output);
-                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
-                    {
+                    //while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    //{
 
+                    //}
+                    output = this.ord_client.ordUpdateStack.pop();
+                    if (output == null)
+                    {
+                        output = new DataSpotOrderUpdate();
                     }
                     output.timestamp = DateTime.UtcNow;
                     output.order_id = ord_obj.GetProperty("id").GetInt64().ToString();
@@ -893,9 +926,14 @@ namespace Crypto_Trading
                 }
                 else
                 {
-                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
-                    {
+                    //while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    //{
 
+                    //}
+                    output = this.ord_client.ordUpdateStack.pop();
+                    if (output == null)
+                    {
+                        output = new DataSpotOrderUpdate();
                     }
                     output.status = orderStatus.INVALID;
                     output.timestamp = sendTime;
@@ -968,9 +1006,14 @@ namespace Crypto_Trading
 
                 if (js.RootElement.GetProperty("status").GetString() == "ok")
                 {
-                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
-                    {
+                    //while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    //{
 
+                    //}
+                    output = this.ord_client.ordUpdateStack.pop();
+                    if (output == null)
+                    {
+                        output = new DataSpotOrderUpdate();
                     }
                     output.order_id = js.RootElement.GetProperty("data").GetString();
                     this.ordIdMapping[sndOrd.ins.market + output.order_id] = sndOrd.internalOrdId;
@@ -1009,9 +1052,14 @@ namespace Crypto_Trading
                 {
                     string msg = JsonSerializer.Serialize(js);
                     this.addLog(msg, Enums.logType.ERROR);
-                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
-                    {
+                    //while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    //{
 
+                    //}
+                    output = this.ord_client.ordUpdateStack.pop();
+                    if (output == null)
+                    {
+                        output = new DataSpotOrderUpdate();
                     }
                     output.status = orderStatus.INVALID;
                     output.timestamp = sendTime;
@@ -1048,9 +1096,14 @@ namespace Crypto_Trading
                 }
                 else
                 {
-                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
-                    {
+                    //while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    //{
 
+                    //}
+                    output = this.ord_client.ordUpdateStack.pop();
+                    if (output == null)
+                    {
+                        output = new DataSpotOrderUpdate();
                     }
                     output.status = orderStatus.INVALID;
                     output.timestamp = sendTime;
@@ -1088,10 +1141,11 @@ namespace Crypto_Trading
                 if (this.orders.ContainsKey(sndOrd.ref_IntOrdId))
                 {
                     ord = this.orders[sndOrd.ref_IntOrdId];
-                    while (!this.modifingOrdStack.TryPop(out mod))
-                    {
+                    //while (!this.modifingOrdStack.TryPop(out mod))
+                    //{
 
-                    }
+                    //}
+                    mod = this.modifingOrdStack.pop();
                     mod.ordId = ord.order_id;
                     mod.newPrice = sndOrd.price;
                     mod.newQuantity = sndOrd.quantity;
@@ -1159,9 +1213,14 @@ namespace Crypto_Trading
             if (this.virtualMode)
             {
                 Thread.Sleep(this.latency);
-                while (!this.ord_client.ordUpdateStack.TryPop(out output))
-                {
+                //while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                //{
 
+                //}
+                output = this.ord_client.ordUpdateStack.pop();
+                if (output == null)
+                {
+                    output = new DataSpotOrderUpdate();
                 }
                 DataSpotOrderUpdate prev = this.orders[sndOrd.ref_IntOrdId];
                 output.isVirtual = true;
@@ -1205,7 +1264,7 @@ namespace Crypto_Trading
                 else
                 {
                     output.init();
-                    this.ord_client.ordUpdateStack.Push(output);
+                    this.ord_client.ordUpdateStack.push(output);
                     output = null;
                 }
                 Volatile.Write(ref this.virtual_order_lock, 0);
@@ -1218,8 +1277,13 @@ namespace Crypto_Trading
                 if (js.RootElement.GetProperty("success").GetUInt16() == 1)
                 {
                     var ord_obj = js.RootElement.GetProperty("data");
-                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    //while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    //{
+                    //}
+                    output = this.ord_client.ordUpdateStack.pop();
+                    if (output == null)
                     {
+                        output = new DataSpotOrderUpdate();
                     }
                     output.order_id = ord_obj.GetProperty("order_id").GetInt64().ToString();
                     output.timestamp = sendTime;
@@ -1317,8 +1381,13 @@ namespace Crypto_Trading
                 if (js.RootElement.GetProperty("success").GetBoolean())
                 {
                     var ord_obj = js.RootElement;
-                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    //while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    //{
+                    //}
+                    output = this.ord_client.ordUpdateStack.pop();
+                    if (output == null)
                     {
+                        output = new DataSpotOrderUpdate();
                     }
                     output.order_id = ord_obj.GetProperty("id").GetInt64().ToString();
                     output.timestamp = sendTime;
@@ -1367,8 +1436,13 @@ namespace Crypto_Trading
                 js = await this.ord_client.bittrade_client.placeCanOrder(prev.order_id);
                 if (js.RootElement.GetProperty("status").GetString() == "ok")
                 {
-                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    //while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                    //{
+                    //}
+                    output = this.ord_client.ordUpdateStack.pop();
+                    if (output == null)
                     {
+                        output = new DataSpotOrderUpdate();
                     }
                     output.order_id = js.RootElement.GetProperty("data").GetString();
                     output.timestamp = sendTime;
@@ -1409,9 +1483,14 @@ namespace Crypto_Trading
                 Thread.Sleep(this.latency);
                 foreach (var ordid in sndOrd.order_ids)
                 {
-                    while (!this.ord_client.ordUpdateStack.TryPop(out ordObj))
-                    {
+                    //while (!this.ord_client.ordUpdateStack.TryPop(out ordObj))
+                    //{
 
+                    //}
+                    ordObj = this.ord_client.ordUpdateStack.pop();
+                    if (ordObj == null)
+                    {
+                        ordObj = new DataSpotOrderUpdate();
                     }
                     DataSpotOrderUpdate prev = this.orders[ordid];
                     ordObj.isVirtual = true;
@@ -1457,7 +1536,7 @@ namespace Crypto_Trading
                     else
                     {
                         ordObj.init();
-                        this.ord_client.ordUpdateStack.Push(ordObj);
+                        this.ord_client.ordUpdateStack.push(ordObj);
                         ordObj = null;
                     }
                     Volatile.Write(ref this.virtual_order_lock, 0);
@@ -1482,8 +1561,13 @@ namespace Crypto_Trading
                         var ord_objs = elem.RootElement.GetProperty("data").GetProperty("orders").EnumerateArray();
                         foreach(var ord_obj in ord_objs)
                         {
-                            while (!this.ord_client.ordUpdateStack.TryPop(out ordObj))
+                            //while (!this.ord_client.ordUpdateStack.TryPop(out ordObj))
+                            //{
+                            //}
+                            ordObj = this.ord_client.ordUpdateStack.pop();
+                            if (ordObj == null)
                             {
+                                ordObj = new DataSpotOrderUpdate();
                             }
                             ordObj.order_id = ord_obj.GetProperty("order_id").GetInt64().ToString();
                             ordObj.timestamp = sendTime;
@@ -1603,8 +1687,13 @@ namespace Crypto_Trading
                     if (elem.RootElement.GetProperty("success").GetBoolean())
                     {
                         var ord_obj = elem.RootElement;
-                        while (!this.ord_client.ordUpdateStack.TryPop(out ordObj))
+                        //while (!this.ord_client.ordUpdateStack.TryPop(out ordObj))
+                        //{
+                        //}
+                        ordObj = this.ord_client.ordUpdateStack.pop();
+                        if (ordObj == null)
                         {
+                            ordObj = new DataSpotOrderUpdate();
                         }
                         ordObj.order_id = ord_obj.GetProperty("id").GetInt64().ToString();
                         ordObj.timestamp = sendTime;
@@ -1663,8 +1752,13 @@ namespace Crypto_Trading
                 {
                     if (elem.RootElement.GetProperty("status").GetString() == "ok")
                     {
-                        while (!this.ord_client.ordUpdateStack.TryPop(out ordObj))
+                        //while (!this.ord_client.ordUpdateStack.TryPop(out ordObj))
+                        //{
+                        //}
+                        ordObj = this.ord_client.ordUpdateStack.pop();
+                        if (ordObj == null)
                         {
+                            ordObj = new DataSpotOrderUpdate();
                         }
                         ordObj.order_id = elem.RootElement.GetProperty("data").GetString();
                         ordObj.timestamp = sendTime;
@@ -1813,7 +1907,7 @@ namespace Crypto_Trading
         public void pushbackFill(DataFill fill)
         {
             fill.init();
-            this.ord_client.fillStack.Push(fill);
+            this.ord_client.fillStack.push(fill);
         }
 
         public async Task<bool> updateFills(Action start, Action end, CancellationToken ct, int spinningMax)
@@ -2651,7 +2745,7 @@ namespace Crypto_Trading
                 if (!this.Instruments.ContainsKey(ord.symbol_market))
                 {
                     ord.init();
-                    this.ord_client.ordUpdateStack.Push(ord);
+                    this.ord_client.ordUpdateStack.push(ord);
                 }
                 else if (ord.queued_count % 200001 == 200000)
                 {
@@ -2788,13 +2882,13 @@ namespace Crypto_Trading
                         this.placeNewSpotOrder(mod.ins, mod.side, mod.order_type, mod.newQuantity, mod.newPrice, mod.time_in_force, true);
                         this.modifingOrders.Remove(ord.internal_order_id);
                         mod.init();
-                        this.modifingOrdStack.Push(mod);
+                        this.modifingOrdStack.push(mod);
                     }
                     else if (ord.status == orderStatus.Filled)
                     {
                         this.modifingOrders.Remove(ord.internal_order_id);
                         mod.init();
-                        this.modifingOrdStack.Push(mod);
+                        this.modifingOrdStack.push(mod);
                     }
                 }
                 if (prevord != null)
@@ -2810,7 +2904,7 @@ namespace Crypto_Trading
                 if (!this.Instruments.ContainsKey(ord.symbol_market))
                 {
                     ord.init();
-                    this.ord_client.ordUpdateStack.Push(ord);
+                    this.ord_client.ordUpdateStack.push(ord);
                 }
                 else if (ord.queued_count % 200001 == 200000)
                 {
@@ -2980,7 +3074,7 @@ namespace Crypto_Trading
                 if (!this.Instruments.ContainsKey(ord.symbol_market))
                 {
                     ord.init();
-                    this.ord_client.ordUpdateStack.Push(ord);
+                    this.ord_client.ordUpdateStack.push(ord);
                 }
                 else if (ord.queued_count % 200001 == 200000)
                 {
@@ -3074,9 +3168,15 @@ namespace Crypto_Trading
                                 if (ins.bestask.Item1 < ord.order_price || (last_trade != null && last_trade.price < ord.order_price))
                                 {
                                     DataSpotOrderUpdate output;
-                                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
-                                    {
+                                    //while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                                    //{
 
+                                    //}
+
+                                    output = this.ord_client.ordUpdateStack.pop();
+                                    if (output == null)
+                                    {
+                                        output = new DataSpotOrderUpdate();
                                     }
                                     output.isVirtual = true;
                                     output.order_id = ord.order_id;
@@ -3101,9 +3201,14 @@ namespace Crypto_Trading
                                     output.trigger_price = ord.trigger_price;
                                     output.update_time = DateTime.UtcNow;
                                     DataFill fill;
-                                    while (!this.ord_client.fillStack.TryPop(out fill))
+                                    //while (!this.ord_client.fillStack.TryPop(out fill))
+                                    //{
+
+                                    //}
+                                    fill = this.ord_client.fillStack.pop();
+                                    if (fill == null)
                                     {
-                                        
+                                        fill = new DataFill();
                                     }
                                     fill.order_id = ord.order_id;
                                     fill.symbol = ins.symbol;
@@ -3128,9 +3233,14 @@ namespace Crypto_Trading
                                 if (ins.bestbid.Item1 > ord.order_price || (last_trade != null && last_trade.price > ord.order_price))
                                 {
                                     DataSpotOrderUpdate output;
-                                    while (!this.ord_client.ordUpdateStack.TryPop(out output))
-                                    {
+                                    //while (!this.ord_client.ordUpdateStack.TryPop(out output))
+                                    //{
 
+                                    //}
+                                    output = this.ord_client.ordUpdateStack.pop();
+                                    if (output == null)
+                                    {
+                                        output = new DataSpotOrderUpdate();
                                     }
                                     output.isVirtual = true;
                                     output.order_id = ord.order_id;
@@ -3155,9 +3265,14 @@ namespace Crypto_Trading
                                     output.trigger_price = ord.trigger_price;
                                     output.update_time = DateTime.UtcNow;
                                     DataFill fill;
-                                    while (!this.ord_client.fillStack.TryPop(out fill))
-                                    {
+                                    //while (!this.ord_client.fillStack.TryPop(out fill))
+                                    //{
 
+                                    //}
+                                    fill = this.ord_client.fillStack.pop();
+                                    if (fill == null)
+                                    {
+                                        fill = new DataFill();
                                     }
                                     fill.order_id = ord.order_id;
                                     fill.symbol = ins.symbol;

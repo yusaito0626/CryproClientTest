@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+﻿using LockFreeQueue;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -26,10 +27,7 @@ namespace Crypto_Clients
         private const string ws_URL = "wss://ws-api.coincheck.com";
         private const string private_URL = "wss://stream.coincheck.com";
 
-        public ConcurrentQueue<JsonElement> orderQueue;
-        public ConcurrentQueue<JsonElement> fillQueue;
-
-        public ConcurrentQueue<string> msgLogQueue;
+        public MISOQueue<string> msgLogQueue;
         string logPath;
         public bool logging;
 
@@ -84,9 +82,7 @@ namespace Crypto_Clients
                 Timeout = TimeSpan.FromSeconds(10)
             };
 
-            this.orderQueue = new ConcurrentQueue<JsonElement>();
-            this.fillQueue = new ConcurrentQueue<JsonElement>();
-            this.msgLogQueue = new ConcurrentQueue<string>();
+            this.msgLogQueue = new MISOQueue<string>();
 
             this.closeSentPublic = false;
             this.closeSentPrivate = false;
@@ -194,7 +190,9 @@ namespace Crypto_Clients
                 while (true)
                 {
                     i = 0;
-                    while (this.msgLogQueue.TryDequeue(out msg))
+                    msg = this.msgLogQueue.Dequeue();
+                    //while (this.msgLogQueue.TryDequeue(out msg))
+                    while(msg != null)
                     {
                         start();
                         msgLog.WriteLine(msg);
@@ -204,6 +202,10 @@ namespace Crypto_Clients
                         if (i == 10000)
                         {
                             break;
+                        }
+                        else
+                        {
+                            msg = this.msgLogQueue.Dequeue();
                         }
                     }
                     if (ct.IsCancellationRequested)

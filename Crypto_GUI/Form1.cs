@@ -54,7 +54,7 @@ namespace Crypto_GUI
 
         bool enabled;
 
-        ConcurrentQueue<string> logQueue;
+        SISOQueue<string> logQueue;
         SISOQueue<DataFill> filledOrderQueue;
 
         Instrument selected_ins;
@@ -105,7 +105,7 @@ namespace Crypto_GUI
             this.privateConnect = true;
             this.msgLogging = false;
 
-            this.logQueue = new ConcurrentQueue<string>();
+            this.logQueue = new SISOQueue<string>();
             this.filledOrderQueue = new SISOQueue<DataFill>();
 
             this.strategies = new Dictionary<string, Strategy>();
@@ -547,9 +547,11 @@ namespace Crypto_GUI
         }
         private void updateLog()
         {
-            string line;
-            while (this.logQueue.TryDequeue(out line))
+            string line = this.logQueue.Dequeue();
+            //while (this.logQueue.TryDequeue(out line))
+            while(line != null)
             {
+                
                 this.textBoxMainLog.Text += line;
 
                 if (this.logFile != null)
@@ -557,6 +559,7 @@ namespace Crypto_GUI
                     this.logFile.WriteLine(line);
                     this.logFile.Flush();
                 }
+                line = this.logQueue.Dequeue();
             }
         }
         private async void update()
