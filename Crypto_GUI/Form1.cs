@@ -4,6 +4,7 @@ using CryptoClients.Net.Enums;
 using Discord;
 using Discord.WebSocket;
 using Enums;
+using LockFreeQueue;
 using PubnubApi.EventEngine.Subscribe.Common;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -54,7 +55,7 @@ namespace Crypto_GUI
         bool enabled;
 
         ConcurrentQueue<string> logQueue;
-        ConcurrentQueue<DataFill> filledOrderQueue;
+        SISOQueue<DataFill> filledOrderQueue;
 
         Instrument selected_ins;
 
@@ -105,7 +106,7 @@ namespace Crypto_GUI
             this.msgLogging = false;
 
             this.logQueue = new ConcurrentQueue<string>();
-            this.filledOrderQueue = new ConcurrentQueue<DataFill>();
+            this.filledOrderQueue = new SISOQueue<DataFill>();
 
             this.strategies = new Dictionary<string, Strategy>();
 
@@ -1293,9 +1294,11 @@ namespace Crypto_GUI
         {
             DataFill fill;
             //DataSpotOrderUpdate ord;
-            while (this.filledOrderQueue.Count > 0)
+            while (this.filledOrderQueue.Count() > 0)
             {
-                if (this.filledOrderQueue.TryDequeue(out fill))
+                fill = this.filledOrderQueue.Dequeue();
+                //if (this.filledOrderQueue.TryDequeue(out fill))
+                if(fill != null)
                 {
                     //ord = this.oManager.orders[ord_id];
                     if (this.qManager.instruments.ContainsKey(fill.symbol_market))
@@ -1312,6 +1315,10 @@ namespace Crypto_GUI
                     }
 
                     this.oManager.pushbackFill(fill);
+                }
+                else
+                {
+                    break;
                 }
             }
             if (this.selected_stg != null)

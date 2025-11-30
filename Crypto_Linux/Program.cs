@@ -65,7 +65,7 @@ namespace Crypto_Linux
         static bool enabled;
 
         static ConcurrentQueue<string> logQueue;
-        static ConcurrentQueue<DataFill> filledOrderQueue;
+        static SISOQueue<DataFill> filledOrderQueue;
 
         static Instrument selected_ins;
 
@@ -147,7 +147,7 @@ namespace Crypto_Linux
             privateConnect = true;
             msgLogging = false;
 
-            filledOrderQueue = new ConcurrentQueue<DataFill>();
+            filledOrderQueue = new SISOQueue<DataFill>();
             logEntryStack = new ConcurrentStack<logEntry>();
             fillInfoStack = new Stack<fillInfo>();
             int i = 0;
@@ -701,40 +701,48 @@ namespace Crypto_Linux
         {
             DataFill fill;
             fillInfo fInfo;
-            while (filledOrderQueue.Count > 0)
+            while (filledOrderQueue.Count() > 0)
             {
-                while(!filledOrderQueue.TryDequeue(out fill))
-                {
+                fill = filledOrderQueue.Dequeue();
+                //while(!filledOrderQueue.TryDequeue(out fill))
+                //{
 
-                }
-                if (fillInfoStack.Count > 0)
+                //}
+                if(fill != null)
                 {
-                    fInfo = fillInfoStack.Pop();
-                }
-                else
-                {
-                    fInfo = new fillInfo();
-                }
-                if (qManager.instruments.ContainsKey(fill.symbol_market))
-                {
-                    Instrument ins = qManager.instruments[fill.symbol_market];
-                    if (fill.timestamp != null)
+                    if (fillInfoStack.Count > 0)
                     {
-                        fInfo.timestamp = ((DateTime)fill.timestamp).ToString("HH:mm:ss.fff");
+                        fInfo = fillInfoStack.Pop();
                     }
                     else
                     {
-                        fInfo.timestamp = "";
+                        fInfo = new fillInfo();
                     }
-                    fInfo.market = fill.market;
-                    fInfo.symbol = fill.symbol;
-                    fInfo.side = fill.side.ToString();
-                    fInfo.fill_price = fill.price.ToString("N" + ins.price_scale);
-                    fInfo.quantity = fill.quantity.ToString("N" + ins.quantity_scale);
-                    fInfo.fee = (fill.fee_quote + fill.fee_base * fill.price).ToString();
-                    ws_server.processFill(fInfo);
-                    fill.init();
-                    oManager.pushbackFill(fill);
+                    if (qManager.instruments.ContainsKey(fill.symbol_market))
+                    {
+                        Instrument ins = qManager.instruments[fill.symbol_market];
+                        if (fill.timestamp != null)
+                        {
+                            fInfo.timestamp = ((DateTime)fill.timestamp).ToString("HH:mm:ss.fff");
+                        }
+                        else
+                        {
+                            fInfo.timestamp = "";
+                        }
+                        fInfo.market = fill.market;
+                        fInfo.symbol = fill.symbol;
+                        fInfo.side = fill.side.ToString();
+                        fInfo.fill_price = fill.price.ToString("N" + ins.price_scale);
+                        fInfo.quantity = fill.quantity.ToString("N" + ins.quantity_scale);
+                        fInfo.fee = (fill.fee_quote + fill.fee_base * fill.price).ToString();
+                        ws_server.processFill(fInfo);
+                        fill.init();
+                        oManager.pushbackFill(fill);
+                    }
+                }
+                else
+                {
+                    break;
                 }
             }
         }

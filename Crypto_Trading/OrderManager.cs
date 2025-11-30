@@ -69,10 +69,10 @@ namespace Crypto_Trading
         FileStream f;
         StreamWriter sw;
         private bool ord_logged;
-        public ConcurrentQueue<string> ordLogQueue;
+        public MISOQueue<string> ordLogQueue;
         public Thread ordLoggingTh;
 
-        public ConcurrentQueue<DataFill> filledOrderQueue;
+        public SISOQueue<DataFill> filledOrderQueue;
 
         public Strategy stg;
         public Dictionary<string, Strategy> strategies;
@@ -118,7 +118,7 @@ namespace Crypto_Trading
             this.modifingOrders = new Dictionary<string, modifingOrd>();
             this.modifingOrdStack = new ConcurrentStack<modifingOrd>();
 
-            this.ordLogQueue = new ConcurrentQueue<string>();
+            this.ordLogQueue = new MISOQueue<string>();
 
             this.ord_logged = false;
 
@@ -248,14 +248,6 @@ namespace Crypto_Trading
                         break;
                 }
             }
-        }
-        public void startOrderLogging()
-        {
-            this.ordLoggingTh = new Thread(() =>
-            {
-                this.ordLogging();
-            });
-            this.ordLoggingTh.Start();
         }
         public void setInstruments(Dictionary<string, Instrument> dic)
         {
@@ -3205,56 +3197,6 @@ namespace Crypto_Trading
             this.sw = new StreamWriter(f);
         }
 
-        public void ordLogging(string logPath = "")
-        {
-            this.ord_logged = false;
-            if(logPath != "")
-            {
-                this.outputPath = logPath;
-            }
-            string filename = this.outputPath + "/orderlog_" + DateTime.UtcNow.ToString("yyyy-MM-dd_HHmmss") + ".csv";
-            using (FileStream f = new FileStream(filename, FileMode.Create, FileAccess.Write))
-            {
-                using (StreamWriter s = new StreamWriter(f))
-                {
-                    int i = 0;
-                    string line;
-                    while (true)
-                    {
-                        if (this.ordLogQueue.TryDequeue(out line))
-                        {
-                            s.WriteLine(line);
-                            this.ord_logged = true;
-                            ++i;
-                        }
-                        else
-                        {
-                            s.Flush();
-                            Thread.Sleep(1000);
-                        }
-                        if (this.aborting && this.updateOrderStopped)
-                        {
-                            while (this.ordLogQueue.Count > 0)
-                            {
-                                if (this.ordLogQueue.TryDequeue(out line))
-                                {
-                                    s.WriteLine(line);
-                                    this.ord_logged = true;
-                                }
-                            }
-                            s.Flush();
-                            s.Close();
-                            if(!this.ord_logged)
-                            {
-                                File.Delete(filename);
-                            }
-                            this.aborting = false;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
         public async Task<bool> orderLogging(Action start, Action end, CancellationToken ct, int spinningMax)
         {
             string line;
@@ -3264,10 +3206,13 @@ namespace Crypto_Trading
             {
                 while (true)
                 {
-                    while (this.ordLogQueue.TryDequeue(out line))
+                    line = this.ordLogQueue.Dequeue();
+                    //while (this.ordLogQueue.TryDequeue(out line))
+                    while(line != null)
                     {
                         start();
                         this.sw.WriteLine(line);
+                        line = this.ordLogQueue.Dequeue();
                         //this.sw.Flush();
                         end();
                         this.ord_logged = true;
@@ -3302,31 +3247,22 @@ namespace Crypto_Trading
             return ret;
 
         }
-        public async Task<(bool,double)> _orderLogging()
-        {
-            string line;
-            if (this.ordLogQueue.TryDequeue(out line))
-            {
-                this.sw.WriteLine(line);
-                //this.sw.Flush();
-                this.ord_logged = true;
-            }
-            else
-            {
-                this.sw.Flush();
-                Thread.Sleep(1000);
-            }
-            return (true, 0);
-        }
+
         public void ordLoggingOnClosing()
         {
             string line;
-            while (this.ordLogQueue.Count > 0)
+            while (this.ordLogQueue.Count() > 0)
             {
-                if (this.ordLogQueue.TryDequeue(out line))
+                line = this.ordLogQueue.Dequeue();
+                //if (this.ordLogQueue.TryDequeue(out line))
+                if(line != null)
                 {
                     this.sw.WriteLine(line);
                     this.ord_logged = true;
+                }
+                else
+                {
+                    break;
                 }
             }
             this.sw.Flush();
@@ -3344,12 +3280,18 @@ namespace Crypto_Trading
         public void ordLoggingOnError()
         {
             string line;
-            while (this.ordLogQueue.Count > 0)
+            while (this.ordLogQueue.Count() > 0)
             {
-                if (this.ordLogQueue.TryDequeue(out line))
+                line = this.ordLogQueue.Dequeue();
+                //if (this.ordLogQueue.TryDequeue(out line))
+                if (line != null)
                 {
                     this.sw.WriteLine(line);
                     this.ord_logged = true;
+                }
+                else
+                {
+                    break;
                 }
             }
             this.sw.Flush();
