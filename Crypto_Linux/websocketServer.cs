@@ -26,9 +26,11 @@ namespace Crypto_Linux
         public Dictionary<string, strategySetting> strategySetting;
         public List<logEntry> logList = new List<logEntry>();
         public List<fillInfo> dataFillList = new List<fillInfo>();
-        
+        public Dictionary<(DateTime,string), intradayPnL> intradayPnLList = new Dictionary<(DateTime, string),intradayPnL>();
+
         public int sendingLogs = 0;
         public int sendingFills = 0;
+        public int sendingPnL = 0;
 
         public Action<string, Enums.logType> _addLog;
 
@@ -188,6 +190,32 @@ namespace Crypto_Linux
                 i += PageSize;
             }
             Volatile.Write(ref this.sendingFills, 0);
+
+            while(Interlocked.CompareExchange(ref this.sendingPnL, 1, 0) != 0)
+            {
+            }
+            i = 0;
+            List<intradayPnL> pnlValues = this.intradayPnLList.Values.ToList();
+            while (i < pnlValues.Count)
+            {
+                List<intradayPnL> subList;
+                if (i + PageSize >= pnlValues.Count)
+                {
+                    subList = pnlValues.GetRange(i, pnlValues.Count - i);
+                }
+                else
+                {
+                    subList = pnlValues.GetRange(i, PageSize);
+                }
+                json = JsonSerializer.Serialize(subList);
+                item["data_type"] = "intradaypnl";
+                item["data"] = json;
+                msg = JsonSerializer.Serialize(item, this.js_option);
+                await this.BroadcastAsync(msg);
+                i += PageSize;
+            }
+            Volatile.Write(ref this.sendingPnL, 0);
+
             try
             {
                 while (socket.State == WebSocketState.Open && !token.IsCancellationRequested)
@@ -397,6 +425,25 @@ namespace Crypto_Linux
             msg = JsonSerializer.Serialize(sendingItem, this.js_option);
             this.BroadcastAsync(msg);
             Volatile.Write(ref this.sendingFills, 0);
+        }
+        public async Task processIntradayPnL(List<intradayPnL> pnls)
+        {
+            while (Interlocked.CompareExchange(ref this.sendingPnL, 1, 0) != 0)
+            {
+            }
+            foreach(var pnl in pnls)
+            {
+                this.intradayPnLList[(DateTime.FromOADate(pnl.OADatetime),pnl.strategy_name)] = pnl;
+            }
+
+            Dictionary<string, string> sendingItem = new Dictionary<string, string>();
+            string json = JsonSerializer.Serialize<List<intradayPnL>>(pnls);
+            string msg;
+            sendingItem["data_type"] = "intradaypnl";
+            sendingItem["data"] = json;
+            msg = JsonSerializer.Serialize(sendingItem, this.js_option);
+            this.BroadcastAsync(msg);
+            Volatile.Write(ref this.sendingPnL, 0);
         }
         public async Task processLog(logEntry log)
         {

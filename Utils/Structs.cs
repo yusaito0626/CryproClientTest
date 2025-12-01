@@ -1365,7 +1365,7 @@ namespace Utils
     }
     public class logEntry
     {
-        public string? logtype {  get; set; }
+        public string? logtype { get; set; }
         public string? msg { get; set; }
     }
 
@@ -1374,7 +1374,7 @@ namespace Utils
         public string? symbol { get; set; }
         public string? baseCcy { get; set; }
         public string? quoteCcy { get; set; }
-        public string? market {  get; set; }
+        public string? market { get; set; }
         public decimal taker_fee { get; set; }
         public decimal maker_fee { get; set; }
         public decimal price_unit { get; set; }
@@ -1500,5 +1500,12 @@ namespace Utils
         public string stg_name { get; set; }
         public string? type { get; set; }
         public string? value { get; set; }
+    }
+    public class intradayPnL
+    {
+        public string? strategy_name { get; set; }
+        public double OADatetime { get; set; }
+        public double PnL { get; set; }
+        public double notionalVolume { get; set; }
     }
 }

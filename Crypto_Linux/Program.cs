@@ -40,6 +40,8 @@ namespace Crypto_Linux
         static string virtualBalanceFile = "";
         static string strategyFile = "";
 
+        static string intradayPnLFile = "";
+
         static Crypto_Clients.Crypto_Clients crypto_client = Crypto_Clients.Crypto_Clients.GetInstance();
         static QuoteManager qManager = QuoteManager.GetInstance();
         static OrderManager oManager = OrderManager.GetInstance();
@@ -86,6 +88,8 @@ namespace Crypto_Linux
 
         static int msg_Interval;
         static DateTime nextMsgTime;
+
+        static DateTime? intradayPnLTime = null;
 
         static Dictionary<string, strategyInfo> strategyInfos = new Dictionary<string, strategyInfo>();
         static Dictionary<string, instrumentInfo> instrumentInfos = new Dictionary<string, instrumentInfo>();
@@ -354,6 +358,7 @@ namespace Crypto_Linux
                     i = 0;
                 }
                 updateLog();
+
                 Thread.Sleep(1000);
             }
             addLog("Exitting the main process...");
@@ -368,6 +373,21 @@ namespace Crypto_Linux
             decimal feeAll = 0;
             decimal totalAll = 0;
             string msg = "";
+            bool sendingPnL = false;
+            DateTime current = DateTime.UtcNow;
+            List<intradayPnL> pnls = new List<intradayPnL>();
+            if (intradayPnLTime == null ||  (intradayPnLTime.HasValue && current > intradayPnLTime.Value + TimeSpan.FromMinutes(30)))
+            {
+                if(current.Minute < 30)
+                {
+                    intradayPnLTime = new DateTime(current.Year,current.Month, current.Day, current.Hour, 0, 0);
+                }
+                else
+                {
+                    intradayPnLTime = new DateTime(current.Year, current.Month, current.Day, current.Hour, 30, 0);
+                }
+                sendingPnL = true;
+            }
             foreach (var stg in strategies.Values)
             {
                 if (stg.maker != null && stg.taker != null)
@@ -400,6 +420,20 @@ namespace Crypto_Linux
                     stg.totalPnL = stg.posPnL + stg.tradingPnL - stg.totalFee;
 
                     msg += DateTime.UtcNow.ToString() + " - Strategy " + stg.name + " -    \nNotional Volume:" + stg.notionalVolume.ToString("N2") + "\nNet Exposure:" + stg.netExposure.ToString("N" + stg.maker.quantity_scale) + "    [Maker Balance:" + stg.maker.baseBalance.total.ToString("N" + stg.maker.quantity_scale) + "]\nPosition PnL:" + stg.posPnL.ToString("N2") + "\nTrading PnL:" + stg.tradingPnL.ToString("N2") + "\nFee:" + stg.totalFee.ToString("N2") + "\nTotal:" + stg.totalPnL.ToString("N2") + "\n";
+                    
+                    if(sendingPnL)
+                    {
+                        intradayPnL pnl = new intradayPnL();
+                        pnl.strategy_name = stg.name;
+                        pnl.OADatetime = ((DateTime)intradayPnLTime).ToOADate();
+                        pnl.PnL = (double)stg.totalPnL;
+                        pnl.notionalVolume = (double)stg.notionalVolume;
+                        if(!ws_server.intradayPnLList.ContainsKey(((DateTime)intradayPnLTime,pnl.strategy_name)))
+                        {
+                            pnls.Add(pnl);
+                        }
+                    }
+                    
                     volumeAll += stg.notionalVolume;
                     posPnLAll += stg.posPnL;
                     tradingPLAll += stg.tradingPnL;
@@ -407,6 +441,22 @@ namespace Crypto_Linux
                     totalAll += stg.totalPnL;
                     msg += "markup_bid:" + stg.temp_markup_bid.ToString("N2") + "  markup_ask:" + stg.temp_markup_ask.ToString("N2") + "   Base markup:" + stg.prev_markup.ToString("N2")  + "\n";
 
+                }
+            }
+            if(sendingPnL)
+            {
+                intradayPnL pnl = new intradayPnL();
+                pnl.strategy_name = "Total";
+                pnl.OADatetime = ((DateTime)intradayPnLTime).ToOADate();
+                pnl.PnL = (double)totalAll;
+                pnl.notionalVolume = (double)volumeAll;
+                if (!ws_server.intradayPnLList.ContainsKey(((DateTime)intradayPnLTime, pnl.strategy_name)))
+                {
+                    pnls.Add(pnl);
+                }
+                if(pnls.Count > 0)
+                {
+                    ws_server.processIntradayPnL(pnls);
                 }
             }
             msg += DateTime.UtcNow.ToString() + " - All -    \nNotional Volume:" + volumeAll.ToString("N2") + "\nPosition PnL:" + posPnLAll.ToString("N2") + "\nTrading PnL:" + tradingPLAll.ToString("N2") + "\nFee:" + feeAll.ToString("N2") + "\nTotal:" + totalAll.ToString("N2") + "\n";
@@ -909,6 +959,7 @@ namespace Crypto_Linux
             }
             outputPath = newpath;
             logPath = outputPath + "/crypto_" + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + ".log";
+            intradayPnLFile = outputPath + "/Intraday_PnL.csv";
 
             return true;
 
@@ -1196,6 +1247,32 @@ namespace Crypto_Linux
                 }
                 qManager.ready = true;
 
+                if(File.Exists(intradayPnLFile))
+                {
+                    using (StreamReader sr = new StreamReader(new FileStream(intradayPnLFile, FileMode.Open, FileAccess.Read)))
+                    {
+                        List<intradayPnL> pnls = new List<intradayPnL>();
+                        while (sr.ReadLine() is string line)
+                        {
+                            string[] items = line.Split(',');//name,oadatetime,pnl,notional
+                            if (items.Length >= 4)
+                            {
+                                intradayPnL pnl = new intradayPnL();
+                                pnl.strategy_name = items[0];
+                                pnl.OADatetime = double.Parse(items[1]);
+                                pnl.PnL = double.Parse(items[2]);
+                                pnl.notionalVolume = double.Parse(items[3]);
+                                intradayPnLTime = DateTime.FromOADate(pnl.OADatetime);
+                                pnls.Add(pnl);
+                            }
+                        }
+                        if (pnls.Count > 0)
+                        {
+                            ws_server.processIntradayPnL(pnls);
+                        }
+                    }
+                }
+
                 if (liveTrading || privateConnect)
                 {
                     await crypto_client.subscribeSpotOrderUpdates(qManager._markets.Keys);
@@ -1433,6 +1510,19 @@ namespace Crypto_Linux
                     await MsgDeliverer.sendMessage(msg, msg_type);
 
                     addLog(msg);
+
+                    if(ws_server.intradayPnLList.Count > 0)
+                    {
+                        using (var sw_intraday = new StreamWriter(new FileStream(intradayPnLFile, FileMode.Create, FileAccess.Write)))
+                        {
+                            foreach(var pnl in ws_server.intradayPnLList.Values)
+                            {
+                                sw_intraday.WriteLine($"{pnl.strategy_name},{pnl.OADatetime.ToString()},{pnl.PnL.ToString()},{pnl.notionalVolume.ToString()}");
+                            }
+                            sw_intraday.Flush();
+                        }
+                    }
+
                     Thread.Sleep(1000);
 
                     addLog("Updating the performance file...");

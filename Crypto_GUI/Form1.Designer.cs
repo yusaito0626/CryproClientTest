@@ -223,6 +223,10 @@
             dataGridViewTextBoxColumn8 = new DataGridViewTextBoxColumn();
             dataGridViewTextBoxColumn9 = new DataGridViewTextBoxColumn();
             col_roundTrip = new DataGridViewTextBoxColumn();
+            tabPage6 = new TabPage();
+            plot_notional = new ScottPlot.WinForms.FormsPlot();
+            plot_pnl = new ScottPlot.WinForms.FormsPlot();
+            combo_pnlStrategy = new ComboBox();
             timer_statusCheck = new System.Windows.Forms.Timer(components);
             timer_PeriodicMsg = new System.Windows.Forms.Timer(components);
             tabControl.SuspendLayout();
@@ -244,6 +248,7 @@
             ((System.ComponentModel.ISupportInitialize)gridView_QueueInfo).BeginInit();
             ((System.ComponentModel.ISupportInitialize)gridView_ThStatus).BeginInit();
             ((System.ComponentModel.ISupportInitialize)gridView_Connection).BeginInit();
+            tabPage6.SuspendLayout();
             SuspendLayout();
             // 
             // button_receiveFeed
@@ -264,6 +269,7 @@
             tabControl.Controls.Add(tabPage2);
             tabControl.Controls.Add(tabPage4);
             tabControl.Controls.Add(tabPage5);
+            tabControl.Controls.Add(tabPage6);
             tabControl.Location = new Point(7, 8);
             tabControl.Margin = new Padding(2);
             tabControl.Name = "tabControl";
@@ -2204,6 +2210,45 @@
             col_roundTrip.Name = "col_roundTrip";
             col_roundTrip.Width = 125;
             // 
+            // tabPage6
+            // 
+            tabPage6.Controls.Add(plot_notional);
+            tabPage6.Controls.Add(plot_pnl);
+            tabPage6.Controls.Add(combo_pnlStrategy);
+            tabPage6.Location = new Point(4, 29);
+            tabPage6.Name = "tabPage6";
+            tabPage6.Padding = new Padding(3);
+            tabPage6.Size = new Size(1040, 984);
+            tabPage6.TabIndex = 5;
+            tabPage6.Text = "IntradayPnL";
+            tabPage6.UseVisualStyleBackColor = true;
+            // 
+            // plot_notional
+            // 
+            plot_notional.DisplayScale = 1.25F;
+            plot_notional.Location = new Point(46, 439);
+            plot_notional.Name = "plot_notional";
+            plot_notional.Size = new Size(926, 197);
+            plot_notional.TabIndex = 3;
+            // 
+            // plot_pnl
+            // 
+            plot_pnl.DisplayScale = 1.25F;
+            plot_pnl.Location = new Point(46, 87);
+            plot_pnl.Name = "plot_pnl";
+            plot_pnl.Size = new Size(926, 335);
+            plot_pnl.TabIndex = 2;
+            // 
+            // combo_pnlStrategy
+            // 
+            combo_pnlStrategy.FormattingEnabled = true;
+            combo_pnlStrategy.Location = new Point(34, 24);
+            combo_pnlStrategy.Margin = new Padding(2);
+            combo_pnlStrategy.Name = "combo_pnlStrategy";
+            combo_pnlStrategy.Size = new Size(150, 28);
+            combo_pnlStrategy.TabIndex = 1;
+            combo_pnlStrategy.SelectedIndexChanged += combo_pnlStrategy_SelectedIndexChanged;
+            // 
             // timer_statusCheck
             // 
             timer_statusCheck.Interval = 1000;
@@ -2252,6 +2297,7 @@
             ((System.ComponentModel.ISupportInitialize)gridView_QueueInfo).EndInit();
             ((System.ComponentModel.ISupportInitialize)gridView_ThStatus).EndInit();
             ((System.ComponentModel.ISupportInitialize)gridView_Connection).EndInit();
+            tabPage6.ResumeLayout(false);
             ResumeLayout(false);
         }
 
@@ -2435,5 +2481,9 @@
         private DataGridViewTextBoxColumn dataGridViewTextBoxColumn17;
         private DataGridViewTextBoxColumn dataGridViewTextBoxColumn18;
         private DataGridViewTextBoxColumn dataGridViewTextBoxColumn19;
+        private TabPage tabPage6;
+        private ComboBox combo_pnlStrategy;
+        private ScottPlot.WinForms.FormsPlot plot_notional;
+        private ScottPlot.WinForms.FormsPlot plot_pnl;
     }
 }

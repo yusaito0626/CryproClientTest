@@ -6,6 +6,8 @@ using Discord.WebSocket;
 using Enums;
 using LockFreeQueue;
 using PubnubApi.EventEngine.Subscribe.Common;
+using ScottPlot;
+using ScottPlot.Plottables;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
@@ -21,7 +23,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml.Linq;
-
 using Utils;
 
 
@@ -95,6 +96,8 @@ namespace Crypto_GUI
         bool masterInfoReceived = false;
         bool strategySettingReceived = false;
 
+        private DateTime startOfDay;
+        private List<intradayPnL> chartData = new List<intradayPnL>();
 
         public Form1()
         {
@@ -113,6 +116,7 @@ namespace Crypto_GUI
             this.enabled = false;
 
             InitializeComponent();
+            this.setupCharts();
 
             this.Text += "   Ver." + GlobalVariables.ver_major + ":" + GlobalVariables.ver_minor + ":" + GlobalVariables.ver_patch;
 
@@ -196,7 +200,7 @@ namespace Crypto_GUI
             }
 
             this.font_gridView = new("Calibri", 9);
-            this.font_gridView_Bold = new Font(this.font_gridView, FontStyle.Bold);
+            this.font_gridView_Bold = new Font(this.font_gridView, System.Drawing.FontStyle.Bold);
 
             this.updatingTh = new Thread(update);
             this.updatingTh.Start();
@@ -211,6 +215,107 @@ namespace Crypto_GUI
             }
 
             this.addLog("Application closing time:" + this.str_endTime);
+        }
+
+        private void setupCharts()
+        {
+            combo_pnlStrategy.Items.Add("Total");
+            combo_pnlStrategy.SelectedItem = "Total";
+            this.startOfDay = DateTime.UtcNow.Date;
+
+            this.plot_pnl.Plot.Axes.DateTimeTicksBottom();
+
+            this.plot_pnl.Plot.RenderManager.RenderStarting += (s, e) =>
+            {
+                var ticks = this.plot_pnl.Plot.Axes.Bottom.TickGenerator.Ticks;
+                for (int i = 0; i < ticks.Length; i++)
+                {
+                    DateTime dt = DateTime.FromOADate(ticks[i].Position);
+                    string label = dt.ToString("HH:mm:ss");
+                    ticks[i] = new ScottPlot.Tick(ticks[i].Position, label);
+                }
+            };
+            this.plot_pnl.Plot.Axes.Bottom.TickLabelStyle.Rotation = 270;
+            this.plot_pnl.Plot.Axes.Bottom.TickLabelStyle.Alignment = ScottPlot.Alignment.MiddleRight;
+            this.plot_pnl.Plot.Axes.Bottom.MinimumSize = 80;
+
+            this.plot_notional.Plot.Axes.DateTimeTicksBottom();
+
+            this.plot_notional.Plot.RenderManager.RenderStarting += (s, e) =>
+            {
+                var ticks = this.plot_notional.Plot.Axes.Bottom.TickGenerator.Ticks;
+                for (int i = 0; i < ticks.Length; i++)
+                {
+                    DateTime dt = DateTime.FromOADate(ticks[i].Position);
+                    string label = dt.ToString("HH:mm:ss");
+                    ticks[i] = new ScottPlot.Tick(ticks[i].Position, label);
+                }
+            };
+            this.plot_notional.Plot.Axes.Bottom.TickLabelStyle.Rotation = 270;
+            this.plot_notional.Plot.Axes.Bottom.TickLabelStyle.Alignment = ScottPlot.Alignment.MiddleRight;
+            this.plot_notional.Plot.Axes.Bottom.MinimumSize = 80;
+
+            double xmin = this.startOfDay.ToOADate();
+            double xmax = this.startOfDay.AddDays(1).AddSeconds(-1).ToOADate();
+
+            this.plot_pnl.Plot.Axes.SetLimitsX(xmin, xmax);
+            this.plot_notional.Plot.Axes.SetLimitsX(xmin, xmax);
+            
+            this.plot_pnl.Plot.Axes.SetLimitsY(-1000, 5000);
+            this.plot_notional.Plot.Axes.SetLimitsY(0, 1000000);
+
+
+            this.plot_pnl.Refresh();
+            this.plot_notional.Refresh();
+
+        }
+
+        void update_charts()
+        {
+            if (this.chartData == null || this.chartData.Count() == 0 || this.combo_pnlStrategy.SelectedItem == "")
+            {
+                return;
+            }
+            string selectedStg = this.combo_pnlStrategy.SelectedItem.ToString();
+            List<double> xs = new List<double>();
+            List<double> pnl_ys = new List<double>();
+            List<double> notional_ys = new List<double>();
+            foreach (var data in this.chartData)
+            {
+                if (data.strategy_name == selectedStg)
+                {
+                    xs.Add(data.OADatetime);
+                    pnl_ys.Add(data.PnL);
+                    notional_ys.Add(data.notionalVolume);
+
+                }
+            }
+            this.plot_pnl.Plot.Clear();
+            this.plot_pnl.Plot.Add.Scatter(xs.ToArray(), pnl_ys.ToArray());
+            //this.plot_pnl.Plot.Axes.SetLimitsX(this.startOfDay.ToOADate(), this.startOfDay.AddDays(1).AddSeconds(-1).ToOADate());
+            //this.plot_pnl.Plot.Axes.Left.Range.Reset();
+            this.plot_pnl.Plot.Axes.AutoScaleExpandY();
+            this.plot_pnl.Refresh();
+            this.plot_notional.Plot.Clear();
+            var barPlots = this.plot_notional.Plot.Add.Bars(xs.ToArray(), notional_ys.ToArray());
+            foreach (var bar in barPlots.Bars)
+            {
+                bar.Size = 1/24;
+                //bar.LineWidth = 1 / 48;
+            }
+            //this.plot_notional.Plot.Axes.SetLimitsX(this.startOfDay.ToOADate(), this.startOfDay.AddDays(1).AddSeconds(-1).ToOADate());
+            this.plot_notional.Plot.Axes.AutoScaleExpandY();
+
+            this.plot_notional.Refresh();
+        }
+        void addChartData(List<intradayPnL> data)
+        {
+            if (this.chartData == null)
+            {
+                this.chartData = new List<intradayPnL>();
+            }
+            this.chartData.AddRange(data);
+            this.BeginInvoke(this.update_charts);
         }
         private bool readConfig()
         {
@@ -549,9 +654,9 @@ namespace Crypto_GUI
         {
             string line = this.logQueue.Dequeue();
             //while (this.logQueue.TryDequeue(out line))
-            while(line != null)
+            while (line != null)
             {
-                
+
                 this.textBoxMainLog.Text += line;
 
                 if (this.logFile != null)
@@ -625,7 +730,7 @@ namespace Crypto_GUI
                     }
                     if (!connected)
                     {
-                        if(trial == 1)
+                        if (trial == 1)
                         {
                             addLog("Waiting for the trading engine to start...");
                         }
@@ -687,6 +792,7 @@ namespace Crypto_GUI
                                             {
                                                 this.comboStrategy.Items.Add(key);
                                                 this.combo_StgSetting.Items.Add(key);
+                                                this.combo_pnlStrategy.Items.Add(key);
                                             }
                                         });
                                         this.strategySettingReceived = true;
@@ -805,7 +911,7 @@ namespace Crypto_GUI
                                     case "variableUpdate":
                                         {
                                             var update = JsonSerializer.Deserialize<variableUpdate>(content);
-                                            if(this.strategies.ContainsKey(update.stg_name))
+                                            if (this.strategies.ContainsKey(update.stg_name))
                                             {
                                                 Strategy stg = this.strategies[update.stg_name];
                                                 decimal newvalue;
@@ -899,7 +1005,7 @@ namespace Crypto_GUI
                                                     default:
                                                         break;
                                                 }
-                                                if(stg == this.selected_stg)
+                                                if (stg == this.selected_stg)
                                                 {
                                                     this.BeginInvoke(() =>
                                                     {
@@ -909,9 +1015,13 @@ namespace Crypto_GUI
                                             }
                                             else
                                             {
-                                                addLog("The strategy to update a variable not found. stg_name:" + update.stg_name,logType.WARNING);
+                                                addLog("The strategy to update a variable not found. stg_name:" + update.stg_name, logType.WARNING);
                                             }
                                         }
+                                        break;
+                                    case "intradaypnl":
+                                        var intraPnls = JsonSerializer.Deserialize<List<intradayPnL>>(content);
+                                        this.addChartData(intraPnls);
                                         break;
                                     case "connection":
                                         var conninfos = JsonSerializer.Deserialize<Dictionary<string, connecitonStatus>>(content);
@@ -1301,7 +1411,7 @@ namespace Crypto_GUI
             {
                 fill = this.filledOrderQueue.Dequeue();
                 //if (this.filledOrderQueue.TryDequeue(out fill))
-                if(fill != null)
+                if (fill != null)
                 {
                     //ord = this.oManager.orders[ord_id];
                     if (this.qManager.instruments.ContainsKey(fill.symbol_market))
@@ -1350,7 +1460,7 @@ namespace Crypto_GUI
                     this.lbl_skewpoint.Text = this.selected_stg.skew_point.ToString("N2");
                     this.lbl_stgmarkup.Text = this.selected_stg.base_markup.ToString("N2");
                 }
-                
+
                 foreach (DataGridViewRow row in this.gridView_orders.Rows)
                 {
                     string symbol_market = row.Cells[2].Value + "@" + row.Cells[1].Value;
@@ -1544,7 +1654,7 @@ namespace Crypto_GUI
                 this.BeginInvoke(() => { this.button_receiveFeed.Enabled = false; });
                 this.addLog("An error occured while initializing the platforms.", Enums.logType.ERROR);
                 this.addLog(ex.Message, Enums.logType.ERROR);
-                if(ex.StackTrace != null)
+                if (ex.StackTrace != null)
                 {
                     this.addLog(ex.StackTrace, Enums.logType.ERROR);
                 }
@@ -2197,7 +2307,7 @@ namespace Crypto_GUI
 
         private void update_StgInfo()
         {
-            if(this.selected_stg != null)
+            if (this.selected_stg != null)
             {
                 this.lbl_makerName.Text = this.selected_stg.maker_symbol_market;
                 this.lbl_takerName.Text = this.selected_stg.taker_symbol_market;
@@ -2221,7 +2331,7 @@ namespace Crypto_GUI
                 this.lbl_fillInterval.Text = this.selected_stg.intervalAfterFill.ToString("N2");
                 this.lbl_ordUpdateTh.Text = this.selected_stg.modThreshold.ToString("N5");
                 this.lbl_skewtype.Text = this.selected_stg.skew_type.ToString();
-                if(this.selected_stg.skew_type == skewType.STEP)
+                if (this.selected_stg.skew_type == skewType.STEP)
                 {
                     this.lbl_skewstep.Text = this.selected_stg.skew_step.ToString("N0");
                 }
@@ -2237,7 +2347,7 @@ namespace Crypto_GUI
             decimal value;
             string data_type = "variableUpdate";
             Dictionary<string, string> dict;
-            switch ( this.comboStgVariables.Text)
+            switch (this.comboStgVariables.Text)
             {
                 case "Order Throttle":
                     if (!decimal.TryParse(this.txtBox_newValue.Text, out value))
@@ -2289,7 +2399,7 @@ namespace Crypto_GUI
                     }
                     break;
                 case "Markup":
-                    if(!decimal.TryParse(this.txtBox_newValue.Text, out value))
+                    if (!decimal.TryParse(this.txtBox_newValue.Text, out value))
                     {
                         DialogResult result = MessageBox.Show(
                             "The value must be a number",
@@ -2300,7 +2410,7 @@ namespace Crypto_GUI
                     }
                     else
                     {
-                        if(this.selected_stg == null)
+                        if (this.selected_stg == null)
                         {
                             DialogResult result = MessageBox.Show(
                             "Select a strategy",
@@ -2929,6 +3039,11 @@ namespace Crypto_GUI
                     break;
             }
             this.txtBox_newValue.Text = "";
+        }
+
+        private void combo_pnlStrategy_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            this.update_charts();
         }
     }
 }
