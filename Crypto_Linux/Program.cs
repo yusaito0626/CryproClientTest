@@ -260,6 +260,7 @@ namespace Crypto_Linux
                 setting.oneSideThreshold = stg.Value.oneSideThreshold;
                 setting.decaying_time = stg.Value.markup_decay_basetime;
                 setting.markupMultiplier = stg.Value.RVMarkup_multiplier;
+                setting.markup_adjustment = stg.Value.markupAdjustment;
                 setting.predictFill = stg.Value.predictFill;
                 setting.skew_type = stg.Value.skew_type.ToString();
                 setting.skew_step = stg.Value.skew_step;
@@ -2103,7 +2104,8 @@ namespace Crypto_Linux
                     addLog("Part1:" + stg.onFill_latency1.ToString("N3") + "micro sec");
                     addLog("Part2:" + stg.onFill_latency2.ToString("N3") + "micro sec");
                     addLog("Part3:" + stg.onFill_latency3.ToString("N3") + "micro sec");
-                    addLog("Placing Orders:" + stg.placingOrderLatency.ToString("N3") + "micro sec");
+                    addLog("Placing Orders:" + stg.placingOrderLatencyOnFill.ToString("N3") + "micro sec");
+                    addLog("Placing Orders[updateOrder]:" + stg.placingOrderLatencyUpdate.ToString("N3") + "micro sec");
                 }
             }
 

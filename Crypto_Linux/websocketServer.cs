@@ -132,6 +132,7 @@ namespace Crypto_Linux
                 setting.oneSideThreshold = stg.Value.oneSideThreshold;
                 setting.decaying_time = stg.Value.markup_decay_basetime;
                 setting.markupMultiplier = stg.Value.RVMarkup_multiplier;
+                setting.markup_adjustment = stg.Value.markupAdjustment;
                 setting.predictFill = stg.Value.predictFill;
                 setting.skew_type = stg.Value.skew_type.ToString();
                 setting.skew_step = stg.Value.skew_step;
@@ -380,6 +381,14 @@ namespace Crypto_Linux
                                                 {
                                                     addLog("The markup multiplier of " + stg.name + " has been changed from " + stg.RVMarkup_multiplier.ToString("N2") + " to " + newVar.value);
                                                     stg.RVMarkup_multiplier = newvalue;
+                                                    await BroadcastAsync(message);
+                                                }
+                                                break;
+                                            case "markupadjustment":
+                                                if (decimal.TryParse(newVar.value, out newvalue))
+                                                {
+                                                    addLog("The markup adjustment of " + stg.name + " has been changed from " + stg.markupAdjustment.ToString("N2") + " to " + newVar.value);
+                                                    stg.markupAdjustment = newvalue;
                                                     await BroadcastAsync(message);
                                                 }
                                                 break;

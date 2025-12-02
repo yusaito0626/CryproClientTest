@@ -133,6 +133,7 @@ namespace Crypto_GUI
             comboStgVariables.Items.Add("Decaying Time");
             comboStgVariables.Items.Add("ToB Multiplier");
             comboStgVariables.Items.Add("Markup Multiplier");
+            comboStgVariables.Items.Add("Markup Adjustment");
             comboStgVariables.Items.Add("Order Throttle");
 
             this.button_receiveFeed.Enabled = false;
@@ -1000,6 +1001,12 @@ namespace Crypto_GUI
                                                         if (decimal.TryParse(update.value, out newvalue))
                                                         {
                                                             stg.RVMarkup_multiplier = newvalue;
+                                                        }
+                                                        break;
+                                                    case "markupadjustment":
+                                                        if (decimal.TryParse(update.value, out newvalue))
+                                                        {
+                                                            stg.markupAdjustment = newvalue;
                                                         }
                                                         break;
                                                     default:
@@ -2328,6 +2335,7 @@ namespace Crypto_GUI
                 this.lbl_oneside.Text = this.selected_stg.oneSideThreshold.ToString("N0");
                 this.lbl_decayingtime.Text = this.selected_stg.markup_decay_basetime.ToString("N0");
                 this.lbl_markupMulti.Text = this.selected_stg.RVMarkup_multiplier.ToString("N2");
+                this.lbl_markupAdjustment.Text = this.selected_stg.markupAdjustment.ToString("N2");
                 this.lbl_fillInterval.Text = this.selected_stg.intervalAfterFill.ToString("N2");
                 this.lbl_ordUpdateTh.Text = this.selected_stg.modThreshold.ToString("N5");
                 this.lbl_skewtype.Text = this.selected_stg.skew_type.ToString();
@@ -2971,6 +2979,55 @@ namespace Crypto_GUI
                                 variableUpdate upd = new variableUpdate();
                                 upd.stg_name = this.selected_stg.name;
                                 upd.type = "markupmultiplier";
+                                upd.value = this.txtBox_newValue.Text;
+                                string body = JsonSerializer.Serialize(upd);
+                                dict = new Dictionary<string, string>();
+                                dict["data_type"] = data_type;
+                                dict["data"] = body;
+                                string msg = JsonSerializer.Serialize(dict);
+                                var bytes = Encoding.UTF8.GetBytes(msg);
+                                if (this.info_receiver.State == WebSocketState.Open)
+                                {
+                                    await this.info_receiver.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                                }
+                            }
+                        }
+                    }
+                    break;
+                case "Markup Adjustment":
+                    if (!decimal.TryParse(this.txtBox_newValue.Text, out value))
+                    {
+                        DialogResult result = MessageBox.Show(
+                            "The value must be a number",
+                            "",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error
+                        );
+                    }
+                    else
+                    {
+                        if (this.selected_stg == null)
+                        {
+                            DialogResult result = MessageBox.Show(
+                            "Select a strategy",
+                            "",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error
+                        );
+                        }
+                        else
+                        {
+                            DialogResult result = MessageBox.Show(
+                                "You're changing the markup adjustment of " + this.selected_stg.name + " from " + this.selected_stg.markupAdjustment.ToString("N2") + " to " + this.txtBox_newValue.Text + ".",
+                                "Updating a variable",
+                                MessageBoxButtons.OKCancel,
+                                MessageBoxIcon.Question
+                                );
+                            if (result == DialogResult.OK)
+                            {
+                                variableUpdate upd = new variableUpdate();
+                                upd.stg_name = this.selected_stg.name;
+                                upd.type = "markupadjustment";
                                 upd.value = this.txtBox_newValue.Text;
                                 string body = JsonSerializer.Serialize(upd);
                                 dict = new Dictionary<string, string>();

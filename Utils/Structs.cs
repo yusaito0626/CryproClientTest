@@ -1389,6 +1389,7 @@ namespace Utils
         public string? maker_market { get; set; }
         public double order_throttle { get; set; }
         public decimal markup { get; set; }
+        public decimal markup_adjustment { get; set; }
         public decimal min_markup { get; set; }
         public decimal max_skew { get; set; }
         public decimal skew_widening { get; set; }

@@ -43,6 +43,7 @@ namespace Crypto_Trading
         public decimal skewThreshold;
         public decimal oneSideThreshold;
         public decimal skewWidening;
+        public decimal markupAdjustment;
 
         public bool abook;
 
@@ -118,10 +119,13 @@ namespace Crypto_Trading
         public int onFill_count1;
         public int onFill_count2;
         public int onFill_count3;
-        public double placingOrderLatency;
-        public double placingOrdercount;
+        public double placingOrderLatencyOnFill;
+        public double placingOrdercountOnFill;
+        public double placingOrderLatencyUpdate;
+        public double placingOrdercountUpdate;
         Stopwatch sw;
         Stopwatch sw2;
+        Stopwatch sw3;
 
         public Action<string, Enums.logType> _addLog;
         public Strategy() 
@@ -143,6 +147,7 @@ namespace Crypto_Trading
             this.skewThreshold = 0;
             this.oneSideThreshold = 0;
             this.skewWidening = 0;
+            this.markupAdjustment = 0;
             this.abook = true;
             this.predictFill = false;
 
@@ -196,15 +201,19 @@ namespace Crypto_Trading
             this.onFill_latency1 = 0;
             this.onFill_latency2 = 0;
             this.onFill_latency3 = 0;
-            this.placingOrderLatency = 0;
+            this.placingOrderLatencyOnFill = 0;
+            this.placingOrderLatencyUpdate = 0;
             this.onFill_count1 = 0;
             this.onFill_count2 = 0;
             this.onFill_count3 = 0;
-            this.placingOrdercount = 0;
+            this.placingOrdercountOnFill = 0;
+            this.placingOrdercountUpdate = 0;
             this.sw = new Stopwatch();
             this.sw2 = new Stopwatch();
+            this.sw3 = new Stopwatch();
             this.sw.Start();
             this.sw2.Start();
+            this.sw3.Start();
             Thread.Sleep(1);
             this.sw.Stop();
             this.sw.Reset();
@@ -212,6 +221,9 @@ namespace Crypto_Trading
             this.sw2.Stop();
             this.sw2.Reset();
             this.sw2.Start();
+            this.sw3.Stop();
+            this.sw3.Reset();
+            this.sw3.Start();
             Thread.Sleep(1);
             this.sw.Stop();
             this.sw.Reset();
@@ -219,11 +231,16 @@ namespace Crypto_Trading
             this.sw2.Stop();
             this.sw2.Reset();
             this.sw2.Start();
+            this.sw3.Stop();
+            this.sw3.Reset();
+            this.sw3.Start();
             Thread.Sleep(1);
             this.sw.Stop();
             this.sw.Reset();
             this.sw2.Stop();
             this.sw2.Reset();
+            this.sw3.Stop();
+            this.sw3.Reset();
         }
 
         public void readStrategyFile(string jsonfilename)
@@ -399,6 +416,14 @@ namespace Crypto_Trading
             {
                 this.RVMarkup_multiplier = 1;
             }
+            if (root.TryGetProperty("MarkupAdjustment", out item))
+            {
+                this.markupAdjustment = item.GetDecimal();
+            }
+            else
+            {
+                this.markupAdjustment = 0;
+            }
 
             if (root.TryGetProperty("skew_type", out item))
             {
@@ -459,6 +484,7 @@ namespace Crypto_Trading
             this.oneSideThreshold = setting.oneSideThreshold;
             this.markup_decay_basetime = setting.decaying_time;
             this.RVMarkup_multiplier = setting.markupMultiplier;
+            this.markupAdjustment = setting.markup_adjustment;
             this.taker_market = setting.taker_market;
             this.maker_market = setting.maker_market;
             this.predictFill = setting.predictFill;
@@ -490,7 +516,8 @@ namespace Crypto_Trading
 
                 bool buyFirst = true;
                 this.skew_point = this.skew();
-                decimal modTh_buffer = 100 * Math.Abs(this.skew_point) / this.maxSkew / 1000000;
+                decimal modTh_buffer = 0;
+                //decimal modTh_buffer = 100 * Math.Abs(this.skew_point) / this.maxSkew / 1000000;
                 int i = 0;
                 while (Interlocked.CompareExchange(ref this.taker.quotes_lock, 1, 0) != 0)
                 {
@@ -513,8 +540,7 @@ namespace Crypto_Trading
                 {
                     taker_VR = 0.7 * taker_VR + 0.3 * this.taker.prev_RV;
                 }
-                decimal vr_markup = this.markup * (decimal)Math.Exp(taker_VR / Math.Sqrt(this.taker.RV_minute * 60) * 1_000_000 / (double)this.markup) * this.RVMarkup_multiplier;
-
+                decimal vr_markup = this.markup * (decimal)Math.Exp(taker_VR / Math.Sqrt(this.taker.RV_minute * 60) * 1_000_000 / (double)this.markup) * this.RVMarkup_multiplier + this.markupAdjustment;
 
                 //if (vr_markup > this.markup)
                 //{
@@ -525,54 +551,67 @@ namespace Crypto_Trading
 
                 if (vr_markup >= this.prev_markup)
                 {
-                    if (vr_markup > this.markup)
-                    {
-                        this.base_markup = vr_markup;
-                        //markup_bid = vr_markup;
-                        //markup_ask = vr_markup;
-                        this.prev_markup = vr_markup;
-                        this.prevMarkupTime = DateTime.UtcNow;
-                    }
-                    else
-                    {
+                    this.base_markup = vr_markup;
+                    this.prev_markup = vr_markup;
+                    this.prevMarkupTime = DateTime.UtcNow;
+                    //if (vr_markup > this.markup)
+                    //{
+                    //    this.base_markup = vr_markup;
+                    //    this.prev_markup = vr_markup;
+                    //    this.prevMarkupTime = DateTime.UtcNow;
+                    //}
+                    //else
+                    //{
 
-                        this.base_markup = this.markup;
-                        this.prev_markup = this.markup;
-                    }
+                    //    this.base_markup = this.markup;
+                    //    this.prev_markup = this.markup;
+                    //}
                 }
                 else
                 {
-                    if(this.prev_markup > this.markup)
+                    double elapsedTime = (DateTime.UtcNow - this.prevMarkupTime).TotalMinutes;
+                    if (elapsedTime > this.taker.RV_minute * 2)
                     {
-                        double elapsedTime = (DateTime.UtcNow - this.prevMarkupTime).TotalMinutes;
-                        if (elapsedTime > this.taker.RV_minute * 2)
-                        {
-                            if (vr_markup > this.markup)
-                            {
-                                this.base_markup = vr_markup;
-                                //markup_bid = vr_markup;
-                                //markup_ask = vr_markup;
-                                this.prev_markup = vr_markup;
-                            }
-                            else
-                            {
-                                this.base_markup = this.markup;
-                                this.prev_markup = this.markup;
-                            }
-                        }
-                        else
-                        {
-                            this.base_markup = this.prev_markup;
-                            markup_bid = this.prev_markup;
-                            markup_ask = this.prev_markup;
-                        }
+                        this.base_markup = vr_markup;
+                        this.prev_markup = vr_markup;
                     }
                     else
                     {
-
-                        this.base_markup = this.markup;
-                        this.prev_markup = this.markup;
+                        this.base_markup = this.prev_markup;
+                        //markup_bid = this.prev_markup;
+                        //markup_ask = this.prev_markup;
                     }
+                    //if (this.prev_markup > this.markup)
+                    //{
+                    //    double elapsedTime = (DateTime.UtcNow - this.prevMarkupTime).TotalMinutes;
+                    //    if (elapsedTime > this.taker.RV_minute * 2)
+                    //    {
+                    //        if (vr_markup > this.markup)
+                    //        {
+                    //            this.base_markup = vr_markup;
+                    //            //markup_bid = vr_markup;
+                    //            //markup_ask = vr_markup;
+                    //            this.prev_markup = vr_markup;
+                    //        }
+                    //        else
+                    //        {
+                    //            this.base_markup = this.markup;
+                    //            this.prev_markup = this.markup;
+                    //        }
+                    //    }
+                    //    else
+                    //    {
+                    //        this.base_markup = this.prev_markup;
+                    //        markup_bid = this.prev_markup;
+                    //        markup_ask = this.prev_markup;
+                    //    }
+                    //}
+                    //else
+                    //{
+
+                    //    this.base_markup = this.markup;
+                    //    this.prev_markup = this.markup;
+                    //}
                 }
                 markup_bid = this.base_markup;
                 markup_ask = this.base_markup;
@@ -734,6 +773,11 @@ namespace Crypto_Trading
                 {
                     addLog($"The ask price is too far from the market price. ask:{ask_price} skew:{this.skew_point} base markup:{this.base_markup}", logType.WARNING);
                     ask_price = 0;
+                }
+
+                if(this.base_markup / 5 > this.modThreshold * 1000000)
+                {
+                    modTh_buffer = this.base_markup / 5 / 1000000 - this.modThreshold;
                 }
 
                 bool isPriceChanged = this.checkPriceChange("taker",modTh_buffer);
@@ -946,14 +990,24 @@ namespace Crypto_Trading
                 {
                     if(newBuyOrder)
                     {
+                        sw3.Start();
                         this.live_buyorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, ordersize_bid, bid_price, null, true, false);
+                        sw3.Stop();
+                        this.placingOrderLatencyUpdate = (this.placingOrderLatencyUpdate * 1000 * this.placingOrdercountUpdate + this.sw3.Elapsed.TotalNanoseconds) / (this.placingOrdercountUpdate + 1) / 1000;
+                        ++(this.placingOrdercountUpdate);
+                        sw3.Reset();
                         this.live_bidprice = bid_price;
                         this.stg_orders.Add(this.live_buyorder_id);
                         this.live_buyorder_time = current;
                     }
                     if(newSellOrder)
                     {
+                        this.sw3.Start();
                         this.live_sellorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, ordersize_ask, ask_price, null, true, false);
+                        this.sw3.Stop();
+                        this.placingOrderLatencyUpdate = (this.placingOrderLatencyUpdate * 1000 * this.placingOrdercountUpdate + this.sw3.Elapsed.TotalNanoseconds) / (this.placingOrdercountUpdate + 1) / 1000;
+                        ++(this.placingOrdercountUpdate);
+                        this.sw3.Reset();
                         this.live_askprice = ask_price;
                         this.stg_orders.Add(this.live_sellorder_id);
                         this.live_sellorder_time = current;
@@ -963,14 +1017,24 @@ namespace Crypto_Trading
                 {
                     if (newSellOrder)
                     {
+                        this.sw3.Start();
                         this.live_sellorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, ordersize_ask, ask_price, null, true, false);
+                        this.sw3.Stop();
+                        this.placingOrderLatencyUpdate = (this.placingOrderLatencyUpdate * 1000 * this.placingOrdercountUpdate + this.sw3.Elapsed.TotalNanoseconds) / (this.placingOrdercountUpdate + 1) / 1000;
+                        ++(this.placingOrdercountUpdate);
+                        this.sw3.Reset();
                         this.live_askprice = ask_price;
                         this.stg_orders.Add(this.live_sellorder_id);
                         this.live_sellorder_time = current;
                     }
                     if (newBuyOrder)
                     {
+                        this.sw3.Start();
                         this.live_buyorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, ordersize_bid, bid_price, null, true, false);
+                        this.sw3.Stop();
+                        this.placingOrderLatencyUpdate = (this.placingOrderLatencyUpdate * 1000 * this.placingOrdercountUpdate + this.sw3.Elapsed.TotalNanoseconds) / (this.placingOrdercountUpdate + 1) / 1000;
+                        ++(this.placingOrdercountUpdate);
+                        this.sw3.Reset();
                         this.live_bidprice = bid_price;
                         this.stg_orders.Add(this.live_buyorder_id);
                         this.live_buyorder_time = current;
@@ -1568,8 +1632,8 @@ namespace Crypto_Trading
                                     this.sw2.Start();
                                     this.oManager.placeNewSpotOrder(this.taker, orderSide.Sell, orderType.Market, filled_quantity, 0, null,true,false);
                                     this.sw2.Stop();
-                                    this.placingOrderLatency = (this.sw2.Elapsed.TotalNanoseconds + this.placingOrderLatency * 1000 * this.placingOrdercount) / (this.placingOrdercount+ 1) / 1000;
-                                    ++(this.placingOrdercount);
+                                    this.placingOrderLatencyOnFill = (this.sw2.Elapsed.TotalNanoseconds + this.placingOrderLatencyOnFill * 1000 * this.placingOrdercountOnFill) / (this.placingOrdercountOnFill+ 1) / 1000;
+                                    ++(this.placingOrdercountOnFill);
                                     this.sw2.Reset();
                                     if (this.oManager.orders.ContainsKey(fill.internal_order_id))
                                     {
@@ -1600,8 +1664,8 @@ namespace Crypto_Trading
                                     this.sw2.Start();
                                     this.oManager.placeNewSpotOrder(this.taker, orderSide.Buy, orderType.Market, filled_quantity, 0, null, true,false);
                                     this.sw2.Stop();
-                                    this.placingOrderLatency = (this.sw2.Elapsed.TotalNanoseconds + this.placingOrderLatency * 1000 * this.placingOrdercount) / (this.placingOrdercount + 1) / 1000;
-                                    ++(this.placingOrdercount);
+                                    this.placingOrderLatencyOnFill = (this.sw2.Elapsed.TotalNanoseconds + this.placingOrderLatencyOnFill * 1000 * this.placingOrdercountOnFill) / (this.placingOrdercountOnFill + 1) / 1000;
+                                    ++(this.placingOrdercountOnFill);
                                     this.sw2.Reset();
                                     if (this.oManager.orders.ContainsKey(fill.internal_order_id))
                                     {
