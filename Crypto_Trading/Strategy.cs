@@ -114,6 +114,9 @@ namespace Crypto_Trading
         public decimal totalFee;
         public decimal totalPnL;
 
+        //For intradayPnL
+        public decimal prev_notionalVolume = 0;
+
         public double onFill_latency1;
         public double onFill_latency2;
         public double onFill_latency3;

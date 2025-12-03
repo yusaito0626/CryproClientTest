@@ -114,6 +114,8 @@ namespace Crypto_Linux
         const int LOGBUF_SIZE = 100;
         static string[] log_buffer = new string[LOGBUF_SIZE];
         static int log_index = 0;
+
+        static int mismatch_count = 0;
         static async Task Main(string[] args)
         {
 
@@ -374,6 +376,7 @@ namespace Crypto_Linux
             decimal tradingPLAll = 0;
             decimal feeAll = 0;
             decimal totalAll = 0;
+            decimal prev_notionalAll = 0;
             string msg = "";
             bool sendingPnL = false;
             DateTime current = DateTime.UtcNow;
@@ -429,7 +432,9 @@ namespace Crypto_Linux
                         pnl.strategy_name = stg.name;
                         pnl.OADatetime = ((DateTime)intradayPnLTime).ToOADate();
                         pnl.PnL = (double)stg.totalPnL;
-                        pnl.notionalVolume = (double)stg.notionalVolume;
+                        prev_notionalAll += stg.prev_notionalVolume;
+                        pnl.notionalVolume = (double)(stg.notionalVolume - stg.prev_notionalVolume);
+                        stg.prev_notionalVolume = stg.notionalVolume;
                         if(!ws_server.intradayPnLList.ContainsKey(((DateTime)intradayPnLTime,pnl.strategy_name)))
                         {
                             pnls.Add(pnl);
@@ -451,7 +456,7 @@ namespace Crypto_Linux
                 pnl.strategy_name = "Total";
                 pnl.OADatetime = ((DateTime)intradayPnLTime).ToOADate();
                 pnl.PnL = (double)totalAll;
-                pnl.notionalVolume = (double)volumeAll;
+                pnl.notionalVolume = (double)(volumeAll - prev_notionalAll);
                 if (!ws_server.intradayPnLList.ContainsKey(((DateTime)intradayPnLTime, pnl.strategy_name)))
                 {
                     pnls.Add(pnl);
@@ -2000,15 +2005,6 @@ namespace Crypto_Linux
 
         static async Task timer_PeriodicMsg_Tick()
         {
-            decimal volume = 0;
-            decimal tradingPL = 0;
-            decimal fee = 0;
-            decimal total = 0;
-
-            decimal volumeAll = 0;
-            decimal tradingPLAll = 0;
-            decimal feeAll = 0;
-            decimal totalAll = 0;
             string msg = "";
             List<DataSpotOrderUpdate> ordList = new List<DataSpotOrderUpdate>();
 
@@ -2027,7 +2023,15 @@ namespace Crypto_Linux
                             int live_orders_count = oManager.live_orders.Count;
                             if (ordList.Count != live_orders_count)
                             {
-                                addLog("Order count didn't match " + stg.maker.market + ":" + ordList.Count.ToString() + " live_orders:" + live_orders_count.ToString(), logType.WARNING);
+                                ++mismatch_count;
+                                if (mismatch_count >= 3)
+                                {
+                                    addLog("Order count didn't match " + stg.maker.market + ":" + ordList.Count.ToString() + " live_orders:" + live_orders_count.ToString(), logType.WARNING);
+                                }
+                            }
+                            else
+                            {
+                                mismatch_count = 0;
                             }
                         }
                     }
