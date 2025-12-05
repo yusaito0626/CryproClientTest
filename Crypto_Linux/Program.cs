@@ -429,45 +429,10 @@ namespace Crypto_Linux
 
                     pnl = new intradayPnL();
                     pnl.strategy_name = stg.name;
-                    pnl.OADatetime = ((DateTime)intradayPnLTime).ToOADate();
+                    pnl.OADatetime = current.ToOADate();
                     pnl.PnL = (double)stg.totalPnL;
                     pnl.notionalVolume = (double)stg.notionalVolume;
                     pnls.Add(pnl);
-                    //if (sendingNotional)
-                    //{
-                    //    intradayPnL pnl = new intradayPnL();
-                    //    pnl.strategy_name = stg.name;
-                    //    pnl.OADatetime = ((DateTime)intradayPnLTime).ToOADate();
-                    //    pnl.PnL = (double)stg.totalPnL;
-                    //    if(stg.prev_notionalVolume >= 0)
-                    //    {
-                    //        prev_notionalAll += stg.prev_notionalVolume;
-                    //        pnl.notionalVolume = (double)(stg.notionalVolume - stg.prev_notionalVolume);
-                    //        stg.prev_notionalVolume = stg.notionalVolume;
-                    //    }
-                    //    else
-                    //    {
-                    //        pnl.notionalVolume = 0;
-                    //        stg.prev_notionalVolume = stg.notionalVolume;
-                    //    }
-                    //    if (!ws_server.intradayPnLList.ContainsKey(((DateTime)intradayPnLTime, pnl.strategy_name)))
-                    //    {
-                    //        pnls.Add(pnl);
-                    //    }
-                    //}
-                    //else
-                    //{
-                    //    intradayPnL pnl = new intradayPnL();
-                    //    pnl.strategy_name = stg.name;
-                    //    pnl.OADatetime = current.ToOADate();
-                    //    pnl.PnL = (double)stg.totalPnL;
-                    //    pnl.notionalVolume = -1;
-                    //    if (!ws_server.intradayPnLList.ContainsKey((current, pnl.strategy_name)))
-                    //    {
-                    //        pnls.Add(pnl);
-                    //    }
-                    //}
-
                     volumeAll += stg.notionalVolume;
                     posPnLAll += stg.posPnL;
                     tradingPLAll += stg.tradingPnL;
@@ -488,39 +453,6 @@ namespace Crypto_Linux
             {
                 ws_server.processIntradayPnL(pnls);
             }
-
-            //if (sendingNotional)
-            //{
-            //    pnl = new intradayPnL();
-            //    pnl.strategy_name = "Total";
-            //    pnl.OADatetime = ((DateTime)intradayPnLTime).ToOADate();
-            //    pnl.PnL = (double)totalAll;
-            //    pnl.notionalVolume = (double)(volumeAll - prev_notionalAll);
-            //    if (!ws_server.intradayPnLList.ContainsKey(((DateTime)intradayPnLTime, pnl.strategy_name)))
-            //    {
-            //        pnls.Add(pnl);
-            //    }
-            //    if(pnls.Count > 0)
-            //    {
-            //        ws_server.processIntradayPnL(pnls);
-            //    }
-            //}
-            //else
-            //{
-            //    pnl = new intradayPnL();
-            //    pnl.strategy_name = "Total";
-            //    pnl.OADatetime = current.ToOADate();
-            //    pnl.PnL = (double)totalAll;
-            //    pnl.notionalVolume = -1;
-            //    if (!ws_server.intradayPnLList.ContainsKey((current, pnl.strategy_name)))
-            //    {
-            //        pnls.Add(pnl);
-            //    }
-            //    if (pnls.Count > 0)
-            //    {
-            //        ws_server.processIntradayPnL(pnls);
-            //    }
-            //}
             msg += DateTime.UtcNow.ToString() + " - All -    \nNotional Volume:" + volumeAll.ToString("N2") + "\nPosition PnL:" + posPnLAll.ToString("N2") + "\nTrading PnL:" + tradingPLAll.ToString("N2") + "\nFee:" + feeAll.ToString("N2") + "\nTotal:" + totalAll.ToString("N2") + "\n";
             return msg;
         }
@@ -2185,7 +2117,10 @@ namespace Crypto_Linux
                 }
             }
 
-
+            foreach(var l in oManager.Latency)
+            {
+                addLog($"Process Time[{l.Key}]    average:{l.Value.avgLatency.ToString("N3")} count:{l.Value.count.ToString("N0")}");
+            }
 
             if (DateTime.UtcNow > endTime)
             {

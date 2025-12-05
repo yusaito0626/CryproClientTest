@@ -6,6 +6,8 @@ using System.Text;
 using System.Threading.Tasks;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
+using Utils;
+
 namespace LockFreeStack
 {
     public class LockFreeStack<T> : IDisposable
@@ -182,20 +184,6 @@ namespace LockFreeStack
             Next = null;
             Back = null;
             value = default!;
-        }
-    }
-    internal class funcContainer : IDisposable
-    {
-        Action f;
-
-        public funcContainer(Func<Action> starter)
-        {
-            f = starter();
-        }
-        public void Dispose()
-        {
-            var action = Interlocked.Exchange(ref f, null);
-            action?.Invoke();
         }
     }
 }
@@ -714,20 +702,6 @@ namespace LockFreeQueue
             Next = null;
             Back = null;
             value = default!;
-        }
-    }
-    internal class funcContainer : IDisposable
-    {
-        Action f;
-
-        public funcContainer(Func<Action> starter)
-        {
-            f = starter();
-        }
-        public void Dispose()
-        {
-            var action = Interlocked.Exchange(ref f, null);
-            action?.Invoke();
         }
     }
 }

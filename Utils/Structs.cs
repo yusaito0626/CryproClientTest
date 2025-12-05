@@ -584,6 +584,37 @@ namespace Utils
             this.err_code = 0;
             this.queued_count = 0;
         }
+        public void Copy(DataSpotOrderUpdate org)
+        {
+            this.timestamp = DateTime.UtcNow;
+            this.symbol_market = org.symbol_market;
+            this.market = org.market;
+            this.order_id = org.order_id;
+            this.symbol = org.symbol;
+            this.order_type = org.order_type;
+            this.side = org.side;
+            this.status = org.status;
+            this.time_in_force = org.time_in_force;
+            this.order_quantity = org.order_quantity;
+            this.filled_quantity = org.filled_quantity;
+            this.order_price = org.order_price;
+            this.average_price = org.average_price;
+            this.current_traded_quantity = org.current_traded_quantity;
+            this.current_traded_price = org.current_traded_price;
+            this.internal_order_id = org.internal_order_id;
+            this.fee_asset = org.fee_asset;
+            this.fee = org.fee;
+            this.create_time = org.create_time;
+            this.update_time = org.update_time;
+            this.last_trade = org.last_trade;
+            this.trigger_price = org.trigger_price;
+            this.is_trigger_order = org.is_trigger_order;
+            this.isVirtual = org.isVirtual;
+            this.msg = org.msg;
+            this.err_code = org.err_code;
+            this.queued_count = org.queued_count;
+        }
+
 
         public void setCoincheckSpotOrder(JsonElement js)
         {
@@ -1536,13 +1567,18 @@ namespace Utils
         }
         public void start()
         {
-            sw.Start();
+            this.sw.Start();
+        }
+        public Action MeasureLatency()
+        {
+            this.sw.Start();
+            return this.stop;
         }
         public void stop()
         {
-            sw.Stop();
-            addLatency(sw.Elapsed.TotalMicroseconds);
-            sw.Reset();
+            this.sw.Stop();
+            this.addLatency(sw.Elapsed.TotalMicroseconds);
+            this.sw.Reset();
         }
         public void init(string _name = "")
         {

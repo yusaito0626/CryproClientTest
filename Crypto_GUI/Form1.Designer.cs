@@ -176,6 +176,8 @@
             combo_StgSetting = new ComboBox();
             label37 = new Label();
             groupBox1 = new GroupBox();
+            lbl_maxBaseMarkup = new Label();
+            label54 = new Label();
             lbl_markupAdjustment = new Label();
             label53 = new Label();
             lbl_ordthrottle = new Label();
@@ -184,6 +186,8 @@
             label50 = new Label();
             lbl_tobmulti = new Label();
             label47 = new Label();
+            lbl_decayingtime = new Label();
+            label46 = new Label();
             lbl_skewstep = new Label();
             label45 = new Label();
             lbl_skewtype = new Label();
@@ -215,9 +219,6 @@
             dataGridViewTextBoxColumn20 = new DataGridViewTextBoxColumn();
             dataGridViewTextBoxColumn21 = new DataGridViewTextBoxColumn();
             gridView_ThStatus = new DataGridView();
-            dataGridViewTextBoxColumn10 = new DataGridViewTextBoxColumn();
-            dataGridViewTextBoxColumn11 = new DataGridViewTextBoxColumn();
-            col_latency = new DataGridViewTextBoxColumn();
             gridView_Connection = new DataGridView();
             dataGridViewTextBoxColumn7 = new DataGridViewTextBoxColumn();
             dataGridViewTextBoxColumn8 = new DataGridViewTextBoxColumn();
@@ -229,10 +230,9 @@
             combo_pnlStrategy = new ComboBox();
             timer_statusCheck = new System.Windows.Forms.Timer(components);
             timer_PeriodicMsg = new System.Windows.Forms.Timer(components);
-            lbl_decayingtime = new Label();
-            label46 = new Label();
-            lbl_maxBaseMarkup = new Label();
-            label54 = new Label();
+            dataGridViewTextBoxColumn10 = new DataGridViewTextBoxColumn();
+            dataGridViewTextBoxColumn11 = new DataGridViewTextBoxColumn();
+            col_latency = new DataGridViewTextBoxColumn();
             tabControl.SuspendLayout();
             tabPage1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)gridView_PnL).BeginInit();
@@ -1705,6 +1705,26 @@
             groupBox1.TabStop = false;
             groupBox1.Text = "Setting";
             // 
+            // lbl_maxBaseMarkup
+            // 
+            lbl_maxBaseMarkup.AutoSize = true;
+            lbl_maxBaseMarkup.Location = new Point(212, 363);
+            lbl_maxBaseMarkup.Margin = new Padding(2, 0, 2, 0);
+            lbl_maxBaseMarkup.Name = "lbl_maxBaseMarkup";
+            lbl_maxBaseMarkup.Size = new Size(44, 20);
+            lbl_maxBaseMarkup.TabIndex = 44;
+            lbl_maxBaseMarkup.Text = "value";
+            // 
+            // label54
+            // 
+            label54.AutoSize = true;
+            label54.Location = new Point(18, 363);
+            label54.Margin = new Padding(2, 0, 2, 0);
+            label54.Name = "label54";
+            label54.Size = new Size(129, 20);
+            label54.TabIndex = 43;
+            label54.Text = "Max Base Markup:";
+            // 
             // lbl_markupAdjustment
             // 
             lbl_markupAdjustment.AutoSize = true;
@@ -1784,6 +1804,26 @@
             label47.Size = new Size(104, 20);
             label47.TabIndex = 35;
             label47.Text = "ToB multiplier:";
+            // 
+            // lbl_decayingtime
+            // 
+            lbl_decayingtime.AutoSize = true;
+            lbl_decayingtime.Location = new Point(520, 363);
+            lbl_decayingtime.Margin = new Padding(2, 0, 2, 0);
+            lbl_decayingtime.Name = "lbl_decayingtime";
+            lbl_decayingtime.Size = new Size(44, 20);
+            lbl_decayingtime.TabIndex = 34;
+            lbl_decayingtime.Text = "value";
+            // 
+            // label46
+            // 
+            label46.AutoSize = true;
+            label46.Location = new Point(356, 363);
+            label46.Margin = new Padding(2, 0, 2, 0);
+            label46.Name = "label46";
+            label46.Size = new Size(111, 20);
+            label46.TabIndex = 33;
+            label46.Text = "Decaying Time:";
             // 
             // lbl_skewstep
             // 
@@ -2137,27 +2177,6 @@
             gridView_ThStatus.Size = new Size(489, 742);
             gridView_ThStatus.TabIndex = 7;
             // 
-            // dataGridViewTextBoxColumn10
-            // 
-            dataGridViewTextBoxColumn10.HeaderText = "Thread";
-            dataGridViewTextBoxColumn10.MinimumWidth = 10;
-            dataGridViewTextBoxColumn10.Name = "dataGridViewTextBoxColumn10";
-            dataGridViewTextBoxColumn10.Width = 200;
-            // 
-            // dataGridViewTextBoxColumn11
-            // 
-            dataGridViewTextBoxColumn11.HeaderText = "Status";
-            dataGridViewTextBoxColumn11.MinimumWidth = 10;
-            dataGridViewTextBoxColumn11.Name = "dataGridViewTextBoxColumn11";
-            dataGridViewTextBoxColumn11.Width = 150;
-            // 
-            // col_latency
-            // 
-            col_latency.HeaderText = "Latency";
-            col_latency.MinimumWidth = 6;
-            col_latency.Name = "col_latency";
-            col_latency.Width = 125;
-            // 
             // gridView_Connection
             // 
             dataGridViewCellStyle17.Alignment = DataGridViewContentAlignment.MiddleCenter;
@@ -2213,7 +2232,7 @@
             // 
             // col_roundTrip
             // 
-            col_roundTrip.HeaderText = "RoundTrip";
+            col_roundTrip.HeaderText = "RoundTrip[ms]";
             col_roundTrip.MinimumWidth = 6;
             col_roundTrip.Name = "col_roundTrip";
             col_roundTrip.Width = 125;
@@ -2267,45 +2286,26 @@
             timer_PeriodicMsg.Interval = 60000;
             timer_PeriodicMsg.Tick += timer_PeriodicMsg_Tick;
             // 
-            // lbl_decayingtime
+            // dataGridViewTextBoxColumn10
             // 
-            lbl_decayingtime.AutoSize = true;
-            lbl_decayingtime.Location = new Point(520, 363);
-            lbl_decayingtime.Margin = new Padding(2, 0, 2, 0);
-            lbl_decayingtime.Name = "lbl_decayingtime";
-            lbl_decayingtime.Size = new Size(44, 20);
-            lbl_decayingtime.TabIndex = 34;
-            lbl_decayingtime.Text = "value";
+            dataGridViewTextBoxColumn10.HeaderText = "Thread";
+            dataGridViewTextBoxColumn10.MinimumWidth = 10;
+            dataGridViewTextBoxColumn10.Name = "dataGridViewTextBoxColumn10";
+            dataGridViewTextBoxColumn10.Width = 200;
             // 
-            // label46
+            // dataGridViewTextBoxColumn11
             // 
-            label46.AutoSize = true;
-            label46.Location = new Point(356, 363);
-            label46.Margin = new Padding(2, 0, 2, 0);
-            label46.Name = "label46";
-            label46.Size = new Size(111, 20);
-            label46.TabIndex = 33;
-            label46.Text = "Decaying Time:";
+            dataGridViewTextBoxColumn11.HeaderText = "Status";
+            dataGridViewTextBoxColumn11.MinimumWidth = 10;
+            dataGridViewTextBoxColumn11.Name = "dataGridViewTextBoxColumn11";
+            dataGridViewTextBoxColumn11.Width = 125;
             // 
-            // lbl_maxBaseMarkup
+            // col_latency
             // 
-            lbl_maxBaseMarkup.AutoSize = true;
-            lbl_maxBaseMarkup.Location = new Point(212, 363);
-            lbl_maxBaseMarkup.Margin = new Padding(2, 0, 2, 0);
-            lbl_maxBaseMarkup.Name = "lbl_maxBaseMarkup";
-            lbl_maxBaseMarkup.Size = new Size(44, 20);
-            lbl_maxBaseMarkup.TabIndex = 44;
-            lbl_maxBaseMarkup.Text = "value";
-            // 
-            // label54
-            // 
-            label54.AutoSize = true;
-            label54.Location = new Point(18, 363);
-            label54.Margin = new Padding(2, 0, 2, 0);
-            label54.Name = "label54";
-            label54.Size = new Size(129, 20);
-            label54.TabIndex = 43;
-            label54.Text = "Max Base Markup:";
+            col_latency.HeaderText = "ProcessTime[us]";
+            col_latency.MinimumWidth = 6;
+            col_latency.Name = "col_latency";
+            col_latency.Width = 150;
             // 
             // Form1
             // 
@@ -2475,13 +2475,6 @@
         private Label lbl_baseCcyInuse;
         private Label label41;
         private Label label26;
-        private DataGridViewTextBoxColumn dataGridViewTextBoxColumn10;
-        private DataGridViewTextBoxColumn dataGridViewTextBoxColumn11;
-        private DataGridViewTextBoxColumn col_latency;
-        private DataGridViewTextBoxColumn dataGridViewTextBoxColumn7;
-        private DataGridViewTextBoxColumn dataGridViewTextBoxColumn8;
-        private DataGridViewTextBoxColumn dataGridViewTextBoxColumn9;
-        private DataGridViewTextBoxColumn col_roundTrip;
         private TextBox txtBox_URL;
         private Label label43;
         private DataGridView gridView_QueueInfo;
@@ -2537,5 +2530,12 @@
         private Label label54;
         private Label lbl_decayingtime;
         private Label label46;
+        private DataGridViewTextBoxColumn dataGridViewTextBoxColumn7;
+        private DataGridViewTextBoxColumn dataGridViewTextBoxColumn8;
+        private DataGridViewTextBoxColumn dataGridViewTextBoxColumn9;
+        private DataGridViewTextBoxColumn col_roundTrip;
+        private DataGridViewTextBoxColumn dataGridViewTextBoxColumn10;
+        private DataGridViewTextBoxColumn dataGridViewTextBoxColumn11;
+        private DataGridViewTextBoxColumn col_latency;
     }
 }
