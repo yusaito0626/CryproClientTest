@@ -2062,6 +2062,7 @@ namespace Crypto_Linux
         {
             string msg = "";
             List<DataSpotOrderUpdate> ordList = new List<DataSpotOrderUpdate>();
+            int count_diff = 0;
 
             //To keep http_client alive.
             try
@@ -2078,10 +2079,23 @@ namespace Crypto_Linux
                             int live_orders_count = oManager.live_orders.Count;
                             if (ordList.Count != live_orders_count)
                             {
-                                ++mismatch_count;
-                                if (mismatch_count >= 3)
+                                if(count_diff == 0)
                                 {
-                                    addLog("Order count didn't match " + stg.maker.market + ":" + ordList.Count.ToString() + " live_orders:" + live_orders_count.ToString(), logType.WARNING);
+                                    ++mismatch_count;
+                                    count_diff = ordList.Count - live_orders_count;
+                                }
+                                else if(count_diff == ordList.Count - live_orders_count)
+                                {
+                                    ++mismatch_count;
+                                    if (mismatch_count >= 3)
+                                    {
+                                        addLog("Order count didn't match " + stg.maker.market + ":" + ordList.Count.ToString() + " live_orders:" + live_orders_count.ToString(), logType.WARNING);
+                                    }
+                                }
+                                else
+                                {
+                                    count_diff = 0;
+                                    mismatch_count = 0;
                                 }
                             }
                             else

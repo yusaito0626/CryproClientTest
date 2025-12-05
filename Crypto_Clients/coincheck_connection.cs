@@ -1082,7 +1082,7 @@ namespace Crypto_Clients
                     if (nonce <= this.lastnonce)
                     {
                         nonce = this.lastnonce + 1;
-                        Thread.Sleep(1);
+                        //Thread.Sleep(1);
                     }
                     this.lastnonce = nonce;
                     var message = $"{nonce}{coincheck_connection.URL}{endpoint}{body}";
@@ -1095,7 +1095,7 @@ namespace Crypto_Clients
                     request.Headers.Add("ACCESS-NONCE", nonce.ToString());
                     request.Headers.Add("ACCESS-SIGNATURE", ToSha256(this.secretKey, message));
 
-                    sw_POST = Stopwatch.StartNew();
+                    sw_POST.Start();
                     Volatile.Write(ref this.nonceChecking, 0);
                     var response = await this.http_client.SendAsync(request);
                     sw_POST.Stop();
