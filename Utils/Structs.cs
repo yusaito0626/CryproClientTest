@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -1509,5 +1510,63 @@ namespace Utils
         public double OADatetime { get; set; }
         public double PnL { get; set; }
         public double notionalVolume { get; set; }
+    }
+    public class latency
+    {
+        public string? name { get; private set; }
+        public int count { get; private set; }
+        public double totalElapsedTime { get; private set; }
+        public double maxElapsedTime { get; private set; }
+        public double avgLatency { get { return (count == 0) ? 0 : totalElapsedTime / count; } }
+        public Stopwatch sw = new Stopwatch();
+        public latency(string _name = "")
+        {
+            this.name = _name;
+            this.count = 0;
+            this.totalElapsedTime = 0;
+            this.maxElapsedTime = 0;
+            int i = 0;
+            while (i < 10)
+            {
+                sw.Start();
+                sw.Stop();
+                sw.Reset();
+                ++i;
+            }
+        }
+        public void start()
+        {
+            sw.Start();
+        }
+        public void stop()
+        {
+            sw.Stop();
+            addLatency(sw.Elapsed.TotalMicroseconds);
+            sw.Reset();
+        }
+        public void init(string _name = "")
+        {
+            this.name = _name;
+            this.count = 0;
+            this.totalElapsedTime = 0;
+            this.maxElapsedTime = 0;
+            int i = 0;
+            while (i < 10)
+            {
+                sw.Start();
+                sw.Stop();
+                sw.Reset();
+                ++i;
+            }
+        }
+        public void addLatency(double elapsedTime)
+        {
+            ++(this.count);
+            this.totalElapsedTime += elapsedTime;
+            if (elapsedTime > this.maxElapsedTime)
+            {
+                this.maxElapsedTime = elapsedTime;
+            }
+        }
     }
 }

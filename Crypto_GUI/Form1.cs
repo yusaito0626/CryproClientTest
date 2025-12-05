@@ -2109,7 +2109,8 @@ namespace Crypto_GUI
                     {
 
                         row.Cells[1].Value = st;
-                        row.Cells[2].Value = (th.Value.totalElapsedTime / th.Value.count / 1000).ToString("N3");
+                        //row.Cells[2].Value = (th.Value.totalElapsedTime / th.Value.count / 1000).ToString("N3");
+                        row.Cells[2].Value = th.Value.Latency.avgLatency.ToString("N3");
                         found = true;
                         break;
                     }

@@ -95,6 +95,8 @@ namespace Crypto_Trading
 
         Stopwatch coincheck_sw;
 
+        Dictionary<string, latency> Latency;
+
         private OrderManager() 
         {
             this.aborting = false;
@@ -145,6 +147,7 @@ namespace Crypto_Trading
 
 
             this.coincheck_sw = new Stopwatch();
+            this.Latency = new Dictionary<string, latency>();
 
             this.OrderProcessingStop = new CancellationTokenSource();
             //this.processingOrdTh = new Thread(()=>

@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Serialization;
 using System.Runtime.Versioning;
+using Utils;
 
 namespace Crypto_Trading
 {
@@ -165,7 +166,10 @@ namespace Crypto_Trading
         public string name;
 
         public double totalElapsedTime;
+        public double maxElapsedTime;
         public int count;
+
+        public latency Latency;
 
         public Func<Task<(bool,double)>> action;
 
@@ -189,8 +193,10 @@ namespace Crypto_Trading
             this.onClosing = onClosing;
             this.onError = onError;
             this.totalElapsedTime = 0;
+            this.maxElapsedTime = 0;
             this.count = 0;
             this.loopFunc = null;
+            this.Latency = new latency(name);
         }
         public thread(string name, Func<Action, Action,CancellationToken,int, Task<bool>> _loop, Action onClosing = null,Action onError = null, int _spinnerMax = 0)
         {
@@ -203,6 +209,7 @@ namespace Crypto_Trading
             this.onError = onError;
             this.action = null;
             this.spinnerMaxCount = _spinnerMax;
+            this.Latency = new latency(name);
         }
         private void SetOsThreadName(string name)
         {
@@ -246,13 +253,18 @@ namespace Crypto_Trading
                     this.SetOsThreadName(this.name);
                     bool ret = false;
                     ret = await this.loopFunc(
-                        ()=>sw.Start(),
+                        ()=>this.Latency.start(),//sw.Start(),
                         ()=>
                         {
-                            sw.Stop();
-                            ++this.count;
-                            this.totalElapsedTime += sw.Elapsed.TotalNanoseconds / 1000;
-                            sw.Reset();
+                            this.Latency.stop();
+                            //sw.Stop();
+                            //++this.count;
+                            //this.totalElapsedTime += sw.Elapsed.TotalNanoseconds / 1000;
+                            //if(sw.Elapsed.TotalNanoseconds > this.maxElapsedTime)
+                            //{
+                            //    this.maxElapsedTime = sw.Elapsed.TotalNanoseconds;
+                            //}
+                            //sw.Reset();
                         },
                         ct.Token,
                         this.spinnerMaxCount);

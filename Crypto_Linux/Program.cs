@@ -1737,14 +1737,16 @@ namespace Crypto_Linux
                 }
                 threadStatus th_status = threadStates[th.Key];
                 th_status.isRunning = th.Value.isRunning;
-                if(th.Value.count > 0)
-                {
-                    th_status.avgProcessingTime = th.Value.totalElapsedTime / th.Value.count / 1000;
-                }
-                else
-                {
-                    th_status.avgProcessingTime = 0;
-                }
+                th_status.avgProcessingTime = th.Value.Latency.avgLatency;
+                //if (th.Value.count > 0)
+                //{
+                //    th_status.avgProcessingTime = th.Value.totalElapsedTime / th.Value.count / 1000;
+                //    th_status.avgProcessingTime = th.Value.Latency.avgLatency;
+                //}
+                //else
+                //{
+                //    th_status.avgProcessingTime = 0;
+                //}
                 threadStates[th.Key] = th_status;
             }
 
