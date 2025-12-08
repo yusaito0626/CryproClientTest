@@ -52,6 +52,8 @@ namespace Crypto_Trading
         Stopwatch sw_updateQuotes;
         Stopwatch sw_updateTrades;
         Stopwatch sw_optimize;
+
+        public Dictionary<string, latency> Latency;
         QuoteManager() 
         {
             this.instruments = new Dictionary<string, Instrument>();
@@ -68,6 +70,8 @@ namespace Crypto_Trading
             this.sw_updateQuotes = new Stopwatch();
             this.sw_updateTrades = new Stopwatch();
             this.sw_optimize = new Stopwatch();
+
+            this.Latency = new Dictionary<string, latency>();
         }
 
         

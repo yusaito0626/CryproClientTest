@@ -118,19 +118,7 @@ namespace Crypto_Trading
         //For intradayPnL
         public decimal prev_notionalVolume = 0;
 
-        public double onFill_latency1;
-        public double onFill_latency2;
-        public double onFill_latency3;
-        public int onFill_count1;
-        public int onFill_count2;
-        public int onFill_count3;
-        public double placingOrderLatencyOnFill;
-        public double placingOrdercountOnFill;
-        public double placingOrderLatencyUpdate;
-        public double placingOrdercountUpdate;
-        Stopwatch sw;
-        Stopwatch sw2;
-        Stopwatch sw3;
+        public Dictionary<string, latency> Latency;
 
         public Action<string, Enums.logType> _addLog;
         public Strategy() 
@@ -205,49 +193,8 @@ namespace Crypto_Trading
             this.last_filled_time = DateTime.UtcNow;
 
             this.oManager = OrderManager.GetInstance();
-            this.onFill_latency1 = 0;
-            this.onFill_latency2 = 0;
-            this.onFill_latency3 = 0;
-            this.placingOrderLatencyOnFill = 0;
-            this.placingOrderLatencyUpdate = 0;
-            this.onFill_count1 = 0;
-            this.onFill_count2 = 0;
-            this.onFill_count3 = 0;
-            this.placingOrdercountOnFill = 0;
-            this.placingOrdercountUpdate = 0;
-            this.sw = new Stopwatch();
-            this.sw2 = new Stopwatch();
-            this.sw3 = new Stopwatch();
-            this.sw.Start();
-            this.sw2.Start();
-            this.sw3.Start();
-            Thread.Sleep(1);
-            this.sw.Stop();
-            this.sw.Reset();
-            this.sw.Start();
-            this.sw2.Stop();
-            this.sw2.Reset();
-            this.sw2.Start();
-            this.sw3.Stop();
-            this.sw3.Reset();
-            this.sw3.Start();
-            Thread.Sleep(1);
-            this.sw.Stop();
-            this.sw.Reset();
-            this.sw.Start();
-            this.sw2.Stop();
-            this.sw2.Reset();
-            this.sw2.Start();
-            this.sw3.Stop();
-            this.sw3.Reset();
-            this.sw3.Start();
-            Thread.Sleep(1);
-            this.sw.Stop();
-            this.sw.Reset();
-            this.sw2.Stop();
-            this.sw2.Reset();
-            this.sw3.Stop();
-            this.sw3.Reset();
+
+            this.Latency = new Dictionary<string, latency>();
         }
 
         public void readStrategyFile(string jsonfilename)
@@ -1022,24 +969,14 @@ namespace Crypto_Trading
                 {
                     if(newBuyOrder)
                     {
-                        sw3.Start();
                         this.live_buyorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, ordersize_bid, bid_price, null, true, false);
-                        sw3.Stop();
-                        this.placingOrderLatencyUpdate = (this.placingOrderLatencyUpdate * 1000 * this.placingOrdercountUpdate + this.sw3.Elapsed.TotalNanoseconds) / (this.placingOrdercountUpdate + 1) / 1000;
-                        ++(this.placingOrdercountUpdate);
-                        sw3.Reset();
                         this.live_bidprice = bid_price;
                         this.stg_orders.Add(this.live_buyorder_id);
                         this.live_buyorder_time = current;
                     }
                     if(newSellOrder)
                     {
-                        this.sw3.Start();
                         this.live_sellorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, ordersize_ask, ask_price, null, true, false);
-                        this.sw3.Stop();
-                        this.placingOrderLatencyUpdate = (this.placingOrderLatencyUpdate * 1000 * this.placingOrdercountUpdate + this.sw3.Elapsed.TotalNanoseconds) / (this.placingOrdercountUpdate + 1) / 1000;
-                        ++(this.placingOrdercountUpdate);
-                        this.sw3.Reset();
                         this.live_askprice = ask_price;
                         this.stg_orders.Add(this.live_sellorder_id);
                         this.live_sellorder_time = current;
@@ -1049,24 +986,14 @@ namespace Crypto_Trading
                 {
                     if (newSellOrder)
                     {
-                        this.sw3.Start();
                         this.live_sellorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, ordersize_ask, ask_price, null, true, false);
-                        this.sw3.Stop();
-                        this.placingOrderLatencyUpdate = (this.placingOrderLatencyUpdate * 1000 * this.placingOrdercountUpdate + this.sw3.Elapsed.TotalNanoseconds) / (this.placingOrdercountUpdate + 1) / 1000;
-                        ++(this.placingOrdercountUpdate);
-                        this.sw3.Reset();
                         this.live_askprice = ask_price;
                         this.stg_orders.Add(this.live_sellorder_id);
                         this.live_sellorder_time = current;
                     }
                     if (newBuyOrder)
                     {
-                        this.sw3.Start();
                         this.live_buyorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, ordersize_bid, bid_price, null, true, false);
-                        this.sw3.Stop();
-                        this.placingOrderLatencyUpdate = (this.placingOrderLatencyUpdate * 1000 * this.placingOrdercountUpdate + this.sw3.Elapsed.TotalNanoseconds) / (this.placingOrdercountUpdate + 1) / 1000;
-                        ++(this.placingOrdercountUpdate);
-                        this.sw3.Reset();
                         this.live_bidprice = bid_price;
                         this.stg_orders.Add(this.live_buyorder_id);
                         this.live_buyorder_time = current;
@@ -1586,7 +1513,6 @@ namespace Crypto_Trading
                         }
                     }
                 }
-                this.sw.Start();
                 decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity; 
                 decimal filled_quantity = fill.quantity;
                 if (filled_quantity > this.ToBsize * 2)
@@ -1596,8 +1522,6 @@ namespace Crypto_Trading
                 DataSpotOrderUpdate ord;
                 if (fill.market != this.maker.market)
                 {
-                    this.sw.Stop();
-                    this.sw.Reset();
                     return;
                 }
                 if (this.stg_orders.Contains(fill.internal_order_id) == false && this.stg_orders.Contains(fill.market + fill.order_id))
@@ -1610,8 +1534,6 @@ namespace Crypto_Trading
                     }
                     else
                     {
-                        this.sw.Stop();
-                        this.sw.Reset();
                         return;
                     }
                     //this.addLog("Unknown order order:" + fill.ToString());
@@ -1620,10 +1542,6 @@ namespace Crypto_Trading
 
                 if (this.predictFill)
                 {
-                    this.sw.Stop();
-                    this.onFill_latency1 = (this.sw.Elapsed.TotalNanoseconds + this.onFill_latency1 * 1000 * this.onFill_count1) / (this.onFill_count1 + 1) / 1000;
-                    ++(this.onFill_count1);
-                    this.sw.Restart();
                     while (Interlocked.CompareExchange(ref this.fill_lock, 1, 0) != 0)
                     {
 
@@ -1652,21 +1570,12 @@ namespace Crypto_Trading
                         
                         filled_quantity = Math.Round(filled_quantity / this.taker.quantity_unit) * this.taker.quantity_unit;
 
-                        this.sw.Stop();
-                        this.onFill_latency2 = (this.sw.Elapsed.TotalNanoseconds + this.onFill_latency2 * 1000 * this.onFill_count2) / (this.onFill_count2 + 1) / 1000;
-                        ++(this.onFill_count2);
                         if (filled_quantity > 0)
                         {
-                            this.sw.Restart();
                             switch (fill.side)
                             {
                                 case orderSide.Buy:
-                                    this.sw2.Start();
                                     await this.oManager.placeNewSpotOrder(this.taker, orderSide.Sell, orderType.Market, filled_quantity, 0, null,true,false);
-                                    this.sw2.Stop();
-                                    this.placingOrderLatencyOnFill = (this.sw2.Elapsed.TotalNanoseconds + this.placingOrderLatencyOnFill * 1000 * this.placingOrdercountOnFill) / (this.placingOrdercountOnFill+ 1) / 1000;
-                                    ++(this.placingOrdercountOnFill);
-                                    this.sw2.Reset();
                                     if (this.oManager.orders.ContainsKey(fill.internal_order_id))
                                     {
                                         ord = this.oManager.orders[fill.internal_order_id];
@@ -1693,12 +1602,7 @@ namespace Crypto_Trading
                                     }
                                     break;
                                 case orderSide.Sell:
-                                    this.sw2.Start();
                                     await this.oManager.placeNewSpotOrder(this.taker, orderSide.Buy, orderType.Market, filled_quantity, 0, null, true,false);
-                                    this.sw2.Stop();
-                                    this.placingOrderLatencyOnFill = (this.sw2.Elapsed.TotalNanoseconds + this.placingOrderLatencyOnFill * 1000 * this.placingOrdercountOnFill) / (this.placingOrdercountOnFill + 1) / 1000;
-                                    ++(this.placingOrdercountOnFill);
-                                    this.sw2.Reset();
                                     if (this.oManager.orders.ContainsKey(fill.internal_order_id))
                                     {
                                         ord = this.oManager.orders[fill.internal_order_id];
@@ -1728,10 +1632,6 @@ namespace Crypto_Trading
                             }
                             //Once onFill triggered, onFill has the responsibility to hedge the entire order.
                             this.executed_OrderIds[fill.internal_order_id] = fillType.onFill;
-
-                            this.sw.Stop();
-                            this.onFill_latency3 = (this.sw.Elapsed.TotalNanoseconds + this.onFill_latency3 * 1000 * this.onFill_count3) / (this.onFill_count3 + 1) / 1000;
-                            ++(this.onFill_count3);
                         }
                         
                     }
@@ -1794,7 +1694,6 @@ namespace Crypto_Trading
                         }
                     }
                 }
-                this.sw.Reset();
             }
         }
         public void addLog(string line, Enums.logType logtype = Enums.logType.INFO)

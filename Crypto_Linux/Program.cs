@@ -33,7 +33,6 @@ namespace Crypto_Linux
         static string logPath = Path.Combine(AppContext.BaseDirectory, "crypto.log");
         static string outputPath = AppContext.BaseDirectory;
         static string outputPath_org = AppContext.BaseDirectory;
-        static string APIsPath = "";
         static List<string> APIList = new List<string>();
         static string discordTokenFile = "";
         static string masterFile = "";
@@ -61,7 +60,6 @@ namespace Crypto_Linux
         static LockFreeStack<logEntry> logEntryStack;
         static LockFreeStack<fillInfo> fillInfoStack;
 
-        static Strategy selected_stg;
         static public Dictionary<string, Strategy> strategies;
 
         static bool enabled;
@@ -69,15 +67,10 @@ namespace Crypto_Linux
         static SISOQueue<string> logQueue;
         static SISOQueue<DataFill> filledOrderQueue;
 
-        static Instrument selected_ins;
-
         static StreamWriter logFile;
 
         static private bool threadsStarted;
         static private int stopTradingCalled;
-        static private bool aborting;
-
-        static private bool autoStart;
         static private bool live;
         static private bool test;
         static private bool privateConnect;
@@ -97,23 +90,9 @@ namespace Crypto_Linux
         static Dictionary<string , threadStatus> threadStates = new Dictionary<string, threadStatus>();
         static Dictionary<string, queueInfo> queueInfos = new Dictionary<string, queueInfo>();
 
-        Thread ws_thread;
+        static Dictionary<string, latency> LatencyList = new Dictionary<string, latency>();
 
         static bool isRunning = false;
-        CancellationTokenSource cts = new CancellationTokenSource();
-
-
-        static int totalWidth;
-        static int totalHeight;
-
-        static int mainWidth;
-        static int logWidth;
-        static int mainHeight;
-        static int commandHeight;
-
-        const int LOGBUF_SIZE = 100;
-        static string[] log_buffer = new string[LOGBUF_SIZE];
-        static int log_index = 0;
 
         static int mismatch_count = 0;
 
@@ -147,9 +126,7 @@ namespace Crypto_Linux
             logQueue = new SISOQueue<string>();
 
             Console.WriteLine("Crypto Trading App Ver." + GlobalVariables.ver_major + ":" + GlobalVariables.ver_minor + ":" + GlobalVariables.ver_patch);
-            aborting = false;
             threadsStarted = false;
-            autoStart = false;
             live = false;
             test = false;
             privateConnect = true;
@@ -810,14 +787,6 @@ namespace Crypto_Linux
             using JsonDocument doc = JsonDocument.Parse(fileContent);
             var root = doc.RootElement;
             JsonElement elem;
-            if (root.TryGetProperty("autoStart", out elem))
-            {
-                autoStart = elem.GetBoolean();
-            }
-            else
-            {
-                autoStart = false;
-            }
             if (root.TryGetProperty("live", out elem))
             {
                 live = elem.GetBoolean();
@@ -1093,7 +1062,6 @@ namespace Crypto_Linux
             try
             {
                 oManager.setVirtualMode(!liveTrading);
-
                 foreach (var mkt in qManager._markets)
                 {
                     if (msgLogging)
@@ -1362,6 +1330,27 @@ namespace Crypto_Linux
 
                     }
                 }
+
+                //Latency List
+                foreach (var l in oManager.Latency)
+                {
+                    LatencyList[l.Key] = l.Value;
+                }
+                foreach (var l in qManager.Latency)
+                {
+                    LatencyList[l.Key] = l.Value;
+                }
+                foreach (var l in thManager.Latency)
+                {
+                    LatencyList[l.Key] = l.Value;
+                }
+                foreach(var stg in strategies.Values)
+                {
+                    foreach(var l in stg.Latency)
+                    {
+                        LatencyList[l.Key] = l.Value;
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -1613,6 +1602,19 @@ namespace Crypto_Linux
                     }
                     sw.Close();
                     sw.Dispose();
+
+                    if(LatencyList.Count > 0)
+                    {
+                        string latencyReport = newpath + "/LatencyReport.csv";
+                        using(StreamWriter lr = new StreamWriter(new FileStream(latencyReport,FileMode.Create,FileAccess.Write)))
+                        {
+                            sw.WriteLine("name,count,average[us],max[us]");
+                            foreach(var l in LatencyList.Values)
+                            {
+                                sw.WriteLine(l.ToString());
+                            }
+                        }
+                    }
 
                     foreach (var th in thManager.threads)
                     {

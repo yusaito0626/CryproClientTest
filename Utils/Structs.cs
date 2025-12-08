@@ -229,7 +229,7 @@ namespace Utils
             }
         }
 
-        public string ToString()
+        public override string ToString()
         {
             string output = this.timestamp.ToString() + ",OrderBook," + this.streamId + "," + this.market + "," + this.updateType + "," + this.symbol;
 
@@ -466,7 +466,7 @@ namespace Utils
             }
         }
 
-        public string ToString()
+        public override string ToString()
         {
             string line;
             if (this.timestamp != null)
@@ -1234,7 +1234,7 @@ namespace Utils
             this.err_code = 0;
             this.queued_count = 0;
         }
-        public string ToString()
+        public override string ToString()
         {
             string line;
             if (this.timestamp != null)
@@ -1390,7 +1390,7 @@ namespace Utils
             this.quantity = 0;
         }
 
-        public string ToString()
+        public override string ToString()
         {
             return this.market + "," + this.symbol + "," + ((DateTime)this.timestamp).ToString("yyyy-MM-dd HH:mm:ss.fff") + "," + ((DateTime)this.filled_time).ToString("yyyy-MM-dd HH:mm:ss.fff") + "," + this.side.ToString() + "," + this.price.ToString() + "," + this.quantity.ToString();
         }
@@ -1603,6 +1603,10 @@ namespace Utils
             {
                 this.maxElapsedTime = elapsedTime;
             }
+        }
+        public override string ToString()
+        {
+            return this.name + "," + this.count.ToString() + "," + this.avgLatency.ToString() + "," + this.maxElapsedTime.ToString();
         }
     }
 }

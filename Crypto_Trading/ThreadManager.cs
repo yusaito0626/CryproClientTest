@@ -10,19 +10,21 @@ using System.Threading.Tasks;
 using Newtonsoft.Json.Serialization;
 using System.Runtime.Versioning;
 using Utils;
+using System.Diagnostics.Contracts;
 
 namespace Crypto_Trading
 {
     public class ThreadManager
     {
         public Dictionary<string, thread> threads;
-
+        public Dictionary<string, latency> Latency;
 
         public Action<string, Enums.logType> _addLog;
 
         private ThreadManager()
         {
             this.threads = new Dictionary<string, thread>();
+            this.Latency = new Dictionary<string, latency>();
             //this._addLog = Console.WriteLine;
         }
 
@@ -36,6 +38,7 @@ namespace Crypto_Trading
             {
                 thread t = new thread(name, action, onClosing, onError);
                 t.addLog = this.addLog;
+                this.Latency[t.name] = t.Latency;
                 this.threads[name] = t;
                 t.start();
                 this.addLog("The thread started. name:" + name);
@@ -52,6 +55,7 @@ namespace Crypto_Trading
             {
                 thread t = new thread(name, loop, onClosing, onError,spinningMax);
                 t.addLog = this.addLog;
+                this.Latency[t.name] = t.Latency;
                 this.threads[name] = t;
                 t.start();
                 this.addLog("The thread started. name:" + name);
