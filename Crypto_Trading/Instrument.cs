@@ -786,6 +786,128 @@ namespace Crypto_Trading
             Volatile.Write(ref this.quotes_lock, 0);
             return price;
         }
+        public bool getWeightedAvgPrice(orderSide side, List<decimal> quantities, List<decimal> prices)
+        {
+            bool ret = false;
+            int layer = 0;
+            decimal quantity;
+            decimal cumQuantity = 0;
+            decimal weightedPrice = 0;
+            if (quantities.Count > layer)
+            {
+                quantity = quantities[layer];
+            }
+            else
+            {
+                return ret;
+            }
+            switch (side)
+            {
+                case orderSide.Buy:
+                    foreach (var item in this.bids.Reverse())
+                    {
+                        if (cumQuantity + item.Value < quantity)
+                        {
+                            cumQuantity += item.Value;
+                            weightedPrice += item.Value * item.Key;
+                        }
+                        else
+                        {
+                            decimal residual = item.Value - (quantity - cumQuantity);
+                            weightedPrice += (quantity - cumQuantity) * item.Key;
+                            cumQuantity += (quantity - cumQuantity);
+                            prices[layer] = cumQuantity > 0 ? weightedPrice / cumQuantity * (1 + this.taker_fee) : 0;
+                            cumQuantity = 0;
+                            weightedPrice = 0;
+                            while (residual > 0)
+                            {
+                                ++layer;
+                                if (quantities.Count > layer)
+                                {
+                                    quantity = quantities[layer];
+                                    if (quantity > cumQuantity + residual)
+                                    {
+                                        cumQuantity += residual;
+                                        weightedPrice += residual * item.Key;
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        residual -= quantity - cumQuantity;
+                                        weightedPrice += (quantity - cumQuantity) * item.Key;
+                                        cumQuantity += quantity - cumQuantity;
+                                        prices[layer] = cumQuantity > 0 ? weightedPrice / cumQuantity * (1 + this.taker_fee) : 0;
+                                        cumQuantity = 0;
+                                        weightedPrice = 0;
+                                    }
+                                }
+                                else
+                                {
+                                    break;
+                                }
+                            }
+                            if (quantities.Count <= layer)
+                            {
+                                ret = true;
+                                break;
+                            }
+                        }
+                    }
+                    break;
+                case orderSide.Sell:
+                    foreach (var item in this.asks)
+                    {
+                        if (cumQuantity + item.Value < quantity)
+                        {
+                            cumQuantity += item.Value;
+                            weightedPrice += item.Value * item.Key;
+                        }
+                        else
+                        {
+                            decimal residual = item.Value - (quantity - cumQuantity);
+                            weightedPrice += (quantity - cumQuantity) * item.Key;
+                            cumQuantity += (quantity - cumQuantity);
+                            prices[layer] = cumQuantity > 0 ? weightedPrice / cumQuantity * (1 + this.taker_fee) : 0;
+                            cumQuantity = 0;
+                            weightedPrice = 0;
+                            while (residual > 0)
+                            {
+                                ++layer;
+                                if (quantities.Count > layer)
+                                {
+                                    quantity = quantities[layer];
+                                    if(quantity > cumQuantity + residual)
+                                    {
+                                        cumQuantity += residual;
+                                        weightedPrice += residual * item.Key;
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        residual -= quantity - cumQuantity;
+                                        weightedPrice += (quantity - cumQuantity) * item.Key;
+                                        cumQuantity += quantity - cumQuantity;
+                                        prices[layer] = cumQuantity > 0 ? weightedPrice / cumQuantity * (1 + this.taker_fee) : 0;
+                                        cumQuantity = 0;
+                                        weightedPrice = 0;
+                                    }
+                                }
+                                else
+                                {
+                                    break;
+                                }
+                            }
+                            if (quantities.Count <= layer)
+                            {
+                                ret = true;
+                                break;
+                            }
+                        }
+                    }
+                    break;
+            }
+            return ret;
+        }
         public void updateFills(DataSpotOrderUpdate prev_ord,DataSpotOrderUpdate new_ord)
         {
             decimal filledQuantity = 0;

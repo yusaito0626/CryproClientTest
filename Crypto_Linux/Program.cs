@@ -1527,7 +1527,7 @@ namespace Crypto_Linux
                         if (!File.Exists(performanceFile))
                         {
                             lines = new List<string>();
-                            lines.Add("date,strategy,baseBalance_open,quoteBalance_open,baseBalance_close,quoteBalance_close,baseHedge_quantity,notional_volume,open_mid,close_mid,TotalPnL,pos_diff");
+                            lines.Add("date,strategy,baseBalance_open,quoteBalance_open,baseBalance_close,quoteBalance_close,baseHedge_quantity,notional_volume,open_mid,close_mid,buy_quantity,buy_avgPrice,sell_quantity,sell_avgPrice,TotalPnL,pos_diff,BBookPnL");
 
                         }
                         else
@@ -1555,6 +1555,9 @@ namespace Crypto_Linux
 
                             decimal notionalVolume = stg.maker.my_buy_notional + stg.maker.my_sell_notional;
 
+                            decimal sell_avgprice = stg.maker.my_sell_quantity > 0 ? stg.maker.my_sell_notional / stg.maker.my_sell_quantity : 0;
+                            decimal buy_avgprice = stg.maker.my_buy_quantity > 0 ? stg.maker.my_buy_notional / stg.maker.my_buy_quantity : 0;
+
                             decimal totalPnL = (baseBalance_open - stg.baseCcyQuantity) * (stg.taker.mid - stg.taker.open_mid)
                                 + (stg.taker.my_sell_notional - stg.taker.my_sell_quantity * stg.taker.mid) + (stg.taker.my_buy_quantity * stg.taker.mid - stg.taker.my_buy_notional)
                                 + (stg.maker.my_sell_notional - stg.maker.my_sell_quantity * stg.taker.mid) + (stg.maker.my_buy_quantity * stg.taker.mid - stg.maker.my_buy_notional)
@@ -1562,9 +1565,12 @@ namespace Crypto_Linux
                             decimal pos_diff = baseBalance_close * stg.taker.mid - baseBalance_open * stg.taker.open_mid - stg.baseCcyQuantity * (stg.taker.mid - stg.taker.open_mid)
                                 + quoteBalance_close - quoteBalance_open;
 
+                            decimal BBookPnL = (sell_avgprice - stg.maker.mid) * stg.maker.my_sell_quantity + (stg.maker.mid - buy_avgprice) * stg.maker.my_buy_quantity;
+
                             string line = today + "," + stg.name + "," + baseBalance_open.ToString() + "," + quoteBalance_open.ToString() + ","
                                 + baseBalance_close.ToString() + "," + quoteBalance_close.ToString() + "," + stg.baseCcyQuantity.ToString() + "," + notionalVolume.ToString() + "," + stg.taker.open_mid.ToString() + "," + stg.taker.mid.ToString() + ","
-                                + totalPnL.ToString() + "," + pos_diff.ToString();
+                                + stg.maker.my_buy_quantity + "," + buy_avgprice + "," + stg.maker.my_sell_quantity + "," + sell_avgprice + ","
+                                + totalPnL.ToString() + "," + pos_diff.ToString() + "," + BBookPnL.ToString();
 
                             lines.Add(line);
                         }
@@ -1583,35 +1589,37 @@ namespace Crypto_Linux
                     string SoDPosFile = newpath + "/SoD_Position.csv";
                     qManager.setBalance(await crypto_client.getBalance(qManager._markets.Keys));
 
-                    StreamWriter sw = new StreamWriter(new FileStream(SoDPosFile, FileMode.Create, FileAccess.Write));
-                    sw.WriteLine("timestamp,symbol,market,symbol_market,base_ccy,quote_ccy,baseccy_balance,quoteccy_balance,open_mid");
-                    string currentTime = DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat);
-                    foreach (var ins in qManager.instruments.Values)
+                    //StreamWriter sw = new StreamWriter(new FileStream(SoDPosFile, FileMode.Create, FileAccess.Write));
+                    using(StreamWriter sod = new StreamWriter(new FileStream(SoDPosFile, FileMode.Create, FileAccess.Write)))
                     {
-                        //decimal mid = await crypto_client.getCurrentMid(ins.market, ins.symbol);
-                        string line = currentTime + "," + ins.symbol + "," + ins.market + "," + ins.symbol_market + "," + ins.baseCcy + "," + ins.quoteCcy + "," + ins.baseBalance.total.ToString() + "," + ins.quoteBalance.total.ToString() + "," + ins.mid.ToString();
-                        //ins.SoD_baseBalance.total = ins.baseBalance.total;
-                        //ins.SoD_baseBalance.ccy = ins.baseBalance.ccy;
-                        //ins.SoD_baseBalance.market = ins.baseBalance.market;
-                        //ins.SoD_quoteBalance.total = ins.quoteBalance.total;
-                        //ins.SoD_quoteBalance.ccy = ins.quoteBalance.ccy;
-                        //ins.SoD_quoteBalance.market = ins.quoteBalance.market;
-                        //ins.open_mid = mid;
-                        sw.WriteLine(line);
-                        sw.Flush();
+                        sod.WriteLine("timestamp,symbol,market,symbol_market,base_ccy,quote_ccy,baseccy_balance,quoteccy_balance,open_mid");
+                        string currentTime = DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat);
+                        foreach (var ins in qManager.instruments.Values)
+                        {
+                            //decimal mid = await crypto_client.getCurrentMid(ins.market, ins.symbol);
+                            string line = currentTime + "," + ins.symbol + "," + ins.market + "," + ins.symbol_market + "," + ins.baseCcy + "," + ins.quoteCcy + "," + ins.baseBalance.total.ToString() + "," + ins.quoteBalance.total.ToString() + "," + ins.mid.ToString();
+                            //ins.SoD_baseBalance.total = ins.baseBalance.total;
+                            //ins.SoD_baseBalance.ccy = ins.baseBalance.ccy;
+                            //ins.SoD_baseBalance.market = ins.baseBalance.market;
+                            //ins.SoD_quoteBalance.total = ins.quoteBalance.total;
+                            //ins.SoD_quoteBalance.ccy = ins.quoteBalance.ccy;
+                            //ins.SoD_quoteBalance.market = ins.quoteBalance.market;
+                            //ins.open_mid = mid;
+                            sod.WriteLine(line);
+                            sod.Flush();
+                        }
                     }
-                    sw.Close();
-                    sw.Dispose();
+                    
 
                     if(LatencyList.Count > 0)
                     {
-                        string latencyReport = newpath + "/LatencyReport.csv";
+                        string latencyReport = outputPath + "/LatencyReport.csv";
                         using(StreamWriter lr = new StreamWriter(new FileStream(latencyReport,FileMode.Create,FileAccess.Write)))
                         {
-                            sw.WriteLine("name,count,average[us],max[us]");
+                            lr.WriteLine("name,count,average[us],max[us]");
                             foreach(var l in LatencyList.Values)
                             {
-                                sw.WriteLine(l.ToString());
+                                lr.WriteLine(l.ToString());
                             }
                         }
                     }
