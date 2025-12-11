@@ -13,6 +13,8 @@ using System.Threading.Tasks;
 
 using Utils;
 using Enums;
+using System.Runtime.CompilerServices;
+using System.Reactive.Concurrency;
 
 namespace Crypto_Trading
 {
@@ -80,10 +82,17 @@ namespace Crypto_Trading
         public DateTime live_buyorder_time;
         public HashSet<string> stg_orders;
 
-        public Dictionary<int, decimal> order_size;
-        public Dictionary<int, decimal> markups;
-        public Dictionary<int,string> live_sellorders;
-        public Dictionary<int, string> live_buyorders;
+        int layers;
+        public List<decimal> order_size;
+        public List<decimal> markups;
+        public List<string> live_sellorders;
+        public List<string> live_buyorders;
+        public List<decimal> current_bids;
+        public List<decimal> current_asks;
+        public List<decimal> ordersize_ask;
+        public List<decimal> ordersize_bid;
+        public List<decimal> bids;
+        public List<decimal> asks;
 
 
         public decimal live_askprice;
@@ -172,10 +181,16 @@ namespace Crypto_Trading
 
 
 
-            this.order_size = new Dictionary<int, decimal>();
-            this.markups = new Dictionary<int, decimal>();
-            this.live_sellorders = new Dictionary<int, string>();
-            this.live_buyorders = new Dictionary<int, string>();
+            this.order_size = new List<decimal>();
+            this.markups = new List<decimal>();
+            this.live_sellorders = new List<string>();
+            this.live_buyorders = new List<string>();
+            this.current_bids = new List<decimal>();
+            this.current_asks = new List<decimal>();
+            this.ordersize_ask = new List<decimal>();
+            this.ordersize_bid = new List<decimal>();
+            this.bids = new List<decimal>();
+            this.asks = new List<decimal>();
 
             this.live_askprice = 0;
             this.live_bidprice = 0;
@@ -1042,22 +1057,23 @@ namespace Crypto_Trading
                 this.skew_point = this.skew();
                 decimal modTh_buffer = 0;
                 //decimal modTh_buffer = 100 * Math.Abs(this.skew_point) / this.maxSkew / 1000000;
-                int i = 0;
                 while (Interlocked.CompareExchange(ref this.taker.quotes_lock, 1, 0) != 0)
                 {
 
                 }
-                decimal taker_bid = this.taker.adjusted_bestbid.Item1;
-                decimal taker_ask = this.taker.adjusted_bestask.Item1;
+                this.taker.getWeightedAvgPrice(orderSide.Buy, this.order_size, this.bids);
+                this.taker.getWeightedAvgPrice(orderSide.Sell, this.order_size, this.asks);
+
                 Volatile.Write(ref this.taker.quotes_lock, 0);
 
-                decimal bid_price = taker_bid;
-                decimal ask_price = taker_ask;
-                decimal min_markup_bid = bid_price * (1 - this.min_markup / 1000000);
-                decimal min_markup_ask = ask_price * (1 + this.min_markup / 1000000);
+                while (Interlocked.CompareExchange(ref this.maker.quotes_lock, 1, 0) != 0)
+                {
+                }
+                decimal maker_bid = this.maker.bestbid.Item1;
+                decimal maker_ask = this.maker.bestask.Item1;
 
-                decimal markup_bid = this.markup;
-                decimal markup_ask = this.markup;
+                Volatile.Write(ref this.maker.quotes_lock, 0);
+                
 
                 double taker_VR = this.taker.realized_volatility;
                 if (this.taker.prev_RV > 0)
@@ -1065,31 +1081,11 @@ namespace Crypto_Trading
                     taker_VR = 0.7 * taker_VR + 0.3 * this.taker.prev_RV;
                 }
                 decimal vr_markup = this.markup * (decimal)Math.Exp(taker_VR / Math.Sqrt(this.taker.RV_minute * 60) * 1_000_000 / (double)this.markup) * this.RVMarkup_multiplier + this.markupAdjustment;
-
-                //if (vr_markup > this.markup)
-                //{
-                //    vr_markup = Math.Ceiling(vr_markup / 50) * 50;
-                //}
-
-                this.modThreshold = this.config_modThreshold;
-
                 if (vr_markup >= this.prev_markup)
                 {
                     this.base_markup = vr_markup;
                     this.prev_markup = vr_markup;
                     this.prevMarkupTime = DateTime.UtcNow;
-                    //if (vr_markup > this.markup)
-                    //{
-                    //    this.base_markup = vr_markup;
-                    //    this.prev_markup = vr_markup;
-                    //    this.prevMarkupTime = DateTime.UtcNow;
-                    //}
-                    //else
-                    //{
-
-                    //    this.base_markup = this.markup;
-                    //    this.prev_markup = this.markup;
-                    //}
                 }
                 else
                 {
@@ -1102,40 +1098,7 @@ namespace Crypto_Trading
                     else
                     {
                         this.base_markup = this.prev_markup;
-                        //markup_bid = this.prev_markup;
-                        //markup_ask = this.prev_markup;
                     }
-                    //if (this.prev_markup > this.markup)
-                    //{
-                    //    double elapsedTime = (DateTime.UtcNow - this.prevMarkupTime).TotalMinutes;
-                    //    if (elapsedTime > this.taker.RV_minute * 2)
-                    //    {
-                    //        if (vr_markup > this.markup)
-                    //        {
-                    //            this.base_markup = vr_markup;
-                    //            //markup_bid = vr_markup;
-                    //            //markup_ask = vr_markup;
-                    //            this.prev_markup = vr_markup;
-                    //        }
-                    //        else
-                    //        {
-                    //            this.base_markup = this.markup;
-                    //            this.prev_markup = this.markup;
-                    //        }
-                    //    }
-                    //    else
-                    //    {
-                    //        this.base_markup = this.prev_markup;
-                    //        markup_bid = this.prev_markup;
-                    //        markup_ask = this.prev_markup;
-                    //    }
-                    //}
-                    //else
-                    //{
-
-                    //    this.base_markup = this.markup;
-                    //    this.prev_markup = this.markup;
-                    //}
                 }
                 decimal elapsedTimeFromLastfill = (decimal)(DateTime.UtcNow - (this.last_filled_time ?? DateTime.UtcNow)).TotalMinutes - 5;
                 if (elapsedTimeFromLastfill < 0)
@@ -1153,167 +1116,8 @@ namespace Crypto_Trading
 
                 this.base_markup += this.markup_decay;
 
-                markup_bid = this.base_markup;
-                markup_ask = this.base_markup;
-
-                decimal ordersize_bid = this.ToBsize;
-                decimal ordersize_ask = this.ToBsize;
-
-
-
-                if (this.skew_point > 0)
-                {
-                    markup_ask += (decimal)(1 + this.skewWidening) * this.skew_point;
-                    markup_bid += -this.skew_point;
-                    //markup_ask += (decimal)(1 + this.skewWidening) * this.skew_point + Math.Max(markup_decay,-1) * this.markup;
-                    //if(this.skew_point == this.maxSkew)
-                    //{
-                    //    markup_bid += -this.skew_point + markup_decay * this.markup;
-                    //}
-                    //else
-                    //{
-                    //    markup_bid += -this.skew_point + Math.Max(markup_decay, -1) * this.markup;
-                    //}
-                }
-                else if (this.skew_point < 0)
-                {
-                    markup_bid += -(decimal)(1 + this.skewWidening) * this.skew_point;
-                    markup_ask += this.skew_point;
-                    //markup_bid += - (decimal)(1 + this.skewWidening) * this.skew_point + Math.Max(markup_decay, -1) * this.markup;
-                    //if(this.skew_point == - this.maxSkew)
-                    //{
-                    //    markup_ask += this.skew_point + markup_decay * this.markup;
-                    //}
-                    //else
-                    //{
-                    //    markup_ask += this.skew_point + Math.Max(markup_decay, -1) * this.markup;
-                    //}
-                }
-                else
-                {
-                    //markup_bid += Math.Max(markup_decay, -1) * this.markup;
-                    //markup_ask += Math.Max(markup_decay, -1) * this.markup;
-
-                    decimal temp_askSize = ordersize_ask * this.ToBsizeMultiplier;
-                    if (this.maker.baseBalance.total - temp_askSize >= this.baseCcyQuantity * ((decimal)0.5 - this.skewThreshold / 200))
-                    {
-                        ordersize_ask = temp_askSize;
-                    }
-
-                    decimal temp_bidSize = ordersize_bid * this.ToBsizeMultiplier;
-                    if (this.maker.baseBalance.total + temp_bidSize <= this.baseCcyQuantity * ((decimal)0.5 + this.skewThreshold / 200))
-                    {
-                        ordersize_bid = temp_bidSize;
-                    }
-                }
-                this.temp_markup_ask = markup_ask;
-                this.temp_markup_bid = markup_bid;
-
-                if (this.base_markup > this.max_baseMarkup || this.base_markup < 0)
-                {
-                    bid_price = 0;
-                    ask_price = 0;
-                }
-                else
-                {
-                    bid_price *= (1 - markup_bid / 1000000);
-                    ask_price *= (1 + markup_ask / 1000000);
-                }
-
-                while (Interlocked.CompareExchange(ref this.maker.quotes_lock, 1, 0) != 0)
-                {
-                }
-                decimal maker_bid = this.maker.bestbid.Item1;
-                decimal maker_ask = this.maker.bestask.Item1;
-
-                Volatile.Write(ref this.maker.quotes_lock, 0);
-                decimal maker_adjustedbid = this.maker.getPriceAfterSweep(orderSide.Buy, ordersize_bid);
-                decimal maker_adjustedask = this.maker.getPriceAfterSweep(orderSide.Sell, ordersize_ask);
-
-                if (bid_price > 0)
-                {
-                    if (bid_price > maker_adjustedbid + this.maker.price_unit)
-                    {
-                        if (maker_adjustedbid == live_bidprice)
-                        {
-                            bid_price = maker_adjustedbid;
-                        }
-                        else
-                        {
-                            bid_price = maker_adjustedbid + this.maker.price_unit;
-                        }
-
-                        if (bid_price >= maker_ask)
-                        {
-                            bid_price = maker_bid;
-                        }
-                    }
-
-                    if (bid_price > min_markup_bid)
-                    {
-                        bid_price = min_markup_bid;
-                    }
-                }
-
-                if (ask_price > 0)
-                {
-                    if (ask_price < maker_adjustedask - this.maker.price_unit)
-                    {
-                        if (maker_adjustedask == live_askprice)
-                        {
-                            ask_price = maker_adjustedask;
-                        }
-                        else
-                        {
-                            ask_price = maker_adjustedask - this.maker.price_unit;
-                        }
-
-                        if (ask_price <= maker_bid)
-                        {
-                            ask_price = maker_ask;
-                        }
-                    }
-
-                    if (ask_price < min_markup_ask)
-                    {
-                        ask_price = min_markup_ask;
-                    }
-                }
-
-
-                bid_price = Math.Floor(bid_price / this.maker.price_unit) * this.maker.price_unit;
-                ask_price = Math.Ceiling(ask_price / this.maker.price_unit) * this.maker.price_unit;
-
-                if (ordersize_bid * (1 + this.taker.taker_fee) * 2 > this.taker.baseBalance.available)
-                {
-                    bid_price = 0;
-                }
-                if (taker_ask * ordersize_ask * (1 + this.taker.taker_fee) * 2 > this.taker.quoteBalance.available)
-                {
-                    ask_price = 0;
-                }
-
-                if (bid_price < 0)
-                {
-                    addLog($"Invalid bid price. bid:{bid_price} skew:{this.skew_point} base markup:{this.base_markup}", logType.WARNING);
-                    bid_price = 0;
-                }
-                else if (bid_price > 0 && maker_bid > 0 && (bid_price / maker_bid > (decimal)1.1 || bid_price / maker_bid < (decimal)0.9))
-                {
-                    addLog($"The bid price is too far from the market price. bid:{bid_price} skew:{this.skew_point} base markup:{this.base_markup}", logType.WARNING);
-                    bid_price = 0;
-                }
-
-                if (ask_price < 0)
-                {
-                    addLog($"Invalid ask price. ask:{ask_price} skew:{this.skew_point} base markup:{this.base_markup}", logType.WARNING);
-                    ask_price = 0;
-                }
-                else if (ask_price > 0 && maker_ask > 0 && (ask_price / maker_ask > (decimal)1.1 || ask_price / maker_ask < (decimal)0.9))
-                {
-                    addLog($"The ask price is too far from the market price. ask:{ask_price} skew:{this.skew_point} base markup:{this.base_markup}", logType.WARNING);
-                    ask_price = 0;
-                }
+                decimal maker_adjustedbid = this.maker.getPriceAfterSweep(orderSide.Buy, this.order_size[0]);
+                decimal maker_adjustedask = this.maker.getPriceAfterSweep(orderSide.Sell, this.order_size[0]);
 
                 if (this.base_markup / 5 > this.modThreshold * 1000000)
                 {
@@ -1322,245 +1126,413 @@ namespace Crypto_Trading
 
                 bool isPriceChanged = this.checkPriceChange("taker", modTh_buffer);
 
-                while (Interlocked.CompareExchange(ref this.updating, 1, 0) != 0)
-                {
+                int i = 0;
+                decimal cumAskSize = 0;
+                decimal cumBidSize = 0;
+                decimal cumAskAmount = 0;
+                decimal cumBidAmount = 0;
 
-                }
-
-                DataSpotOrderUpdate ord;
-                DateTime currentTime = DateTime.UtcNow;
-                if (this.live_buyorder_id != "")
+                while (i < this.layers)
                 {
-                    if (this.oManager.orders.ContainsKey(this.live_buyorder_id))
+                    decimal bid_price = this.bids[i];
+                    decimal ask_price = this.asks[i];
+                    decimal min_markup_bid = bid_price * (1 - this.min_markup / 1000000);
+                    decimal min_markup_ask = ask_price * (1 + this.min_markup / 1000000);
+
+                    decimal markup_bid = this.markups[i];
+                    decimal markup_ask = this.markups[i];
+
+                    this.modThreshold = this.config_modThreshold;
+
+                    markup_bid += this.base_markup;
+                    markup_ask += this.base_markup;
+
+                    decimal temp_ordersize_bid = this.order_size[i];
+                    decimal temp_ordersize_ask = this.order_size[i];
+                    if (this.skew_point > 0)
                     {
-                        ord = this.oManager.orders[this.live_buyorder_id];
-                        switch (ord.status)
-                        {
-                            case orderStatus.NONE:
-                                addLog("Something wrong. " + ord.ToString(), logType.WARNING);
-                                this.live_buyorder_id = "";
-                                this.live_bidprice = 0;
-                                break;
-                            case orderStatus.Filled:
-                            case orderStatus.Canceled:
-                            case orderStatus.INVALID:
-                            case orderStatus.WaitCancel:
-                                this.live_buyorder_id = "";
-                                this.live_bidprice = 0;
-                                break;
-                        }
-                        if (ord.status == orderStatus.Open && !this.oManager.live_orders.ContainsKey(ord.internal_order_id))
-                        {
-                            addLog("The order status is open but doesn't exist in liveorders", logType.WARNING);
-                            addLog(ord.ToString(), logType.WARNING);
-                        }
+                        markup_ask += (decimal)(1 + this.skewWidening) * this.skew_point;
+                        markup_bid += -this.skew_point;
                     }
-                    else if (currentTime - this.live_buyorder_time > TimeSpan.FromSeconds(10))
+                    else if (this.skew_point < 0)
                     {
-                        addLog("Strategy buy order not found. order_id:" + this.live_buyorder_id);
-                        //await RefreshLiveOrders();
-                        ret = false;
-                        this.live_buyorder_id = "";
-                        this.live_bidprice = 0;
-                    }
-                }
-                else
-                {
-                    this.live_bidprice = 0;
-                }
-
-                if (this.live_sellorder_id != "")
-                {
-                    if (this.oManager.orders.ContainsKey(this.live_sellorder_id))
-                    {
-                        ord = this.oManager.orders[this.live_sellorder_id];
-                        switch (ord.status)
-                        {
-                            case orderStatus.NONE:
-                                addLog("Something wrong. " + ord.ToString(), logType.WARNING);
-                                this.live_sellorder_id = "";
-                                this.live_askprice = 0;
-                                break;
-                            case orderStatus.Filled:
-                            case orderStatus.Canceled:
-                            case orderStatus.INVALID:
-                            case orderStatus.WaitCancel:
-                                this.live_sellorder_id = "";
-                                this.live_askprice = 0;
-                                break;
-                        }
-                        if (ord.status == orderStatus.Open && !this.oManager.live_orders.ContainsKey(ord.internal_order_id))
-                        {
-                            addLog("The order status is open but doesn't exist in liveorders", logType.WARNING);
-                            addLog(ord.ToString(), logType.WARNING);
-                        }
-                    }
-                    else if (currentTime - this.live_sellorder_time > TimeSpan.FromSeconds(10))
-                    {
-                        addLog("Strategy sell order not found. order_id:" + this.live_sellorder_id);
-                        //await RefreshLiveOrders();
-                        ret = false;
-                        this.live_sellorder_id = "";
-                        this.live_askprice = 0;
-                    }
-                }
-                else
-                {
-                    this.live_askprice = 0;
-                }
-
-
-                if (this.maker.baseBalance.total - this.maker.baseBalance.inuse < ordersize_ask)
-                {
-                    ask_price = 0;
-                }
-                if (this.maker.quoteBalance.total - this.maker.quoteBalance.inuse < ordersize_bid * bid_price)
-                {
-                    bid_price = 0;
-                }
-
-                await this.checkLiveOrders();
-
-                bool newBuyOrder = false;
-                bool newSellOrder = false;
-
-                List<string> cancelling_ord = new List<string>();
-                if (this.oManager.orders.ContainsKey(this.live_buyorder_id))
-                {
-                    ord = this.oManager.orders[this.live_buyorder_id];
-                    if (ord.status == orderStatus.Open && (bid_price == 0 || (this.maker.baseBalance.total > this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200))))
-                    {
-                        cancelling_ord.Add(this.live_buyorder_id);
-                        this.cancelling_qty_buy += ord.order_quantity - ord.filled_quantity;
-                        this.live_buyorder_id = "";
-                        this.live_bidprice = 0;
-                    }
-                    else if ((isPriceChanged || bid_price > this.live_bidprice) && ord.status == orderStatus.Open && this.live_bidprice != bid_price)
-                    {
-                        cancelling_ord.Add(this.live_buyorder_id);
-                        this.cancelling_qty_buy += ord.order_quantity - ord.filled_quantity;
-                        this.live_buyorder_id = "";
-                        this.live_bidprice = 0;
-                        newBuyOrder = true;
-                    }
-                }
-                else if (this.live_buyorder_id == "")
-                {
-                    if (bid_price == 0 || (this.maker.baseBalance.total > this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200)))
-                    {
-
-                    }
-                    else if (this.last_filled_time_buy == null || (decimal)(DateTime.UtcNow - this.last_filled_time_buy).Value.TotalSeconds > this.intervalAfterFill)
-                    {
-                        newBuyOrder = true;
-                    }
-                }
-                if (this.oManager.orders.ContainsKey(this.live_sellorder_id))
-                {
-                    ord = this.oManager.orders[this.live_sellorder_id];
-                    if (ord.status == orderStatus.Open && (ask_price == 0 || (this.maker.baseBalance.total < this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200))))
-                    {
-                        cancelling_ord.Add(this.live_sellorder_id);
-                        this.cancelling_qty_sell += ord.order_quantity - ord.filled_quantity;
-                        this.live_sellorder_id = "";
-                        this.live_askprice = 0;
-                    }
-                    else if ((isPriceChanged || ask_price < this.live_askprice) && ord.status == orderStatus.Open && this.live_askprice != ask_price)
-                    {
-                        cancelling_ord.Add(this.live_sellorder_id);
-                        this.cancelling_qty_sell += ord.order_quantity - ord.filled_quantity;
-                        this.live_sellorder_id = "";
-                        this.live_askprice = 0;
-                        newSellOrder = true;
-                    }
-                }
-                else if (this.live_sellorder_id == "")
-                {
-                    if (ask_price == 0 || (this.maker.baseBalance.total < this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200)))
-                    {
-
-                    }
-                    else if (this.last_filled_time_sell == null || (decimal)(DateTime.UtcNow - this.last_filled_time_sell).Value.TotalSeconds > this.intervalAfterFill)
-                    {
-                        newSellOrder = true;
-                    }
-                }
-
-                this.oManager.placeCancelSpotOrders(this.maker, cancelling_ord);
-
-                if ((current - this.live_buyorder_time).TotalMilliseconds < this.order_throttle || (current - this.live_sellorder_time).TotalMilliseconds < this.order_throttle)
-                {
-                    //Only do cancelling orders to avoid excessive orders
-                    //addLog("Order throttle triggered. Buy Time:" + (current - this.live_buyorder_time).TotalMilliseconds.ToString("N0") + "   Sell Time:" + (current - this.live_sellorder_time).TotalMilliseconds.ToString("N0"));
-                    Volatile.Write(ref this.updating, 0);
-                    return ret;
-                }
-
-
-                if (!this.checkLatency(this.taker, 1000))
-                {
-                    Volatile.Write(ref this.updating, 0);
-                    return ret;
-                }
-
-                this.cancelling_qty_sell = 0;
-                this.cancelling_qty_buy = 0;
-
-                if (newBuyOrder && newSellOrder)//Both orders exist
-                {
-                    if (ask_price - maker_ask > maker_bid - bid_price)
-                    {
-                        buyFirst = true;
+                        markup_bid += -(decimal)(1 + this.skewWidening) * this.skew_point;
+                        markup_ask += this.skew_point;
                     }
                     else
                     {
-                        buyFirst = false;
+                        decimal temp_askSize = temp_ordersize_ask * this.ToBsizeMultiplier;
+                        if (this.maker.baseBalance.total - cumAskSize - temp_askSize >= this.baseCcyQuantity * ((decimal)0.5 - this.skewThreshold / 200))
+                        {
+                            temp_ordersize_ask = temp_askSize;
+                        }
+
+                        decimal temp_bidSize = temp_ordersize_bid * this.ToBsizeMultiplier;
+                        if (this.maker.baseBalance.total + cumBidSize + temp_bidSize <= this.baseCcyQuantity * ((decimal)0.5 + this.skewThreshold / 200))
+                        {
+                            temp_ordersize_bid = temp_bidSize;
+                        }
                     }
-                }
-                else if (newBuyOrder)//Only buy order exists
-                {
-                    buyFirst = true;
-                }
-                else//Only sell order exists or no order exists
-                {
-                    buyFirst = false;
+
+                    if (i == 0)
+                    {
+                        this.temp_markup_ask = markup_ask;
+                        this.temp_markup_bid = markup_bid;
+                    }
+
+                    if (this.base_markup > this.max_baseMarkup || this.base_markup < 0)
+                    {
+                        bid_price = 0;
+                        ask_price = 0;
+                    }
+                    else
+                    {
+                        bid_price *= (1 - markup_bid / 1000000);
+                        ask_price *= (1 + markup_ask / 1000000);
+                    }
+
+                    if (bid_price > 0)
+                    {
+                        if (bid_price > maker_adjustedbid + this.maker.price_unit)
+                        {
+                            if (maker_adjustedbid == live_bidprice)
+                            {
+                                bid_price = maker_adjustedbid;
+                            }
+                            else
+                            {
+                                bid_price = maker_adjustedbid + this.maker.price_unit;
+                            }
+
+                            if (bid_price >= maker_ask)
+                            {
+                                bid_price = maker_bid;
+                            }
+                        }
+
+                        if (bid_price > min_markup_bid)
+                        {
+                            bid_price = min_markup_bid;
+                        }
+                    }
+
+                    if (ask_price > 0)
+                    {
+                        if (ask_price < maker_adjustedask - this.maker.price_unit)
+                        {
+                            if (maker_adjustedask == live_askprice)
+                            {
+                                ask_price = maker_adjustedask;
+                            }
+                            else
+                            {
+                                ask_price = maker_adjustedask - this.maker.price_unit;
+                            }
+
+                            if (ask_price <= maker_bid)
+                            {
+                                ask_price = maker_ask;
+                            }
+                        }
+
+                        if (ask_price < min_markup_ask)
+                        {
+                            ask_price = min_markup_ask;
+                        }
+                    }
+
+
+                    bid_price = Math.Floor(bid_price / this.maker.price_unit) * this.maker.price_unit;
+                    ask_price = Math.Ceiling(ask_price / this.maker.price_unit) * this.maker.price_unit;
+
+                    if (temp_ordersize_bid * (1 + this.taker.taker_fee) * 2 + cumBidSize > this.taker.baseBalance.available)
+                    {
+                        bid_price = 0;
+                    }
+                    if (this.asks[i] * temp_ordersize_ask * (1 + this.taker.taker_fee) * 2 + cumAskAmount > this.taker.quoteBalance.available)
+                    {
+                        ask_price = 0;
+                    }
+
+                    if (this.maker.baseBalance.total - this.maker.baseBalance.inuse < temp_ordersize_ask + cumAskSize)
+                    {
+                        ask_price = 0;
+                    }
+                    if (this.maker.quoteBalance.total - this.maker.quoteBalance.inuse < temp_ordersize_bid * bid_price + cumBidAmount)
+                    {
+                        bid_price = 0;
+                    }
+
+                    cumAskSize += temp_ordersize_ask;
+                    cumBidSize += temp_ordersize_bid;
+                    cumAskAmount += temp_ordersize_ask * temp_ordersize_ask;
+                    cumBidAmount += temp_ordersize_bid * temp_ordersize_bid;
+
+                    this.ordersize_ask[i] = temp_ordersize_ask;
+                    this.ordersize_bid[i] = temp_ordersize_bid;
+
+                    if (bid_price < 0)
+                    {
+                        addLog($"Invalid bid price. bid:{bid_price} skew:{this.skew_point} base markup:{this.base_markup}", logType.WARNING);
+                        bid_price = 0;
+                    }
+                    else if (bid_price > 0 && maker_bid > 0 && (bid_price / maker_bid > (decimal)1.1 || bid_price / maker_bid < (decimal)0.9))
+                    {
+                        addLog($"The bid price is too far from the market price. bid:{bid_price} skew:{this.skew_point} base markup:{this.base_markup}", logType.WARNING);
+                        bid_price = 0;
+                    }
+
+                    if (ask_price < 0)
+                    {
+                        addLog($"Invalid ask price. ask:{ask_price} skew:{this.skew_point} base markup:{this.base_markup}", logType.WARNING);
+                        ask_price = 0;
+                    }
+                    else if (ask_price > 0 && maker_ask > 0 && (ask_price / maker_ask > (decimal)1.1 || ask_price / maker_ask < (decimal)0.9))
+                    {
+                        addLog($"The ask price is too far from the market price. ask:{ask_price} skew:{this.skew_point} base markup:{this.base_markup}", logType.WARNING);
+                        ask_price = 0;
+                    }
+                    this.bids[i] = bid_price;
+                    this.asks[i] = ask_price;
+                    ++i;
                 }
 
-                if (buyFirst)
+                using (funcContainer f = new funcContainer(this.obtainUpdating))
                 {
-                    if (newBuyOrder)
+                    string ordid;
+                    DataSpotOrderUpdate ord;
+                    i = 0;
+                    while(i < layers)
                     {
-                        this.live_buyorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, ordersize_bid, bid_price, null, true, false);
-                        this.live_bidprice = bid_price;
-                        this.stg_orders.Add(this.live_buyorder_id);
-                        this.live_buyorder_time = current;
+                        ordid = this.live_buyorders[i];
+                        if (ordid != "")
+                        {
+                            if (this.oManager.orders.ContainsKey(ordid))
+                            {
+                                ord = this.oManager.orders[ordid];
+                                switch (ord.status)
+                                {
+                                    case orderStatus.NONE:
+                                        addLog("Something wrong. " + ord.ToString(), logType.WARNING);
+                                        this.live_buyorders[i] = "";
+                                        this.current_bids[i] = 0;
+                                        break;
+                                    case orderStatus.Filled:
+                                    case orderStatus.Canceled:
+                                    case orderStatus.INVALID:
+                                    case orderStatus.WaitCancel:
+                                        this.live_buyorders[i] = "";
+                                        this.current_bids[i] = 0;
+                                        break;
+                                }
+                                if (ord.status == orderStatus.Open && !this.oManager.live_orders.ContainsKey(ord.internal_order_id))
+                                {
+                                    addLog("The order status is open but doesn't exist in liveorders", logType.WARNING);
+                                    addLog(ord.ToString(), logType.WARNING);
+                                }
+                            }
+                            else if (current - this.live_buyorder_time > TimeSpan.FromSeconds(10))
+                            {
+                                addLog("Strategy buy order not found. order_id:" + this.live_buyorders[i]);
+                                //await RefreshLiveOrders();
+                                ret = false;
+                                this.live_buyorders[i] = "";
+                                this.current_bids[i] = 0;
+                            }
+                        }
+                        else
+                        {
+                            this.current_bids[i] = 0;
+                        }
+
+                            ordid = this.live_sellorders[i];
+                        if (ordid != "")
+                        {
+                            if (this.oManager.orders.ContainsKey(ordid))
+                            {
+                                ord = this.oManager.orders[ordid];
+                                switch (ord.status)
+                                {
+                                    case orderStatus.NONE:
+                                        addLog("Something wrong. " + ord.ToString(), logType.WARNING);
+                                        this.live_sellorders[i] = "";
+                                        this.current_asks[i] = 0;
+                                        break;
+                                    case orderStatus.Filled:
+                                    case orderStatus.Canceled:
+                                    case orderStatus.INVALID:
+                                    case orderStatus.WaitCancel:
+                                        this.live_sellorders[i] = "";
+                                        this.current_asks[i] = 0;
+                                        break;
+                                }
+                                if (ord.status == orderStatus.Open && !this.oManager.live_orders.ContainsKey(ord.internal_order_id))
+                                {
+                                    addLog("The order status is open but doesn't exist in liveorders", logType.WARNING);
+                                    addLog(ord.ToString(), logType.WARNING);
+                                }
+                            }
+                            else if (current - this.live_buyorder_time > TimeSpan.FromSeconds(10))
+                            {
+                                addLog("Strategy buy order not found. order_id:" + this.live_buyorders[i]);
+                                //await RefreshLiveOrders();
+                                ret = false;
+                                this.live_sellorders[i] = "";
+                                this.current_asks[i] = 0;
+                            }
+                        }
+                        else
+                        {
+                            this.current_asks[i] = 0;
+                        }
+                        ++i;
                     }
-                    if (newSellOrder)
+                    
+                    await this.checkLiveOrdersMulti();
+
+                    bool newBuyOrder = false;
+                    bool newSellOrder = false;
+
+                    List<string> cancelling_ord = new List<string>();
+
+
+                    i = 0;
+                    while(i < layers)
                     {
-                        this.live_sellorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, ordersize_ask, ask_price, null, true, false);
-                        this.live_askprice = ask_price;
-                        this.stg_orders.Add(this.live_sellorder_id);
-                        this.live_sellorder_time = current;
+                        decimal bid_price = this.bids[i];
+                        decimal ask_price = this.asks[i];
+                        if (this.oManager.orders.ContainsKey(this.live_buyorders[i]))
+                        {
+                            ord = this.oManager.orders[this.live_buyorders[i]];
+                            if (ord.status == orderStatus.Open && (bid_price == 0 || (this.maker.baseBalance.total > this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200))))
+                            {
+                                cancelling_ord.Add(this.live_buyorders[i]);
+                                this.live_buyorders[i] = "";
+                                this.current_bids[i] = 0;
+                            }
+                            else if ((isPriceChanged || bid_price > this.current_bids[i]) && ord.status == orderStatus.Open && this.current_bids[i] != bid_price)
+                            {
+                                cancelling_ord.Add(this.live_buyorders[i]);
+                                this.live_buyorders[i] = "";
+                                this.current_bids[i] = 0;
+                                newBuyOrder = true;
+                            }
+                        }
+                        else if (this.live_buyorders[i] == "")
+                        {
+                            if (bid_price == 0 || (this.maker.baseBalance.total > this.baseCcyQuantity * ((decimal)0.5 + this.oneSideThreshold / 200)))
+                            {
+
+                            }
+                            else if (this.last_filled_time_buy == null || (decimal)(current - this.last_filled_time_buy).Value.TotalSeconds > this.intervalAfterFill)
+                            {
+                                newBuyOrder = true;
+                            }
+                        }
+                        if (this.oManager.orders.ContainsKey(this.live_sellorders[i]))
+                        {
+                            ord = this.oManager.orders[this.live_sellorders[i]];
+                            if (ord.status == orderStatus.Open && (ask_price == 0 || (this.maker.baseBalance.total < this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200))))
+                            {
+                                cancelling_ord.Add(this.live_sellorders[i]);
+                                this.live_sellorders[i] = "";
+                                this.current_asks[i] = 0;
+                            }
+                            else if ((isPriceChanged || ask_price < this.current_asks[i]) && ord.status == orderStatus.Open && this.current_asks[i] != ask_price)
+                            {
+                                cancelling_ord.Add(this.live_sellorders[i]);
+                                this.live_sellorders[i] = "";
+                                this.current_asks[i] = 0;
+                                newSellOrder = true;
+                            }
+                        }
+                        else if (this.live_sellorders[i] == "")
+                        {
+                            if (ask_price == 0 || (this.maker.baseBalance.total < this.baseCcyQuantity * ((decimal)0.5 - this.oneSideThreshold / 200)))
+                            {
+
+                            }
+                            else if (this.last_filled_time_sell == null || (decimal)(DateTime.UtcNow - this.last_filled_time_sell).Value.TotalSeconds > this.intervalAfterFill)
+                            {
+                                newSellOrder = true;
+                            }
+                        }
+                        ++i;
+                    }
+                    this.oManager.placeCancelSpotOrders(this.maker, cancelling_ord);
+                    if ((current - this.live_buyorder_time).TotalMilliseconds < this.order_throttle || (current - this.live_sellorder_time).TotalMilliseconds < this.order_throttle)
+                    {
+                        //Only do cancelling orders to avoid excessive orders
+                        return ret;
+                    }
+                    if (!this.checkLatency(this.taker, 1000))
+                    {
+                        Volatile.Write(ref this.updating, 0);
+                        return ret;
+                    }
+                    if (newBuyOrder && newSellOrder)//Both orders exist
+                    {
+                        if (this.asks[0] - maker_ask > maker_bid - this.bids[0])
+                        {
+                            buyFirst = true;
+                        }
+                        else
+                        {
+                            buyFirst = false;
+                        }
+                    }
+                    else if (newBuyOrder)//Only buy order exists
+                    {
+                        buyFirst = true;
+                    }
+                    else//Only sell order exists or no order exists
+                    {
+                        buyFirst = false;
+                    }
+                    i = 0;
+                    if(buyFirst)
+                    {
+                        while(i < layers)
+                        {
+                            if (this.bids[i] > 0 && this.ordersize_bid[i] > 0)
+                            {
+                                this.live_buyorders[i] = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, this.ordersize_bid[i], this.bids[i], null, true, false);
+                                this.current_bids[i] = this.bids[i];
+                                this.stg_orders.Add(this.live_buyorders[i]);
+                                this.live_buyorder_time = current;
+                            }
+                            if (this.asks[i] > 0 && this.ordersize_ask[i] > 0)
+                            {
+                                this.live_sellorders[i] = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, this.ordersize_ask[i], this.asks[i], null, true, false);
+                                this.current_asks[i] = this.asks[i];
+                                this.stg_orders.Add(this.live_sellorders[i]);
+                                this.live_sellorder_time = current;
+                            }
+                            ++i;
+                        }
+                    }
+                    else
+                    {
+                        while (i < layers)
+                        {
+                            if (this.asks[i] > 0 && this.ordersize_ask[i] > 0)
+                            {
+                                this.live_sellorders[i] = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, this.ordersize_ask[i], this.asks[i], null, true, false);
+                                this.current_asks[i] = this.asks[i];
+                                this.stg_orders.Add(this.live_sellorders[i]);
+                                this.live_sellorder_time = current;
+                            }
+                            if (this.bids[i] > 0 && this.ordersize_bid[i] > 0)
+                            {
+                                this.live_buyorders[i] = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, this.ordersize_bid[i], this.bids[i], null, true, false);
+                                this.current_bids[i] = this.bids[i];
+                                this.stg_orders.Add(this.live_buyorders[i]);
+                                this.live_buyorder_time = current;
+                            }
+                            ++i;
+                        }
                     }
                 }
-                else
-                {
-                    if (newSellOrder)
-                    {
-                        this.live_sellorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, ordersize_ask, ask_price, null, true, false);
-                        this.live_askprice = ask_price;
-                        this.stg_orders.Add(this.live_sellorder_id);
-                        this.live_sellorder_time = current;
-                    }
-                    if (newBuyOrder)
-                    {
-                        this.live_buyorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, ordersize_bid, bid_price, null, true, false);
-                        this.live_bidprice = bid_price;
-                        this.stg_orders.Add(this.live_buyorder_id);
-                        this.live_buyorder_time = current;
-                    }
-                }
-                Volatile.Write(ref this.updating, 0);
             }
             return ret;
         }
@@ -1659,6 +1631,42 @@ namespace Crypto_Trading
                                 this.cancelling_qty_sell += ord.Value.order_quantity - ord.Value.filled_quantity;
                                 break;
                         }
+                    }
+                    else if (this.taker.symbol_market == ord.Value.symbol_market)
+                    {
+                        taker_orders.Add(ord.Key);
+                    }
+                    else
+                    {
+                    }
+                }
+            }
+            Volatile.Write(ref this.oManager.order_lock, 0);
+            if (maker_orders.Count > 0)
+            {
+                this.oManager.placeCancelSpotOrders(this.maker, maker_orders, true);
+            }
+            if (taker_orders.Count > 0)
+            {
+                this.oManager.placeCancelSpotOrders(this.taker, taker_orders, true);
+            }
+        }
+
+        public async Task checkLiveOrdersMulti()
+        {
+            List<string> maker_orders = new List<string>();
+            List<string> taker_orders = new List<string>();
+
+            while (Interlocked.CompareExchange(ref this.oManager.order_lock, 1, 0) != 0)
+            {
+            }
+            foreach (var ord in this.oManager.live_orders)
+            {
+                if (this.live_buyorders.Contains(ord.Key) == false && this.live_sellorders.Contains(ord.Key) && ord.Value.status == orderStatus.Open)
+                {
+                    if (this.maker.symbol_market == ord.Value.symbol_market)
+                    {
+                        maker_orders.Add(ord.Key);
                     }
                     else if (this.taker.symbol_market == ord.Value.symbol_market)
                     {
@@ -2256,6 +2264,15 @@ namespace Crypto_Trading
                     }
                 }
             }
+        }
+
+        public Action obtainUpdating()
+        {
+            while(Interlocked.CompareExchange(ref this.updating,1,0) != 0)
+            {
+
+            }
+            return () => { Volatile.Write(ref this.updating, 0); }; 
         }
         public void addLog(string line, Enums.logType logtype = Enums.logType.INFO)
         {
