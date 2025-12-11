@@ -75,15 +75,16 @@ namespace Crypto_Trading
         }
 
         
-        public async Task connectPublicChannel(string market)
+        public async Task<bool> connectPublicChannel(string market)
         {
+            bool ret = false;
             ThreadManager thManager = ThreadManager.GetInstance();
             Func<Task<(bool, double)>> onMsg;
             Action onClosing;
             switch (market)
             {
                 case "bitbank":
-                    await this.crypto_client.bitbank_client.connectPublicAsync();
+                    ret = await this.crypto_client.bitbank_client.connectPublicAsync();
                     this.crypto_client.bitbank_client.onMessage = this.crypto_client.onBitbankMessage;
                     onClosing = async () =>
                     {
@@ -93,7 +94,7 @@ namespace Crypto_Trading
                     this._markets[market] = this.crypto_client.bitbank_client.GetSocketStatePublic();
                     break;
                 case "coincheck":
-                    await this.crypto_client.coincheck_client.connectPublicAsync();
+                    ret = await this.crypto_client.coincheck_client.connectPublicAsync();
                     this.crypto_client.coincheck_client.onMessage = this.crypto_client.onCoincheckMessage;
                     onClosing = async () =>
                     {
@@ -103,7 +104,7 @@ namespace Crypto_Trading
                     this._markets[market] = this.crypto_client.coincheck_client.GetSocketStatePublic();
                     break;
                 case "bittrade":
-                    await this.crypto_client.bittrade_client.connectPublicAsync();
+                    ret = await this.crypto_client.bittrade_client.connectPublicAsync();
                     this.crypto_client.bittrade_client.onMessage = this.crypto_client.onBitTradeMessage;
                     onClosing = async () =>
                     {
@@ -113,6 +114,7 @@ namespace Crypto_Trading
                     this._markets[market] = this.crypto_client.bittrade_client.GetSocketStatePublic();
                     break;
             }
+            return ret;
         }
         public void checkConnections()
         {

@@ -201,8 +201,9 @@ namespace Crypto_Trading
             
         }
 
-        public async Task connectPrivateChannel(string market)
+        public async Task<bool> connectPrivateChannel(string market)
         {
+            bool ret= false;
             ThreadManager thManager = ThreadManager.GetInstance();
             Func<Task<(bool, double)>> onMsg;
             Action onClosing;
@@ -211,9 +212,10 @@ namespace Crypto_Trading
                 case "bitbank":
                     await this.ord_client.bitbank_client.connectPrivateAsync();//This call includes creation of pubnub
                     this.connections[market] = this.ord_client.bitbank_client.GetSocketStatePrivate();
+                    ret = true;
                     break;
                 case "coincheck":
-                    await this.ord_client.coincheck_client.connectPrivateAsync();
+                    ret = await this.ord_client.coincheck_client.connectPrivateAsync();
                     this.ord_client.coincheck_client.onPrivateMessage = this.ord_client.onConcheckPrivateMessage;
                     onClosing = async () =>
                     {
@@ -223,7 +225,7 @@ namespace Crypto_Trading
                     this.connections[market] = this.ord_client.coincheck_client.GetSocketStatePrivate();
                     break;
                 case "bittrade":
-                    await this.ord_client.bittrade_client.connectPrivateAsync();
+                    ret = await this.ord_client.bittrade_client.connectPrivateAsync();
                     this.ord_client.bittrade_client.onPrivateMessage = this.ord_client.onBitTradePrivateMessage;
                     onClosing = async () =>
                     {
@@ -233,6 +235,7 @@ namespace Crypto_Trading
                     this.connections[market] = this.ord_client.bittrade_client.GetSocketStatePrivate();
                     break;
             }
+            return ret;
         }
 
         public void checkConnections()

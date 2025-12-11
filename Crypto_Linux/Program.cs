@@ -100,19 +100,19 @@ namespace Crypto_Linux
         static async Task Main(string[] args)
         {
 
-            Console.CancelKeyPress += async (sender, e) =>
+            Console.CancelKeyPress += (sender, e) =>
             {
                 addLog("Terminating the app...");
                 e.Cancel = true;
-                await EoDProcess();
+                EoDProcess().GetAwaiter().GetResult();
                 isRunning = false;
             };
 
-            AppDomain.CurrentDomain.ProcessExit += async (sender, eventArgs) =>
+            AppDomain.CurrentDomain.ProcessExit += (sender, eventArgs) =>
             {
                 addLog("SIGTERM detected");
 
-                await EoDProcess();
+                EoDProcess().GetAwaiter().GetResult(); 
                 isRunning = false;
             };
             
@@ -254,7 +254,10 @@ namespace Crypto_Linux
             {
                 addLog("Message configuration not found", Enums.logType.WARNING);
             }
-            await tradePreparation(live);
+            if(!await tradePreparation(live))
+            {
+                return;
+            }
 
             ws_server.StartAsync(CancellationToken.None);
 
@@ -820,10 +823,16 @@ namespace Crypto_Linux
                             thManager.addThread(mkt.Key + "_msgLogging", func, null, null, 1);
                         }
                     }
-                    await qManager.connectPublicChannel(mkt.Key);
+                    if(!await qManager.connectPublicChannel(mkt.Key))
+                    {
+                        return false;
+                    }
                     if (liveTrading || privateConnect)
                     {
-                        await oManager.connectPrivateChannel(mkt.Key);
+                        if(!await oManager.connectPrivateChannel(mkt.Key))
+                        {
+                            return false;
+                        }
                     }
                     connectionStates[mkt.Key] = new connecitonStatus() { market = mkt.Key, publicState = WebSocketState.None.ToString(), privateState = WebSocketState.None.ToString(), avgRTT = 0.0 };
                 }
@@ -961,9 +970,9 @@ namespace Crypto_Linux
 
                 if(File.Exists(intradayPnLFile))
                 {
+                    List<intradayPnL> pnls = new List<intradayPnL>();
                     using (StreamReader sr = new StreamReader(new FileStream(intradayPnLFile, FileMode.Open, FileAccess.Read)))
                     {
-                        List<intradayPnL> pnls = new List<intradayPnL>();
                         while (sr.ReadLine() is string line)
                         {
                             string[] items = line.Split(',');//name,oadatetime,pnl,notional
@@ -978,10 +987,10 @@ namespace Crypto_Linux
                                 pnls.Add(pnl);
                             }
                         }
-                        if (pnls.Count > 0)
-                        {
-                            ws_server.processIntradayPnL(pnls);
-                        }
+                    }
+                    if (pnls.Count > 0)
+                    {
+                        ws_server.processIntradayPnL(pnls);
                     }
                 }
                 else

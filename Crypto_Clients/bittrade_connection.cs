@@ -111,8 +111,9 @@ namespace Crypto_Clients
             this.apiName = name;
             this.secretKey = key;
         }
-        public async Task connectPublicAsync()
+        public async Task<bool> connectPublicAsync()
         {
+            bool ret = true;
             this.addLog("Connecting to bitTrade");
 
             this.ws_memory.SetLength(0);
@@ -129,14 +130,18 @@ namespace Crypto_Clients
             catch (WebSocketException wse)
             {
                 this.addLog($"WebSocketException: {wse.Message}",Enums.logType.ERROR);
+                ret = false;
             }
             catch (Exception ex)
             {
                 this.addLog($"Connection failed: {ex.Message}",Enums.logType.ERROR);
+                ret = false;
             }
+            return ret;
         }
-        public async Task connectPrivateAsync()
+        public async Task<bool> connectPrivateAsync()
         {
+            bool ret = true;
             this.addLog("Connecting to private channel of bitTrade");
 
             this.pv_memory.SetLength(0);
@@ -214,6 +219,7 @@ namespace Crypto_Clients
                         this.addLog(msg_body, Enums.logType.ERROR);
                         this.closeSentPrivate = false;
                         await this.disconnectPrivate();
+                        ret = false;
                     }
                     else
                     {
@@ -234,6 +240,7 @@ namespace Crypto_Clients
                         this.addLog(msg, Enums.logType.ERROR);
                         this.closeSentPrivate = false;
                         await this.disconnectPrivate();
+                        ret = false;
                     }
                     else
                     {
@@ -244,11 +251,14 @@ namespace Crypto_Clients
             catch (WebSocketException wse)
             {
                 this.addLog($"WebSocketException: {wse.Message}", Enums.logType.ERROR);
+                ret = false;
             }
             catch (Exception ex)
             {
                 this.addLog($"Connection failed: {ex.Message}", Enums.logType.ERROR);
+                ret = false;
             }
+            return ret;
         }
 
         public async Task disconnectPublic()

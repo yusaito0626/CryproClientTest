@@ -263,8 +263,9 @@ namespace Crypto_Clients
                   .Execute();
         }
 
-        public async Task connectPublicAsync()
+        public async Task<bool> connectPublicAsync()
         {
+            bool ret = true;
             this.addLog("Connecting to bitbank");
             this.ws_memory.SetLength(0);
             this.ws_memory.Position = 0;
@@ -280,11 +281,14 @@ namespace Crypto_Clients
             catch (WebSocketException wse)
             {
                 this.addLog($"WebSocketException: {wse.Message}",Enums.logType.ERROR);
+                ret = false;
             }
             catch (Exception ex)
             {
                 this.addLog($"Connection failed: {ex.Message}", Enums.logType.ERROR);
+                ret = false;
             }
+            return ret;
         }
 
         public async Task reconnectPublic()

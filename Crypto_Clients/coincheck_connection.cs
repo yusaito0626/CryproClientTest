@@ -243,8 +243,9 @@ namespace Crypto_Clients
             this.apiName = name;
             this.secretKey = key;
         }
-        public async Task connectPublicAsync()
+        public async Task<bool> connectPublicAsync()
         {
+            bool ret = true;
             this.addLog("Connecting to coincehck");
             this.ws_memory.SetLength(0);
             this.ws_memory.Position = 0;
@@ -260,14 +261,18 @@ namespace Crypto_Clients
             catch (WebSocketException wse)
             {
                 this.addLog($"WebSocketException: {wse.Message}",Enums.logType.ERROR);
+                ret = false;
             }
             catch (Exception ex)
             {
                 this.addLog($"Connection failed: {ex.Message}", Enums.logType.ERROR);
+                ret = false;
             }
+            return ret;
         }
-        public async Task connectPrivateAsync()
+        public async Task<bool> connectPrivateAsync()
         {
+            bool ret = true;
             this.addLog("Connecting to private channel of coincheck");
             this.pv_memory.SetLength(0);
             this.pv_memory.Position = 0;
@@ -307,6 +312,7 @@ namespace Crypto_Clients
                         this.addLog(msg_body, Enums.logType.ERROR);
                         this.closeSentPrivate = false;
                         await this.disconnectPrivate();
+                        ret = false;
                     }
                     else
                     {
@@ -317,11 +323,14 @@ namespace Crypto_Clients
             catch (WebSocketException wse)
             {
                 this.addLog($"WebSocketException: {wse.Message}", Enums.logType.ERROR);
+                ret = false;
             }
             catch (Exception ex)
             {
                 this.addLog($"Connection failed: {ex.Message}", Enums.logType.ERROR);
+                ret = false;
             }
+            return ret;
         }
         public async Task disconnectPublic()
         {
@@ -914,7 +923,7 @@ namespace Crypto_Clients
             }
             catch (OperationCanceledException)
             {
-                this.addLog("Cancel Requested. bitbank public listening", Enums.logType.WARNING);
+                this.addLog("Cancel Requested. coincheck private listening", Enums.logType.WARNING);
                 return true;
             }
             catch (WebSocketException ex)
