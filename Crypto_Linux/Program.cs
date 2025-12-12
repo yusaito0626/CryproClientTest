@@ -422,6 +422,40 @@ namespace Crypto_Linux
                     totalAll += stg.totalPnL;
                     msg += "markup_bid:" + stg.temp_markup_bid.ToString("N2") + "  markup_ask:" + stg.temp_markup_ask.ToString("N2") + "   Base markup:" + stg.base_markup.ToString("N2") + "   Markup decay:" + stg.markup_decay.ToString("N2") + "\n";
 
+                    string ord_id;
+                    DataSpotOrderUpdate ord;
+                    using(funcContainer f = new funcContainer(stg.obtainUpdating))
+                    {
+                        string sells = "";
+                        string buys = "";
+                        for(int i = 0;i < stg.layers;++i)
+                        {
+                            ord_id = stg.live_sellorders[stg.layers - 1 - i];
+                            if(oManager.orders.ContainsKey(ord_id))
+                            {
+                                ord = oManager.orders[ord_id];
+                                sells += "Layer " + (stg.layers - 1 - i).ToString() + " " + ord.status.ToString() + "  " + ord.order_quantity.ToString() + "@" + ord.order_price.ToString("N0") + "\n";
+                            }
+                            else
+                            {
+                                sells += "Layer " + (stg.layers - 1 - i).ToString() + " Not Found\n";
+                            }
+
+                            ord_id = stg.live_buyorders[i];
+                            if (oManager.orders.ContainsKey(ord_id))
+                            {
+                                ord = oManager.orders[ord_id];
+                                buys += "Layer " + (i).ToString() + " " + ord.status.ToString() + "  " + ord.order_quantity.ToString() + "@" + ord.order_price.ToString("N0") + "\n";
+                            }
+                            else
+                            {
+                                buys += "Layer " + (i).ToString() + " Not Found\n";
+                            }
+                        }
+                        msg += "Live Orders [Sell]\n" + sells + "Live Orders [Buy]\n" + buys;
+                    }
+
+                    
                 }
             }
 

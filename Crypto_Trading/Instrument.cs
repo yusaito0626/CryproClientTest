@@ -810,11 +810,11 @@ namespace Crypto_Trading
                         {
                             cumQuantity += item.Value;
                             weightedPrice += item.Value * item.Key;
-                            Console.WriteLine($"layer {layer.ToString()} <= {item.Value.ToString()}@{item.Key.ToString()}");
+                            //Console.WriteLine($"layer {layer.ToString()} <= {item.Value.ToString()}@{item.Key.ToString()}");
                         }
                         else
                         {
-                            Console.WriteLine($"layer {layer.ToString()} <= {(quantity - cumQuantity).ToString()} from {item.Value.ToString()}@{item.Key.ToString()}");
+                            //Console.WriteLine($"layer {layer.ToString()} <= {(quantity - cumQuantity).ToString()} from {item.Value.ToString()}@{item.Key.ToString()}");
                             decimal residual = item.Value - (quantity - cumQuantity);
                             weightedPrice += (quantity - cumQuantity) * item.Key;
                             cumQuantity += (quantity - cumQuantity);
@@ -838,12 +838,12 @@ namespace Crypto_Trading
                                     {
                                         cumQuantity += residual;
                                         weightedPrice += residual * item.Key;
-                                        Console.WriteLine($"layer {layer.ToString()} <= {residual.ToString()} from {item.Value.ToString()}@{item.Key.ToString()}");
+                                        //Console.WriteLine($"layer {layer.ToString()} <= {residual.ToString()} from {item.Value.ToString()}@{item.Key.ToString()}");
                                         break;
                                     }
                                     else
                                     {
-                                        Console.WriteLine($"layer {layer.ToString()} <= {(quantity - cumQuantity).ToString()} from {item.Value.ToString()}@{item.Key.ToString()}");
+                                        //Console.WriteLine($"layer {layer.ToString()} <= {(quantity - cumQuantity).ToString()} from {item.Value.ToString()}@{item.Key.ToString()}");
                                         residual -= quantity - cumQuantity;
                                         weightedPrice += (quantity - cumQuantity) * item.Key;
                                         cumQuantity += quantity - cumQuantity;
@@ -879,11 +879,11 @@ namespace Crypto_Trading
                         {
                             cumQuantity += item.Value;
                             weightedPrice += item.Value * item.Key;
-                            Console.WriteLine($"layer {layer.ToString()} <= {item.Value.ToString()}@{item.Key.ToString()}");
+                            //Console.WriteLine($"layer {layer.ToString()} <= {item.Value.ToString()}@{item.Key.ToString()}");
                         }
                         else
                         {
-                            Console.WriteLine($"layer {layer.ToString()} <= {(quantity - cumQuantity).ToString()} from {item.Value.ToString()}@{item.Key.ToString()}");
+                            //Console.WriteLine($"layer {layer.ToString()} <= {(quantity - cumQuantity).ToString()} from {item.Value.ToString()}@{item.Key.ToString()}");
                             decimal residual = item.Value - (quantity - cumQuantity);
                             weightedPrice += (quantity - cumQuantity) * item.Key;
                             cumQuantity += (quantity - cumQuantity);
@@ -907,12 +907,12 @@ namespace Crypto_Trading
                                     {
                                         cumQuantity += residual;
                                         weightedPrice += residual * item.Key;
-                                        Console.WriteLine($"layer {layer.ToString()} <= {residual.ToString()} from {item.Value.ToString()}@{item.Key.ToString()}");
+                                        //Console.WriteLine($"layer {layer.ToString()} <= {residual.ToString()} from {item.Value.ToString()}@{item.Key.ToString()}");
                                         break;
                                     }
                                     else
                                     {
-                                        Console.WriteLine($"layer {layer.ToString()} <= {(quantity - cumQuantity).ToString()} from {item.Value.ToString()}@{item.Key.ToString()}");
+                                        //Console.WriteLine($"layer {layer.ToString()} <= {(quantity - cumQuantity).ToString()} from {item.Value.ToString()}@{item.Key.ToString()}");
                                         residual -= quantity - cumQuantity;
                                         weightedPrice += (quantity - cumQuantity) * item.Key;
                                         cumQuantity += quantity - cumQuantity;
