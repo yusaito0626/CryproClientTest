@@ -219,6 +219,9 @@
             dataGridViewTextBoxColumn20 = new DataGridViewTextBoxColumn();
             dataGridViewTextBoxColumn21 = new DataGridViewTextBoxColumn();
             gridView_ThStatus = new DataGridView();
+            dataGridViewTextBoxColumn10 = new DataGridViewTextBoxColumn();
+            dataGridViewTextBoxColumn11 = new DataGridViewTextBoxColumn();
+            col_latency = new DataGridViewTextBoxColumn();
             gridView_Connection = new DataGridView();
             dataGridViewTextBoxColumn7 = new DataGridViewTextBoxColumn();
             dataGridViewTextBoxColumn8 = new DataGridViewTextBoxColumn();
@@ -230,9 +233,10 @@
             combo_pnlStrategy = new ComboBox();
             timer_statusCheck = new System.Windows.Forms.Timer(components);
             timer_PeriodicMsg = new System.Windows.Forms.Timer(components);
-            dataGridViewTextBoxColumn10 = new DataGridViewTextBoxColumn();
-            dataGridViewTextBoxColumn11 = new DataGridViewTextBoxColumn();
-            col_latency = new DataGridViewTextBoxColumn();
+            statusStrip1 = new StatusStrip();
+            toolStripStatusLabel1 = new ToolStripStatusLabel();
+            lbl_currentTime = new ToolStripStatusLabel();
+            timer_Monitoring = new System.Windows.Forms.Timer(components);
             tabControl.SuspendLayout();
             tabPage1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)gridView_PnL).BeginInit();
@@ -253,6 +257,7 @@
             ((System.ComponentModel.ISupportInitialize)gridView_ThStatus).BeginInit();
             ((System.ComponentModel.ISupportInitialize)gridView_Connection).BeginInit();
             tabPage6.SuspendLayout();
+            statusStrip1.SuspendLayout();
             SuspendLayout();
             // 
             // button_receiveFeed
@@ -419,7 +424,7 @@
             textBoxMainLog.Margin = new Padding(2);
             textBoxMainLog.Name = "textBoxMainLog";
             textBoxMainLog.ScrollBars = RichTextBoxScrollBars.Vertical;
-            textBoxMainLog.Size = new Size(1028, 569);
+            textBoxMainLog.Size = new Size(1028, 556);
             textBoxMainLog.TabIndex = 3;
             textBoxMainLog.Text = "";
             // 
@@ -532,7 +537,7 @@
             gridView_orders.RowHeadersWidth = 82;
             dataGridViewCellStyle5.Alignment = DataGridViewContentAlignment.MiddleRight;
             gridView_orders.RowsDefaultCellStyle = dataGridViewCellStyle5;
-            gridView_orders.Size = new Size(1023, 373);
+            gridView_orders.Size = new Size(1023, 360);
             gridView_orders.TabIndex = 32;
             // 
             // col_time
@@ -1034,7 +1039,7 @@
             gridView_InsFills.RowHeadersWidth = 82;
             dataGridViewCellStyle9.Alignment = DataGridViewContentAlignment.MiddleRight;
             gridView_InsFills.RowsDefaultCellStyle = dataGridViewCellStyle9;
-            gridView_InsFills.Size = new Size(1023, 415);
+            gridView_InsFills.Size = new Size(1023, 394);
             gridView_InsFills.TabIndex = 37;
             // 
             // dataGridViewTextBoxColumn12
@@ -2177,6 +2182,27 @@
             gridView_ThStatus.Size = new Size(489, 742);
             gridView_ThStatus.TabIndex = 7;
             // 
+            // dataGridViewTextBoxColumn10
+            // 
+            dataGridViewTextBoxColumn10.HeaderText = "Thread";
+            dataGridViewTextBoxColumn10.MinimumWidth = 10;
+            dataGridViewTextBoxColumn10.Name = "dataGridViewTextBoxColumn10";
+            dataGridViewTextBoxColumn10.Width = 200;
+            // 
+            // dataGridViewTextBoxColumn11
+            // 
+            dataGridViewTextBoxColumn11.HeaderText = "Status";
+            dataGridViewTextBoxColumn11.MinimumWidth = 10;
+            dataGridViewTextBoxColumn11.Name = "dataGridViewTextBoxColumn11";
+            dataGridViewTextBoxColumn11.Width = 125;
+            // 
+            // col_latency
+            // 
+            col_latency.HeaderText = "ProcessTime[us]";
+            col_latency.MinimumWidth = 6;
+            col_latency.Name = "col_latency";
+            col_latency.Width = 150;
+            // 
             // gridView_Connection
             // 
             dataGridViewCellStyle17.Alignment = DataGridViewContentAlignment.MiddleCenter;
@@ -2286,32 +2312,45 @@
             timer_PeriodicMsg.Interval = 60000;
             timer_PeriodicMsg.Tick += timer_PeriodicMsg_Tick;
             // 
-            // dataGridViewTextBoxColumn10
+            // statusStrip1
             // 
-            dataGridViewTextBoxColumn10.HeaderText = "Thread";
-            dataGridViewTextBoxColumn10.MinimumWidth = 10;
-            dataGridViewTextBoxColumn10.Name = "dataGridViewTextBoxColumn10";
-            dataGridViewTextBoxColumn10.Width = 200;
+            statusStrip1.ImageScalingSize = new Size(20, 20);
+            statusStrip1.Items.AddRange(new ToolStripItem[] { toolStripStatusLabel1, lbl_currentTime });
+            statusStrip1.Location = new Point(0, 1006);
+            statusStrip1.Name = "statusStrip1";
+            statusStrip1.RightToLeft = RightToLeft.Yes;
+            statusStrip1.Size = new Size(1056, 30);
+            statusStrip1.TabIndex = 5;
+            statusStrip1.Text = "statusStrip1";
             // 
-            // dataGridViewTextBoxColumn11
+            // toolStripStatusLabel1
             // 
-            dataGridViewTextBoxColumn11.HeaderText = "Status";
-            dataGridViewTextBoxColumn11.MinimumWidth = 10;
-            dataGridViewTextBoxColumn11.Name = "dataGridViewTextBoxColumn11";
-            dataGridViewTextBoxColumn11.Width = 125;
+            toolStripStatusLabel1.Name = "toolStripStatusLabel1";
+            toolStripStatusLabel1.Size = new Size(21, 24);
+            toolStripStatusLabel1.Text = "   ";
             // 
-            // col_latency
+            // lbl_currentTime
             // 
-            col_latency.HeaderText = "ProcessTime[us]";
-            col_latency.MinimumWidth = 6;
-            col_latency.Name = "col_latency";
-            col_latency.Width = 150;
+            lbl_currentTime.AutoSize = false;
+            lbl_currentTime.BorderSides = ToolStripStatusLabelBorderSides.Left | ToolStripStatusLabelBorderSides.Top | ToolStripStatusLabelBorderSides.Right | ToolStripStatusLabelBorderSides.Bottom;
+            lbl_currentTime.BorderStyle = Border3DStyle.Sunken;
+            lbl_currentTime.Font = new Font("Yu Gothic UI", 10.2F, FontStyle.Regular, GraphicsUnit.Point, 128);
+            lbl_currentTime.ImageScaling = ToolStripItemImageScaling.None;
+            lbl_currentTime.Name = "lbl_currentTime";
+            lbl_currentTime.Size = new Size(120, 24);
+            lbl_currentTime.Text = "00:00:00";
+            // 
+            // timer_Monitoring
+            // 
+            timer_Monitoring.Interval = 1000;
+            timer_Monitoring.Tick += timer_Monitoring_Tick;
             // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1056, 1036);
+            Controls.Add(statusStrip1);
             Controls.Add(tabControl);
             Margin = new Padding(2);
             Name = "Form1";
@@ -2346,7 +2385,10 @@
             ((System.ComponentModel.ISupportInitialize)gridView_ThStatus).EndInit();
             ((System.ComponentModel.ISupportInitialize)gridView_Connection).EndInit();
             tabPage6.ResumeLayout(false);
+            statusStrip1.ResumeLayout(false);
+            statusStrip1.PerformLayout();
             ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
@@ -2537,5 +2579,9 @@
         private DataGridViewTextBoxColumn dataGridViewTextBoxColumn10;
         private DataGridViewTextBoxColumn dataGridViewTextBoxColumn11;
         private DataGridViewTextBoxColumn col_latency;
+        private StatusStrip statusStrip1;
+        private ToolStripStatusLabel lbl_currentTime;
+        private System.Windows.Forms.Timer timer_Monitoring;
+        private ToolStripStatusLabel toolStripStatusLabel1;
     }
 }

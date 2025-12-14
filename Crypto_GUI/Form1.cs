@@ -138,7 +138,7 @@ namespace Crypto_GUI
             comboStgVariables.Items.Add("Markup Adjustment");
             comboStgVariables.Items.Add("Max Base Markup");
             comboStgVariables.Items.Add("Order Throttle");
-            
+
 
             this.button_receiveFeed.Enabled = false;
             this.button_startTrading.Enabled = false;
@@ -218,6 +218,10 @@ namespace Crypto_GUI
                 this.timer_statusCheck.Start();
                 this.timer_PeriodicMsg.Start();
             }
+            else
+            {
+                this.timer_Monitoring.Start();
+            }
 
             this.addLog("Application closing time:" + this.str_endTime);
         }
@@ -265,7 +269,7 @@ namespace Crypto_GUI
 
             this.plot_pnl.Plot.Axes.SetLimitsX(xmin, xmax);
             this.plot_notional.Plot.Axes.SetLimitsX(xmin, xmax);
-            
+
             this.plot_pnl.Plot.Axes.SetLimitsY(-1000, 5000);
             this.plot_notional.Plot.Axes.SetLimitsY(0, 1000000);
 
@@ -287,7 +291,7 @@ namespace Crypto_GUI
             List<double> pnl_ys = new List<double>();
             List<double> notional_ys = new List<double>();
             SortedDictionary<DateTime, double> notional = new SortedDictionary<DateTime, double>();
-            while(Interlocked.CompareExchange(ref chartData_lock,1,0) != 0)
+            while (Interlocked.CompareExchange(ref chartData_lock, 1, 0) != 0)
             {
 
             }
@@ -297,13 +301,13 @@ namespace Crypto_GUI
                 {
                     pnl_xs.Add(data.OADatetime);
                     pnl_ys.Add(data.PnL);
-                    if(data.notionalVolume >= 0)
+                    if (data.notionalVolume >= 0)
                     {
                         DateTime temp_dt = DateTime.FromOADate(data.OADatetime);
-                        DateTime dt = new DateTime(temp_dt.Year,temp_dt.Month,temp_dt.Day,temp_dt.Hour,(int)(Math.Floor(temp_dt.Minute / notionalBar_Period) * notionalBar_Period),0);
-                        if(notional.ContainsKey(dt))
+                        DateTime dt = new DateTime(temp_dt.Year, temp_dt.Month, temp_dt.Day, temp_dt.Hour, (int)(Math.Floor(temp_dt.Minute / notionalBar_Period) * notionalBar_Period), 0);
+                        if (notional.ContainsKey(dt))
                         {
-                            if(data.notionalVolume > notional[dt])
+                            if (data.notionalVolume > notional[dt])
                             {
                                 notional[dt] = data.notionalVolume;
                             }
@@ -319,10 +323,10 @@ namespace Crypto_GUI
                 }
             }
             KeyValuePair<DateTime, double>? prev = null;
-            foreach(var n in notional)
+            foreach (var n in notional)
             {
                 notional_xs.Add(n.Key.ToOADate());
-                if(prev == null)
+                if (prev == null)
                 {
                     notional_ys.Add(n.Value);
                 }
@@ -2216,7 +2220,7 @@ namespace Crypto_GUI
             //this.lbl_orderUpdateCount.Text = this.crypto_client.ordUpdateQueue.Count().ToString();
             //this.lbl_fillUpdateCount.Text = this.crypto_client.fillQueue.Count().ToString();
             //this.lbl_optCount.Text = this.qManager.optQueue.Count().ToString();
-
+            this.lbl_currentTime.Text = DateTime.UtcNow.ToString("HH:mm:ss");
         }
 
         private async void Form1_Shown(object sender, EventArgs e)
@@ -3193,6 +3197,11 @@ namespace Crypto_GUI
         private void combo_pnlStrategy_SelectedIndexChanged(object sender, EventArgs e)
         {
             this.update_charts();
+        }
+
+        private void timer_Monitoring_Tick(object sender, EventArgs e)
+        {
+            this.lbl_currentTime.Text = DateTime.UtcNow.ToString("HH:mm:ss");
         }
     }
 }
