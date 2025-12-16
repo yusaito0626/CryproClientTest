@@ -3026,6 +3026,7 @@ namespace Crypto_Trading
                     if (key != ord.internal_order_id)
                     {
                         this.addLog("The key and the order id didn't match while checking virtual orders.", Enums.logType.ERROR);
+                        this.addLog($"The dictionary key:{key} The internal order id:{ord.internal_order_id}", Enums.logType.ERROR);
                     }
                     if (ord.symbol_market == ins.symbol_market)
                     {
@@ -3035,10 +3036,6 @@ namespace Crypto_Trading
                                 if (ins.bestask.Item1 < ord.order_price || (last_trade != null && last_trade.price < ord.order_price))
                                 {
                                     DataSpotOrderUpdate output;
-                                    //while (!this.ord_client.ordUpdateStack.TryPop(out output))
-                                    //{
-
-                                    //}
 
                                     output = this.ord_client.ordUpdateStack.pop();
                                     if (output == null)
@@ -3046,27 +3043,11 @@ namespace Crypto_Trading
                                         output = new DataSpotOrderUpdate();
                                     }
                                     output.Copy(ord);
-                                    //output.isVirtual = true;
-                                    //output.order_id = ord.order_id;
-                                    //output.symbol = ins.symbol;
-                                    //output.market = ins.market;
-                                    //output.symbol_market = ins.symbol_market;
-                                    //output.internal_order_id = ord.internal_order_id;
                                     output.status = orderStatus.Filled;
-                                    //output.side = ord.side;
-                                    //output.order_type = ord.order_type;
-                                    //output.order_quantity = ord.order_quantity;
                                     output.filled_quantity = ord.order_quantity;
-                                    //output.order_price = ord.order_price;
                                     output.average_price = ord.order_price;
-                                    //output.create_time = ord.create_time;
                                     output.fee = ins.maker_fee * output.filled_quantity * output.average_price;
                                     output.fee_asset = ins.quoteCcy;
-                                    //output.is_trigger_order = ord.is_trigger_order;
-                                    //output.last_trade = ord.last_trade;
-                                    //output.time_in_force = ord.time_in_force;
-                                    //output.timestamp = DateTime.UtcNow;
-                                    //output.trigger_price = ord.trigger_price;
                                     output.update_time = DateTime.UtcNow;
                                     DataFill fill;
                                     fill = this.ord_client.fillStack.pop();
@@ -3097,43 +3078,19 @@ namespace Crypto_Trading
                                 if (ins.bestbid.Item1 > ord.order_price || (last_trade != null && last_trade.price > ord.order_price))
                                 {
                                     DataSpotOrderUpdate output;
-                                    //while (!this.ord_client.ordUpdateStack.TryPop(out output))
-                                    //{
-
-                                    //}
                                     output = this.ord_client.ordUpdateStack.pop();
                                     if (output == null)
                                     {
                                         output = new DataSpotOrderUpdate();
                                     }
                                     output.Copy(ord);
-                                    //output.isVirtual = true;
-                                    //output.order_id = ord.order_id;
-                                    //output.symbol = ins.symbol;
-                                    //output.market = ins.market;
-                                    //output.symbol_market = ins.symbol_market;
-                                    //output.internal_order_id = ord.internal_order_id;
                                     output.status = orderStatus.Filled;
-                                    //output.side = ord.side;
-                                    //output.order_type = ord.order_type;
-                                    //output.order_quantity = ord.order_quantity;
                                     output.filled_quantity = ord.order_quantity;
-                                    //output.order_price = ord.order_price;
                                     output.average_price = ord.order_price;
-                                    //output.create_time = ord.create_time;
                                     output.fee = ins.maker_fee * output.filled_quantity;
                                     output.fee_asset = ins.baseCcy;
-                                    //output.is_trigger_order = ord.is_trigger_order;
-                                    //output.last_trade = ord.last_trade;
-                                    //output.time_in_force = ord.time_in_force;
-                                    //output.timestamp = DateTime.UtcNow;
-                                    //output.trigger_price = ord.trigger_price;
                                     output.update_time = DateTime.UtcNow;
                                     DataFill fill;
-                                    //while (!this.ord_client.fillStack.TryPop(out fill))
-                                    //{
-
-                                    //}
                                     fill = this.ord_client.fillStack.pop();
                                     if (fill == null)
                                     {

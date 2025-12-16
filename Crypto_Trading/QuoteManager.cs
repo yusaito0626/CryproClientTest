@@ -49,6 +49,8 @@ namespace Crypto_Trading
         public bool ready;
         public bool aborting;
 
+        public bool live;
+
         Stopwatch sw_updateQuotes;
         Stopwatch sw_updateTrades;
         Stopwatch sw_optimize;
@@ -72,6 +74,8 @@ namespace Crypto_Trading
             this.sw_optimize = new Stopwatch();
 
             this.Latency = new Dictionary<string, latency>();
+
+            this.live = false;
         }
 
         
@@ -461,19 +465,98 @@ namespace Crypto_Trading
                 //await this.oManager.cancelAllOrders();
                 //Thread.Sleep(1000);
                 this.addLog("Requesting order list....", Enums.logType.WARNING);
-                
-                foreach (string mkt in this._markets.Keys)
+
+                if (this.live)
                 {
-                    addLog("Order List of " + mkt,logType.WARNING);
-                    List<DataSpotOrderUpdate> ordList = await this.crypto_client.getActiveOrders(mkt);
+                    foreach (string mkt in this._markets.Keys)
+                    {
+                        addLog("Order List of " + mkt, logType.WARNING);
+                        List<DataSpotOrderUpdate> ordList = await this.crypto_client.getActiveOrders(mkt);
+                        int i = 0;
+                        while (ordList == null)
+                        {
+                            ++i;
+                            addLog("Failed to get active orders. Retrying..." + i.ToString(), Enums.logType.WARNING);
+                            this.oManager.refreshHttpClient(mkt);
+                            Thread.Sleep(1000);
+                            ordList = await this.crypto_client.getActiveOrders(mkt);
+                            if (i >= 5)
+                            {
+                                addLog("Failed to get active orders.", Enums.logType.ERROR);
+                                break;
+                            }
+                        }
+
+                        this.addLog("The number of active orders:" + ordList.Count.ToString("N0"), Enums.logType.WARNING);
+                        Dictionary<Instrument, List<string>> id_list = new Dictionary<Instrument, List<string>>();
+                        foreach (DataSpotOrderUpdate ord in ordList)
+                        {
+                            if (this.oManager.ordIdMapping.ContainsKey(ord.market + ord.order_id))
+                            {
+                                ord.internal_order_id = this.oManager.ordIdMapping[ord.market + ord.order_id];
+                            }
+                            else
+                            {
+                                ord.internal_order_id = ord.market + ord.order_id;
+                                this.oManager.ordIdMapping[ord.market + ord.order_id] = ord.market + ord.order_id;
+                            }
+                            if (this.instruments.ContainsKey(ord.symbol_market))
+                            {
+                                Instrument ins = this.instruments[ord.symbol_market];
+                                if (!id_list.ContainsKey(ins))
+                                {
+                                    id_list[ins] = new List<string>();
+                                }
+                                id_list[ins].Add(ord.internal_order_id);
+                            }
+                            this.oManager.orders[ord.internal_order_id] = ord;
+                        }
+                        if (id_list.Count > 0)
+                        {
+                            foreach (var keyValue in id_list)
+                            {
+                                Thread.Sleep(1000);//Make sure the cancel orders are executed
+                                this.addLog("Cancelling...", Enums.logType.WARNING);
+                                await this.oManager.placeCancelSpotOrders(keyValue.Key, keyValue.Value, true, true);
+                            }
+                            this.addLog("Order cancelled.", Enums.logType.WARNING);
+                        }
+                        else
+                        {
+                            addLog("Active order not found");
+                        }
+                    }
+                    Thread.Sleep(1000);
+                    while (Interlocked.CompareExchange(ref this.oManager.order_lock, 1, 0) != 0)
+                    {
+
+                    }
+                    this.oManager.live_orders.Clear();
+                    Volatile.Write(ref this.oManager.order_lock, 0);
+                }
+                else
+                {
+                    await this.oManager.cancelAllOrders();
+                }
+            }
+            else
+            {
+                this.addLog("Cancelling all the orders of " + market + " including unknown.", Enums.logType.WARNING);
+                //await this.oManager.cancelAllOrders();
+                Thread.Sleep(1000);
+                this.addLog("Requesting order list....", Enums.logType.WARNING);
+                this.addLog("ordUpdateStack.Count:" + this.crypto_client.ordUpdateStack.Count.ToString("N0"));
+                this.addLog("order_pool.Count:" + this.oManager.order_pool.Count.ToString("N0"));
+                if(this.live)
+                {
+                    List<DataSpotOrderUpdate> ordList = await this.crypto_client.getActiveOrders(market);
                     int i = 0;
                     while (ordList == null)
                     {
                         ++i;
                         addLog("Failed to get active orders. Retrying..." + i.ToString(), Enums.logType.WARNING);
-                        this.oManager.refreshHttpClient(mkt);
-                        Thread.Sleep(1000);
-                        ordList = await this.crypto_client.getActiveOrders(mkt);
+
+                        ordList = await this.crypto_client.getActiveOrders(market);
                         if (i >= 5)
                         {
                             addLog("Failed to get active orders.", Enums.logType.ERROR);
@@ -519,94 +602,29 @@ namespace Crypto_Trading
                     {
                         addLog("Active order not found");
                     }
-                }
-                Thread.Sleep(1000);
-                while(Interlocked.CompareExchange(ref this.oManager.order_lock,1,0) != 0)
-                {
+                    Thread.Sleep(1000);
+                    while (Interlocked.CompareExchange(ref this.oManager.order_lock, 1, 0) != 0)
+                    {
 
-                }
-                this.oManager.live_orders.Clear();
-                Volatile.Write(ref this.oManager.order_lock, 0);
-            }
-            else
-            {
-                this.addLog("Cancelling all the orders of " + market + " including unknown.", Enums.logType.WARNING);
-                //await this.oManager.cancelAllOrders();
-                Thread.Sleep(1000);
-                this.addLog("Requesting order list....", Enums.logType.WARNING);
-                this.addLog("ordUpdateStack.Count:" + this.crypto_client.ordUpdateStack.Count.ToString("N0"));
-                this.addLog("order_pool.Count:" + this.oManager.order_pool.Count.ToString("N0"));
-                List<DataSpotOrderUpdate> ordList = await this.crypto_client.getActiveOrders(market);
-                int i = 0;
-                while (ordList == null)
-                {
-                    ++i;
-                    addLog("Failed to get active orders. Retrying..." + i.ToString(), Enums.logType.WARNING);
-
-                    ordList = await this.crypto_client.getActiveOrders(market);
-                    if (i >= 5)
-                    {
-                        addLog("Failed to get active orders.", Enums.logType.ERROR);
-                        break;
                     }
-                }
-
-                this.addLog("The number of active orders:" + ordList.Count.ToString("N0"), Enums.logType.WARNING);
-                Dictionary<Instrument, List<string>> id_list = new Dictionary<Instrument, List<string>>();
-                foreach (DataSpotOrderUpdate ord in ordList)
-                {
-                    if (this.oManager.ordIdMapping.ContainsKey(ord.market + ord.order_id))
+                    List<string> removing = new List<string>();
+                    foreach (var ord in this.oManager.live_orders)
                     {
-                        ord.internal_order_id = this.oManager.ordIdMapping[ord.market + ord.order_id];
-                    }
-                    else
-                    {
-                        ord.internal_order_id = ord.market + ord.order_id;
-                        this.oManager.ordIdMapping[ord.market + ord.order_id] = ord.market + ord.order_id;
-                    }
-                    if (this.instruments.ContainsKey(ord.symbol_market))
-                    {
-                        Instrument ins = this.instruments[ord.symbol_market];
-                        if (!id_list.ContainsKey(ins))
+                        if (ord.Value.market == market)
                         {
-                            id_list[ins] = new List<string>();
+                            removing.Add(ord.Key);
                         }
-                        id_list[ins].Add(ord.internal_order_id);
                     }
-                    this.oManager.orders[ord.internal_order_id] = ord;
-                }
-                if (id_list.Count > 0)
-                {
-                    foreach (var keyValue in id_list)
+                    foreach (var id in removing)
                     {
-                        Thread.Sleep(1000);//Make sure the cancel orders are executed
-                        this.addLog("Cancelling...", Enums.logType.WARNING);
-                        await this.oManager.placeCancelSpotOrders(keyValue.Key, keyValue.Value, true, true);
+                        this.oManager.live_orders.Remove(id);
                     }
-                    this.addLog("Order cancelled.", Enums.logType.WARNING);
+                    Volatile.Write(ref this.oManager.order_lock, 0);
                 }
                 else
                 {
-                    addLog("Active order not found");
+                    await this.oManager.cancelAllOrders();
                 }
-                Thread.Sleep(1000);
-                while (Interlocked.CompareExchange(ref this.oManager.order_lock, 1, 0) != 0)
-                {
-
-                }
-                List<string> removing = new List<string>();
-                foreach(var ord in this.oManager.live_orders)
-                {
-                    if(ord.Value.market == market)
-                    {
-                        removing.Add(ord.Key);
-                    }
-                }
-                foreach(var id in removing)
-                {
-                    this.oManager.live_orders.Remove(id);
-                }
-                Volatile.Write(ref this.oManager.order_lock, 0);
             }
         }
         public async Task<bool> optimize(Action start, Action end, CancellationToken ct, int spinningMax)

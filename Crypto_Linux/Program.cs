@@ -422,7 +422,7 @@ namespace Crypto_Linux
                     totalAll += stg.totalPnL;
                     msg += "markup_bid:" + stg.temp_markup_bid.ToString("N2") + "  markup_ask:" + stg.temp_markup_ask.ToString("N2") + "   Base markup:" + stg.base_markup.ToString("N2") + "   Markup decay:" + stg.markup_decay.ToString("N2") + "\n";
 
-                    if(stg.layers > 1)
+                    if(stg.layers > 0)
                     {
                         string ord_id;
                         DataSpotOrderUpdate ord;
@@ -859,6 +859,7 @@ namespace Crypto_Linux
             try
             {
                 oManager.setVirtualMode(!liveTrading);
+                qManager.live = liveTrading;
                 foreach (var mkt in qManager._markets)
                 {
                     if (msgLogging)

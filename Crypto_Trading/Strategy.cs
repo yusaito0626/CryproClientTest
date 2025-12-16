@@ -542,7 +542,7 @@ namespace Crypto_Trading
             bool ret = true;
             if (this.enabled)
             {
-                if(this.layers > 1)
+                if(this.layers > 0)
                 {
                     return await this.updateOrders_multi();
                 }
@@ -1655,7 +1655,7 @@ namespace Crypto_Trading
 
         public async Task checkLiveOrders()
         {
-            if(this.layers > 1)
+            if(this.layers > 0)
             {
                 await checkLiveOrdersMulti();
                 return;
@@ -1774,7 +1774,7 @@ namespace Crypto_Trading
                         }
                     }
                 }
-                if(this.layers > 1)
+                if(this.layers > 0)
                 {
                     this.onTrades_multi(trade);
                     return;
@@ -2045,7 +2045,7 @@ namespace Crypto_Trading
                         }
                     }
                 }
-                if(this.layers > 1)
+                if(this.layers > 0)
                 {
                     this.onMakerQuotes_Multi(quote);
                     return;
