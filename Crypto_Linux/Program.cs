@@ -422,7 +422,7 @@ namespace Crypto_Linux
                     totalAll += stg.totalPnL;
                     msg += "markup_bid:" + stg.temp_markup_bid.ToString("N2") + "  markup_ask:" + stg.temp_markup_ask.ToString("N2") + "   Base markup:" + stg.base_markup.ToString("N2") + "   Markup decay:" + stg.markup_decay.ToString("N2") + "\n";
 
-                    if(stg.layers > 0)
+                    if(stg.multiLayer_strategy)
                     {
                         string ord_id;
                         DataSpotOrderUpdate ord;
@@ -467,6 +467,16 @@ namespace Crypto_Linux
                             msg += o.internal_order_id + " " + o.side.ToString() + " " + o.order_quantity.ToString() + "@" + o.order_price.ToString("N0") + "\n";
                         }
                         Volatile.Write(ref oManager.order_lock, 0);
+                    }
+                    else
+                    {
+                        foreach(var stg_ord in stg.stg_orders_dict)
+                        {
+                            if(stg_ord.Value > 0)
+                            {
+                                msg += stg_ord.Key + " " + stg_ord.Value.ToString() + "\n";
+                            }
+                        }
                     }
                 }
             }

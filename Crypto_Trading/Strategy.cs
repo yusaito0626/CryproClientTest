@@ -48,6 +48,8 @@ namespace Crypto_Trading
         public decimal markupAdjustment;
         public decimal max_baseMarkup = 2000;
 
+        public TimeSpan onTrade_timeBuf = TimeSpan.FromMilliseconds(100);
+
         public bool abook;
 
         public bool predictFill;
@@ -76,6 +78,7 @@ namespace Crypto_Trading
         public DateTime live_sellorder_time;
         public DateTime live_buyorder_time;
         public HashSet<string> stg_orders;
+        public Dictionary<string,decimal> stg_orders_dict;
 
         public int layers;
         public List<decimal> order_size;
@@ -124,6 +127,8 @@ namespace Crypto_Trading
         //For intradayPnL
         public decimal prev_notionalVolume = 0;
 
+        public bool multiLayer_strategy = false;
+
         public Dictionary<string, latency> Latency;
 
         public Action<string, Enums.logType> _addLog;
@@ -166,6 +171,7 @@ namespace Crypto_Trading
             this.live_buyorder_time = DateTime.UtcNow; 
             this.live_sellorder_time = DateTime.UtcNow;
             this.stg_orders = new HashSet<string>();
+            this.stg_orders_dict = new Dictionary<string, decimal>();
             this.executed_Orders_old = new Dictionary<string, DataSpotOrderUpdate>();
             this.executed_OrderIds = new Dictionary<string, fillType>();
 
@@ -542,7 +548,7 @@ namespace Crypto_Trading
             bool ret = true;
             if (this.enabled)
             {
-                if(this.layers > 0)
+                if(this.multiLayer_strategy)
                 {
                     return await this.updateOrders_multi();
                 }
@@ -1016,6 +1022,7 @@ namespace Crypto_Trading
                         this.live_buyorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, ordersize_bid, bid_price, null, true, false);
                         this.live_bidprice = bid_price;
                         this.stg_orders.Add(this.live_buyorder_id);
+                        this.stg_orders_dict[this.live_buyorder_id] = ordersize_bid;
                         this.live_buyorder_time = current;
                     }
                     if(newSellOrder)
@@ -1023,6 +1030,7 @@ namespace Crypto_Trading
                         this.live_sellorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, ordersize_ask, ask_price, null, true, false);
                         this.live_askprice = ask_price;
                         this.stg_orders.Add(this.live_sellorder_id);
+                        this.stg_orders_dict[this.live_sellorder_id] = ordersize_ask;
                         this.live_sellorder_time = current;
                     }
                 }
@@ -1033,6 +1041,7 @@ namespace Crypto_Trading
                         this.live_sellorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, ordersize_ask, ask_price, null, true, false);
                         this.live_askprice = ask_price;
                         this.stg_orders.Add(this.live_sellorder_id);
+                        this.stg_orders_dict[this.live_sellorder_id] = ordersize_ask;
                         this.live_sellorder_time = current;
                     }
                     if (newBuyOrder)
@@ -1040,6 +1049,7 @@ namespace Crypto_Trading
                         this.live_buyorder_id = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, ordersize_bid, bid_price, null, true, false);
                         this.live_bidprice = bid_price;
                         this.stg_orders.Add(this.live_buyorder_id);
+                        this.stg_orders_dict[this.live_buyorder_id] = ordersize_bid;
                         this.live_buyorder_time = current;
                     }
                 }
@@ -1547,6 +1557,7 @@ namespace Crypto_Trading
                                 this.live_buyorders[i] = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, this.ordersize_bid[i], this.bids[i], null, true, false);
                                 this.current_bids[i] = this.bids[i];
                                 this.stg_orders.Add(this.live_buyorders[i]);
+                                this.stg_orders_dict[this.live_buyorder_id] = this.ordersize_bid[i];
                                 this.live_buyorder_time = current;
                             }
                             if (this.asks[i] > 0 && this.ordersize_ask[i] > 0 && (newSellOrder & (1 << i)) > 0)
@@ -1554,6 +1565,7 @@ namespace Crypto_Trading
                                 this.live_sellorders[i] = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, this.ordersize_ask[i], this.asks[i], null, true, false);
                                 this.current_asks[i] = this.asks[i];
                                 this.stg_orders.Add(this.live_sellorders[i]);
+                                this.stg_orders_dict[this.live_buyorder_id] = this.ordersize_ask[i];
                                 this.live_sellorder_time = current;
                             }
                         }
@@ -1567,6 +1579,7 @@ namespace Crypto_Trading
                                 this.live_sellorders[i] = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, this.ordersize_ask[i], this.asks[i], null, true, false);
                                 this.current_asks[i] = this.asks[i];
                                 this.stg_orders.Add(this.live_sellorders[i]);
+                                this.stg_orders_dict[this.live_buyorder_id] = this.ordersize_ask[i];
                                 this.live_sellorder_time = current;
                             }
                             if (this.bids[i] > 0 && this.ordersize_bid[i] > 0 && (newBuyOrder & (1 << i)) > 0)
@@ -1574,6 +1587,7 @@ namespace Crypto_Trading
                                 this.live_buyorders[i] = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, this.ordersize_bid[i], this.bids[i], null, true, false);
                                 this.current_bids[i] = this.bids[i];
                                 this.stg_orders.Add(this.live_buyorders[i]);
+                                this.stg_orders_dict[this.live_buyorder_id] = this.ordersize_bid[i];
                                 this.live_buyorder_time = current;
                             }
                         }
@@ -1655,7 +1669,7 @@ namespace Crypto_Trading
 
         public async Task checkLiveOrders()
         {
-            if(this.layers > 0)
+            if(this.multiLayer_strategy)
             {
                 await checkLiveOrdersMulti();
                 return;
@@ -1774,7 +1788,7 @@ namespace Crypto_Trading
                         }
                     }
                 }
-                if(this.layers > 0)
+                if(this.multiLayer_strategy)
                 {
                     this.onTrades_multi(trade);
                     return;
@@ -1793,7 +1807,6 @@ namespace Crypto_Trading
                 }
                 string ord_id;
                 DataSpotOrderUpdate ord = null;
-                decimal quantity = 0;
                 switch(trade.side)
                 {
                     case CryptoExchange.Net.SharedApis.SharedOrderSide.Buy:
@@ -1812,17 +1825,22 @@ namespace Crypto_Trading
                         }
                         if (ord != null && ord.status == orderStatus.Open)
                         {
-                            if (ord.order_price < trade.price && ord.update_time < trade.filled_time)//Assuming those 2 times are from same clock. If the buy trade price is higher than our ask
+                            if (ord.order_price < trade.price && ord.update_time < trade.filled_time + this.onTrade_timeBuf)//Assuming those 2 times are from same clock. If the buy trade price is higher than our ask
                             {
                                 //if (this.executed_Orders_old.ContainsKey(ord.internal_order_id))
                                 if (this.executed_OrderIds.ContainsKey(ord.internal_order_id))
-                                    {
+                                {
                                     //Do nothing
                                 }
                                 else
                                 {
-                                    this.live_sellorder_id = "";
                                     decimal filled_quantity = ord.order_quantity - ord.filled_quantity;
+                                    if(this.stg_orders_dict.ContainsKey(ord_id))
+                                    {
+                                        filled_quantity = this.stg_orders_dict[ord_id];
+                                        this.stg_orders_dict[ord_id] = 0;
+                                    }
+                                    this.live_sellorder_id = "";
                                     decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity;
                                     if (DateTime.UtcNow - this.lastPosAdjustment > TimeSpan.FromSeconds(10))
                                     {
@@ -1861,17 +1879,21 @@ namespace Crypto_Trading
                         }
                         if (ord != null && ord.status == orderStatus.Open)
                         {
-                            if (ord.order_price > trade.price && ord.update_time < trade.filled_time)//Assuming those 2 times are from same clock. If the sell trade price is lower than our bid
+                            if (ord.order_price > trade.price && ord.update_time < trade.filled_time + this.onTrade_timeBuf)//Assuming those 2 times are from same clock. If the sell trade price is lower than our bid
                             {
-                                //if (this.executed_Orders_old.ContainsKey(ord.internal_order_id))
                                 if (this.executed_OrderIds.ContainsKey(ord.internal_order_id))
                                 {
                                     //Do nothing
                                 }
                                 else
                                 {
-                                    this.live_buyorder_id = "";
                                     decimal filled_quantity = ord.order_quantity - ord.filled_quantity;
+                                    if (this.stg_orders_dict.ContainsKey(ord_id))
+                                    {
+                                        filled_quantity = this.stg_orders_dict[ord_id];
+                                        this.stg_orders_dict[ord_id] = 0;
+                                    }
+                                    this.live_buyorder_id = "";
                                     decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity;
                                     if (DateTime.UtcNow - this.lastPosAdjustment > TimeSpan.FromSeconds(10))
                                     {
@@ -1949,6 +1971,11 @@ namespace Crypto_Trading
                                         {
                                             this.live_sellorders[i] = "";
                                             decimal filled_quantity = ord.order_quantity - ord.filled_quantity;
+                                            if (this.stg_orders_dict.ContainsKey(ord_id))
+                                            {
+                                                filled_quantity = this.stg_orders_dict[ord_id];
+                                                this.stg_orders_dict[ord_id] = 0;
+                                            }
                                             decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity;
                                             if (DateTime.UtcNow - this.lastPosAdjustment > TimeSpan.FromSeconds(10))
                                             {
@@ -2001,6 +2028,11 @@ namespace Crypto_Trading
                                         {
                                             this.live_buyorders[i] = "";
                                             decimal filled_quantity = ord.order_quantity - ord.filled_quantity;
+                                            if (this.stg_orders_dict.ContainsKey(ord_id))
+                                            {
+                                                filled_quantity = this.stg_orders_dict[ord_id];
+                                                this.stg_orders_dict[ord_id] = 0;
+                                            }
                                             decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity;
                                             if (DateTime.UtcNow - this.lastPosAdjustment > TimeSpan.FromSeconds(10))
                                             {
@@ -2045,7 +2077,7 @@ namespace Crypto_Trading
                         }
                     }
                 }
-                if(this.layers > 0)
+                if(this.multiLayer_strategy)
                 {
                     this.onMakerQuotes_Multi(quote);
                     return;
@@ -2082,7 +2114,12 @@ namespace Crypto_Trading
                         else
                         {
                             decimal filled_quantity = ord.order_quantity - ord.filled_quantity;
-                            if(DateTime.UtcNow - this.lastPosAdjustment > TimeSpan.FromSeconds(10))
+                            if (this.stg_orders_dict.ContainsKey(ord_id))
+                            {
+                                filled_quantity = this.stg_orders_dict[ord_id];
+                                this.stg_orders_dict[ord_id] = 0;
+                            }
+                            if (DateTime.UtcNow - this.lastPosAdjustment > TimeSpan.FromSeconds(10))
                             {
                                 this.lastPosAdjustment = DateTime.UtcNow;
                                 filled_quantity -= diff_amount;
@@ -2203,6 +2240,11 @@ namespace Crypto_Trading
                                 else
                                 {
                                     decimal filled_quantity = ord.order_quantity - ord.filled_quantity;
+                                    if (this.stg_orders_dict.ContainsKey(ord_id))
+                                    {
+                                        filled_quantity = this.stg_orders_dict[ord_id];
+                                        this.stg_orders_dict[ord_id] = 0;
+                                    }
                                     if (DateTime.UtcNow - this.lastPosAdjustment > TimeSpan.FromSeconds(10))
                                     {
                                         this.lastPosAdjustment = DateTime.UtcNow;
@@ -2250,6 +2292,11 @@ namespace Crypto_Trading
                                 else
                                 {
                                     decimal filled_quantity = ord.order_quantity - ord.filled_quantity;
+                                    if (this.stg_orders_dict.ContainsKey(ord_id))
+                                    {
+                                        filled_quantity = this.stg_orders_dict[ord_id];
+                                        this.stg_orders_dict[ord_id] = 0;
+                                    }
                                     if (DateTime.UtcNow - this.lastPosAdjustment > TimeSpan.FromSeconds(10))
                                     {
                                         this.lastPosAdjustment = DateTime.UtcNow;
@@ -2291,6 +2338,7 @@ namespace Crypto_Trading
                         if(ord.symbol_market == this.maker.symbol_market)
                         {
                             this.stg_orders.Add(ord.market + ord.order_id);
+                            this.stg_orders_dict[ord.market + ord.order_id] = ord.order_quantity - ord.filled_quantity;
                         }
                         else
                         {
@@ -2334,7 +2382,13 @@ namespace Crypto_Trading
                         {
                             filled_quantity = ord.filled_quantity - prev.filled_quantity;
                         }
-                        if(DateTime.UtcNow - this.lastPosAdjustment > TimeSpan.FromSeconds(10))
+
+                        if (this.stg_orders_dict.ContainsKey(ord.internal_order_id))
+                        {
+                            this.stg_orders_dict[ord.internal_order_id] -= filled_quantity;
+                        }
+
+                        if (DateTime.UtcNow - this.lastPosAdjustment > TimeSpan.FromSeconds(10))
                         {
                             this.lastPosAdjustment = DateTime.UtcNow;
                             switch (ord.side)
@@ -2348,6 +2402,8 @@ namespace Crypto_Trading
 
                             }
                         }
+
+                        filled_quantity = Math.Round(filled_quantity / this.taker.quantity_unit) * this.taker.quantity_unit;
 
                         switch (ord.side)
                         {
@@ -2369,12 +2425,18 @@ namespace Crypto_Trading
                                 this.last_filled_time = this.last_filled_time_sell;
                                 break;
                         }
-                        //this.executed_Orders_old[ord.internal_order_id] = ord;
                         this.executed_OrderIds[ord.internal_order_id] = fillType.onOrderUpdate;
                         ord.msg += "  onOrdUpdate at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat);
                         addLog(ord.ToString());
                     }
                     Volatile.Write(ref this.fill_lock, 0);
+                }
+                else if(ord.status == orderStatus.Canceled)
+                {
+                    if(this.stg_orders_dict.ContainsKey(ord.internal_order_id))
+                    {
+                        this.stg_orders_dict[ord.internal_order_id] = 0;
+                    }
                 }
             }
         }
@@ -2466,9 +2528,9 @@ namespace Crypto_Trading
                                         if (ord.order_quantity - ord.filled_quantity <= fill.quantity || ord.status == orderStatus.Filled)
                                         {
                                             //this.executed_Orders_old[ord.internal_order_id] = ord;
-                                            ord.msg += "  onFill at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat) + fill.internal_order_id;
+                                            ord.msg += "  onFill at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat) + fill.internal_order_id + " " + fill.msg;
                                             addLog(ord.ToString());
-                                            fill.msg = ord.msg;
+                                            fill.msg += ord.msg;
                                             this.last_filled_time_buy = DateTime.UtcNow;
                                             this.last_filled_time = this.last_filled_time_buy;
                                         }
@@ -2481,8 +2543,12 @@ namespace Crypto_Trading
                                             //this.executed_Orders_old[fill.internal_order_id] = null;
                                             this.last_filled_time_buy = DateTime.UtcNow;
                                             this.last_filled_time = this.last_filled_time_buy;
-                                            fill.msg = "  onFill at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat) + fill.internal_order_id;
+                                            fill.msg += "  onFill at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat) + fill.internal_order_id;
                                         }
+                                    }
+                                    if (this.stg_orders_dict.ContainsKey(fill.internal_order_id))
+                                    {
+                                        this.stg_orders_dict[fill.internal_order_id] -= fill.quantity;
                                     }
                                     break;
                                 case orderSide.Sell:
@@ -2496,9 +2562,9 @@ namespace Crypto_Trading
                                             //this.executed_Orders_old[ord.internal_order_id] = ord;
                                             this.last_filled_time_sell = DateTime.UtcNow;
                                             this.last_filled_time = this.last_filled_time_sell;
-                                            ord.msg += "  onFill at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat) + fill.internal_order_id;
+                                            ord.msg += "  onFill at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat) + fill.internal_order_id + " " + fill.msg;
                                             addLog(ord.ToString());
-                                            fill.msg = ord.msg;
+                                            fill.msg += ord.msg;
                                         }
                                     }
                                     else
@@ -2509,8 +2575,12 @@ namespace Crypto_Trading
                                             //this.executed_Orders_old[fill.internal_order_id] = null;
                                             this.last_filled_time_sell = DateTime.UtcNow;
                                             this.last_filled_time = this.last_filled_time_sell;
-                                            fill.msg = "  onFill at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat) + fill.internal_order_id;
+                                            fill.msg += "  onFill at " + DateTime.UtcNow.ToString(GlobalVariables.tmMsecFormat) + fill.internal_order_id;
                                         }
+                                    }
+                                    if (this.stg_orders_dict.ContainsKey(fill.internal_order_id))
+                                    {
+                                        this.stg_orders_dict[fill.internal_order_id] -= fill.quantity;
                                     }
                                     break;
                             }

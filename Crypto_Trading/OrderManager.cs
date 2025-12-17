@@ -2391,17 +2391,16 @@ namespace Crypto_Trading
                         return;
                     }
 
-                    foreach (var stg in this.strategies)
-                    {
-                        if (stg.Value.enabled)
-                        {
-                            if (ord.symbol_market == stg.Value.maker.symbol_market)
-                            {
-                                stg.Value.onOrdUpdate(ord, prevord);
-                            }
-                        }
-
-                    }
+                    //foreach (var stg in this.strategies)
+                    //{
+                    //    if (stg.Value.enabled)
+                    //    {
+                    //        if (ord.symbol_market == stg.Value.maker.symbol_market)
+                    //        {
+                    //            stg.Value.onOrdUpdate(ord, prevord);
+                    //        }
+                    //    }
+                    //}
                 }
                 else
                 {
@@ -2547,10 +2546,31 @@ namespace Crypto_Trading
                 if (this.orders.ContainsKey(ord.internal_order_id))
                 {
                     prevord = this.orders[ord.internal_order_id];
+
+                    foreach (var stg in this.strategies)
+                    {
+                        if (stg.Value.enabled)
+                        {
+                            if (ord.symbol_market == stg.Value.maker.symbol_market)
+                            {
+                                stg.Value.onOrdUpdate(ord, prevord);
+                            }
+                        }
+                    }
                 }
                 else
                 {
                     prevord = null;
+                    foreach (var stg in this.strategies)
+                    {
+                        if (stg.Value.enabled)
+                        {
+                            if (ord.symbol_market == stg.Value.maker.symbol_market)
+                            {
+                                stg.Value.onOrdUpdate(ord, ord);
+                            }
+                        }
+                    }
                 }
                 this.orders[ord.internal_order_id] = ord;
 
@@ -3030,6 +3050,10 @@ namespace Crypto_Trading
                     }
                     if (ord.symbol_market == ins.symbol_market)
                     {
+                        while(Interlocked.CompareExchange(ref ins.quotes_lock, 1, 0) != 0)
+                        {
+
+                        }
                         switch (ord.side)
                         {
                             case orderSide.Buy:
@@ -3069,6 +3093,16 @@ namespace Crypto_Trading
                                     fill.timestamp = output.timestamp;
                                     fill.filled_time = fill.timestamp;
                                     fill.order_type = ord.order_type;
+                                    fill.msg += " Best Ask:" + ins.bestask.Item1.ToString();
+                                    if(last_trade != null)
+                                    {
+                                        fill.msg += " Last traded price:" + last_trade.price.ToString();
+                                    }
+                                    output.msg += " Best Ask:" + ins.bestask.Item1.ToString();
+                                    if (last_trade != null)
+                                    {
+                                        output.msg += " Last traded price:" + last_trade.price.ToString();
+                                    }
                                     this.ord_client.ordUpdateQueue.Enqueue(output);
                                     removing.Add(key);
                                     this.ord_client.fillQueue.Enqueue(fill);
@@ -3110,12 +3144,23 @@ namespace Crypto_Trading
                                     fill.timestamp = output.timestamp;
                                     fill.filled_time = fill.timestamp;
                                     fill.order_type = ord.order_type;
+                                    fill.msg += " Best Bid:" + ins.bestbid.Item1.ToString();
+                                    if (last_trade != null)
+                                    {
+                                        fill.msg += " Last traded price:" + last_trade.price.ToString();
+                                    }
+                                    output.msg += " Best Bid:" + ins.bestbid.Item1.ToString();
+                                    if (last_trade != null)
+                                    {
+                                        output.msg += " Last traded price:" + last_trade.price.ToString();
+                                    }
                                     this.ord_client.ordUpdateQueue.Enqueue(output);
                                     removing.Add(key);
                                     this.ord_client.fillQueue.Enqueue(fill);
                                 }
                                 break;
                         }
+                        Volatile.Write(ref ins.quotes_lock, 0);
                     }
                 }
                 foreach (string key in removing)
