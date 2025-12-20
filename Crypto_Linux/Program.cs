@@ -168,8 +168,6 @@ namespace Crypto_Linux
 
             logFile = new StreamWriter(new FileStream(logPath, FileMode.Create));
 
-            marketImpactFile = new StreamWriter(new FileStream(outputPath + "/Market_Impact.csv", FileMode.Create,FileAccess.Write));
-
             qManager._addLog = addLog;
             oManager._addLog = addLog;
             crypto_client.setAddLog(addLog);
@@ -276,6 +274,7 @@ namespace Crypto_Linux
                 }
                 return;
             }
+            marketImpactFile = new StreamWriter(new FileStream(outputPath + "/Market_Impact.csv", FileMode.Append, FileAccess.Write));
 
             ws_server.StartAsync(CancellationToken.None);
 
@@ -907,12 +906,14 @@ namespace Crypto_Linux
                     }
                     if(!await qManager.connectPublicChannel(mkt.Key))
                     {
+                        addLog("Failed to login public " + mkt.Key, logType.WARNING);
                         return false;
                     }
                     if (liveTrading || privateConnect)
                     {
                         if(!await oManager.connectPrivateChannel(mkt.Key))
                         {
+                            addLog("Failed to login private " + mkt.Key, logType.WARNING);
                             return false;
                         }
                     }
@@ -957,6 +958,7 @@ namespace Crypto_Linux
                     {
                         if (!qManager.setBalance(await crypto_client.getBalance(qManager._markets.Keys)))
                         {
+                            addLog("Failed to set balance", logType.WARNING);
                             return false;
                         }
                         StreamWriter sw = new StreamWriter(new FileStream(SoDPosFile, FileMode.Create, FileAccess.Write));
@@ -1044,6 +1046,7 @@ namespace Crypto_Linux
                         //Just in case, update balance again
                         if (!qManager.setBalance(await crypto_client.getBalance(qManager._markets.Keys)))
                         {
+                            addLog("Failed to set balance", logType.WARNING);
                             return false;
                         }
                     }
@@ -1080,6 +1083,9 @@ namespace Crypto_Linux
                     addLog("Intraday PnL file not found");
                 }
 
+                string mifile = outputPath + "/Market_Impact.csv";
+                readMIFile(mifile);
+
                 if (liveTrading || privateConnect)
                 {
                     await crypto_client.subscribeSpotOrderUpdates(qManager._markets.Keys);
@@ -1092,6 +1098,7 @@ namespace Crypto_Linux
                 thManager.addThread("updateOrders", oManager.updateOrders, oManager.updateOrdersOnClosing, oManager.updateOrdersOnError,10000);
                 thManager.addThread("updateFill", oManager.updateFills, oManager.updateFillOnClosing, null, 0);
                 thManager.addThread("optimize", qManager.optimize, qManager.optimizeOnClosing, qManager.optimizeOnError,1000);
+                thManager.addThread("updateMI", oManager.updateMarketImpact, oManager.updateMarketImpactOnClosing, null, 0);
                 thManager.addThread("orderLogging", oManager.orderLogging, oManager.ordLoggingOnClosing, oManager.ordLoggingOnError,1);
 
                 foreach(var th in thManager.threads)
@@ -2031,9 +2038,9 @@ namespace Crypto_Linux
                         stg = strategies[mi.stg_name];
                         stg.update_micurve(mi);
                     }
-                    if(qManager.instruments.ContainsKey(mi.symbolmarket) && mi.myOrder == false)
+                    if(qManager.instruments.ContainsKey(mi.symbol_market) && mi.myOrder == false)
                     {
-                        ins = qManager.instruments[mi.symbolmarket];
+                        ins = qManager.instruments[mi.symbol_market];
                         ins.update_micurve(mi);
                     }
                     marketImpactFile.WriteLine(mi.ToString());
@@ -2041,6 +2048,51 @@ namespace Crypto_Linux
                     mi.init();
                     oManager.MI_stack.push(mi);
                 }
+            }
+        }
+
+        static public void readMIFile(string filename)
+        {
+            int i = 0;
+            MarketImpact mi;
+            Strategy stg;
+            Instrument ins;
+            if(File.Exists(filename))
+            {
+                using (StreamReader sr = new StreamReader(new FileStream(filename, FileMode.Open, FileAccess.Read)))
+                {
+                    while (sr.ReadLine() is string line)
+                    {
+                        string[] arr = line.Split(",");
+                        mi = oManager.MI_stack.pop();
+                        if(mi == null)
+                        {
+                            mi = new MarketImpact();
+                        }
+                        mi.FromString(arr);
+                        Console.WriteLine(mi.ToString());
+                        if (mi.myOrder == false)
+                        {
+                            if(qManager.instruments.ContainsKey(mi.symbol_market))
+                            {
+                                ins = qManager.instruments[mi.symbol_market];
+                                ins.update_micurve(mi);
+                            }
+                        }
+                        else
+                        {
+                            if(strategies.ContainsKey(mi.stg_name))
+                            {
+                                stg = strategies[mi.stg_name];
+                                stg.update_micurve(mi);
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                addLog("Market Impact file not found.");
             }
         }
 

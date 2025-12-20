@@ -7,6 +7,11 @@ using CryptoExchange.Net.Objects;
 using CryptoExchange.Net.Objects.Sockets;
 using CryptoExchange.Net.Requests;
 using CryptoExchange.Net.SharedApis;
+using Enums;
+using LockFreeQueue;
+using LockFreeStack;
+using Microsoft.VisualBasic;
+using OKX.Net.Objects.Account;
 using PubnubApi;
 using System;
 using System.Collections.Concurrent;
@@ -20,18 +25,13 @@ using System.IO.Pipelines;
 using System.Linq;
 using System.Net;
 using System.Net.WebSockets;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using XT.Net.Objects.Models;
-
-using Enums;
 using Utils;
-using LockFreeQueue;
-using LockFreeStack;
-using OKX.Net.Objects.Account;
-using Microsoft.VisualBasic;
+using XT.Net.Objects.Models;
 
 namespace Crypto_Trading
 {
@@ -248,7 +248,7 @@ namespace Crypto_Trading
                             break;
                         }
                     }
-                    if(ret!)
+                    if(!ret)
                     {
                         return false;
                     }
@@ -1643,6 +1643,41 @@ namespace Crypto_Trading
             fill.init();
             this.ord_client.fillStack.push(fill);
         }
+       
+        public async Task<bool> updateMarketImpact(Action start, Action end, CancellationToken ct, int spinningMax)
+        {
+            bool res = true;
+            try
+            {
+                while (true)
+                {
+                    start();
+                    this.checkMIRecorder(DateTime.UtcNow);
+                    end();
+                    if (ct.IsCancellationRequested)
+                    {
+                        this.addLog("Cancel requested. updateFills", Enums.logType.WARNING);
+                        break;
+                    }
+                    Thread.Sleep(10);
+                }
+            }
+            catch(Exception ex) 
+            {
+                this.addLog("Error recieved within updateMarketImpact");
+                this.addLog(ex.Message, Enums.logType.WARNING);
+                if (ex.StackTrace != null)
+                {
+                    this.addLog(ex.StackTrace, Enums.logType.WARNING);
+                }
+                res = false;
+            }
+            return res;
+        }
+        public void updateMarketImpactOnClosing()
+        {
+            
+        }
 
         public async Task<bool> updateFills(Action start, Action end, CancellationToken ct, int spinningMax)
         {
@@ -2685,7 +2720,7 @@ namespace Crypto_Trading
                         switch (ord.side)
                         {
                             case orderSide.Buy:
-                                if (ins.bestask.Item1 < ord.order_price || (last_trade != null && last_trade.price < ord.order_price))
+                                if (ins.bestask.Item1 < ord.order_price || (last_trade != null && last_trade.symbol + "@" + last_trade.market == ord.symbol_market && last_trade.price < ord.order_price))
                                 {
                                     DataSpotOrderUpdate output;
 
@@ -2737,7 +2772,7 @@ namespace Crypto_Trading
                                 }
                                 break;
                             case orderSide.Sell:
-                                if (ins.bestbid.Item1 > ord.order_price || (last_trade != null && last_trade.price > ord.order_price))
+                                if (ins.bestbid.Item1 > ord.order_price || (last_trade != null && last_trade.symbol + "@" + last_trade.market == ord.symbol_market && last_trade.price > ord.order_price))
                                 {
                                     DataSpotOrderUpdate output;
                                     output = this.ord_client.ordUpdateStack.pop();
