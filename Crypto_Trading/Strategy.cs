@@ -29,11 +29,16 @@ namespace Crypto_Trading
 
         public double order_throttle;
 
-        public decimal markup;
+        public decimal const_markup;
         public decimal min_markup;
         public decimal baseCcyQuantity;
         public decimal ToBsize;
         public decimal ToBsizeMultiplier;
+        public decimal rv_penalty_multiplier = 1;
+        public double rv_base_param;
+
+        //public decimal const_markup;
+        //public decimal rv_penalty_multiplier;
 
         public decimal intervalAfterFill;
         public decimal modThreshold;
@@ -45,7 +50,7 @@ namespace Crypto_Trading
         public decimal skewThreshold;
         public decimal oneSideThreshold;
         public decimal skewWidening;
-        public decimal markupAdjustment;
+        //public decimal markupAdjustment;
         public decimal max_baseMarkup = 2000;
 
         public TimeSpan onTrade_timeBuf = TimeSpan.FromMilliseconds(100);
@@ -100,7 +105,6 @@ namespace Crypto_Trading
 
         public DateTime prevMarkupTime;
         public decimal prev_markup;
-        public decimal RVMarkup_multiplier = 1;
 
         public decimal taker_last_updated_mid;
         public decimal maker_last_updated_mid;
@@ -141,7 +145,7 @@ namespace Crypto_Trading
             this.enabled = false;
             this.ready = false;
             this.order_throttle = 0;
-            this.markup = 0;
+            this.const_markup = 0;
             this.min_markup = 0;
             this.baseCcyQuantity = 0;
             this.ToBsize = 0;
@@ -154,7 +158,7 @@ namespace Crypto_Trading
             this.skewThreshold = 0;
             this.oneSideThreshold = 0;
             this.skewWidening = 0;
-            this.markupAdjustment = 0;
+            this.rv_base_param = 100;
             this.abook = true;
             this.predictFill = false;
 
@@ -283,7 +287,7 @@ namespace Crypto_Trading
             }
             if (root.TryGetProperty("markup", out item))
             {
-                this.markup = item.GetDecimal();
+                this.const_markup = item.GetDecimal();
             }
             else
             {
@@ -378,7 +382,7 @@ namespace Crypto_Trading
                 int i = 0;
                 while (i < this.layers)
                 {
-                    this.markups.Add(this.markup);
+                    this.markups.Add(this.const_markup);
                     ++i;
                 }
             }
@@ -460,22 +464,30 @@ namespace Crypto_Trading
             {
                 this.ToBsizeMultiplier = 1;
             }
-            if (root.TryGetProperty("RVMarkupMultiplier", out item))
+            if (root.TryGetProperty("RVPenaltyMultiplier", out item))
             {
-                this.RVMarkup_multiplier = item.GetDecimal();
+                this.rv_penalty_multiplier = item.GetDecimal();
             }
             else
             {
-                this.RVMarkup_multiplier = 1;
+                this.rv_penalty_multiplier = 100;
             }
-            if (root.TryGetProperty("MarkupAdjustment", out item))
+            if (root.TryGetProperty("RVBaseParam", out item))
             {
-                this.markupAdjustment = item.GetDecimal();
+                this.rv_base_param = item.GetDouble();
             }
             else
             {
-                this.markupAdjustment = 0;
+                this.rv_base_param = 100;
             }
+            //if (root.TryGetProperty("MarkupAdjustment", out item))
+            //{
+            //    this.markupAdjustment = item.GetDecimal();
+            //}
+            //else
+            //{
+            //    this.markupAdjustment = 0;
+            //}
             if (root.TryGetProperty("MaxBaseMarkup", out item))
             {
                 this.max_baseMarkup = item.GetDecimal();
@@ -531,7 +543,7 @@ namespace Crypto_Trading
             this.baseCcy = setting.baseCcy;
             this.quoteCcy = setting.quoteCcy;
             this.order_throttle = setting.order_throttle;
-            this.markup = setting.markup;
+            this.const_markup = setting.markup;
             this.min_markup = setting.min_markup;
             this.baseCcyQuantity = setting.baseCcy_quantity;
             this.skewWidening = setting.skew_widening;
@@ -543,8 +555,8 @@ namespace Crypto_Trading
             this.skewThreshold = setting.skewThreshold;
             this.oneSideThreshold = setting.oneSideThreshold;
             this.markup_decay_basetime = setting.decaying_time;
-            this.RVMarkup_multiplier = setting.markupMultiplier;
-            this.markupAdjustment = setting.markup_adjustment;
+            this.rv_penalty_multiplier = setting.rv_penalty_multiplier;
+            this.rv_base_param = setting.rv_base_param;
             this.max_baseMarkup = setting.maxBaseMarkup;
             this.taker_market = setting.taker_market;
             this.maker_market = setting.maker_market;
@@ -618,15 +630,21 @@ namespace Crypto_Trading
                 decimal min_markup_bid = bid_price * (1 - this.min_markup / 1000000);
                 decimal min_markup_ask = ask_price * (1 + this.min_markup / 1000000);
 
-                decimal markup_bid = this.markup;
-                decimal markup_ask = this.markup;
+                decimal markup_bid;
+                decimal markup_ask;
 
                 double taker_VR = this.taker.realized_volatility;
                 if(this.taker.prev_RV > 0)
                 {
                     taker_VR = 0.7 * taker_VR + 0.3 * this.taker.prev_RV;
                 }
-                decimal vr_markup = this.markup * (decimal)Math.Exp(taker_VR / Math.Sqrt(this.taker.RV_minute * 60) * 1_000_000 / (double)this.markup) * this.RVMarkup_multiplier + this.markupAdjustment;
+                //decimal old_markup = 100 * (decimal)Math.Exp(taker_VR / Math.Sqrt(this.taker.RV_minute * 60) * 1_000_000 / 100) * (decimal)0.8 - 80;
+                decimal vr_markup = this.const_markup + this.rv_penalty_multiplier * ((decimal)Math.Exp(taker_VR / Math.Sqrt(this.taker.RV_minute * 60) * 1_000_000 / this.rv_base_param) - 1);
+
+                //if(vr_markup - old_markup > (decimal)0.00001 || vr_markup - old_markup < (decimal)-0.00001)
+                //{
+                //    addLog("Old:" + old_markup.ToString() + " current:" + vr_markup.ToString());
+                //}
 
                 this.modThreshold = this.config_modThreshold;
 
@@ -655,8 +673,9 @@ namespace Crypto_Trading
                     elapsedTimeFromLastfill = 0;
                 }
 
-                decimal min_basemarkup = this.markup * this.RVMarkup_multiplier + this.markupAdjustment;
-                this.markup_decay = -elapsedTimeFromLastfill / this.markup_decay_basetime * this.markup * this.RVMarkup_multiplier;
+                //decimal min_basemarkup = this.const_markup * this.RVMarkup_multiplier + this.markupAdjustment;
+                decimal min_basemarkup = this.const_markup;
+                this.markup_decay = -elapsedTimeFromLastfill / this.markup_decay_basetime * this.const_markup;
 
                 if (this.base_markup + this.markup_decay < min_basemarkup)
                 {
@@ -1130,7 +1149,9 @@ namespace Crypto_Trading
                 {
                     taker_VR = 0.7 * taker_VR + 0.3 * this.taker.prev_RV;
                 }
-                decimal vr_markup = this.markup * (decimal)Math.Exp(taker_VR / Math.Sqrt(this.taker.RV_minute * 60) * 1_000_000 / (double)this.markup) * this.RVMarkup_multiplier + this.markupAdjustment;
+                //decimal vr_markup = this.const_markup * (decimal)Math.Exp(taker_VR / Math.Sqrt(this.taker.RV_minute * 60) * 1_000_000 / (double)this.const_markup) * this.rv_penalty_multiplier + this.markupAdjustment;
+                decimal vr_markup = this.const_markup + this.rv_penalty_multiplier * ((decimal)Math.Exp(taker_VR / Math.Sqrt(this.taker.RV_minute * 60) * 1_000_000 / this.rv_base_param) - 1);
+
                 if (vr_markup >= this.prev_markup)
                 {
                     this.base_markup = vr_markup;
@@ -1156,8 +1177,9 @@ namespace Crypto_Trading
                     elapsedTimeFromLastfill = 0;
                 }
 
-                decimal min_basemarkup = this.markup * this.RVMarkup_multiplier + this.markupAdjustment;
-                this.markup_decay = -elapsedTimeFromLastfill / this.markup_decay_basetime * this.markup * this.RVMarkup_multiplier;
+                //decimal min_basemarkup = this.const_markup * this.rv_penalty_multiplier + this.markupAdjustment;
+                decimal min_basemarkup = this.const_markup;
+                this.markup_decay = -elapsedTimeFromLastfill / this.markup_decay_basetime * this.const_markup;
 
                 if (this.base_markup + this.markup_decay < min_basemarkup)
                 {
@@ -1813,7 +1835,7 @@ namespace Crypto_Trading
                         }
                         if (ord != null && ord.status == orderStatus.Open)
                         {
-                            if (ord.order_price < trade.price && ord.update_time < trade.filled_time + this.onTrade_timeBuf)//Assuming those 2 times are from same clock. If the buy trade price is higher than our ask
+                            if (ord.order_price < trade.price && ord.update_time + this.onTrade_timeBuf < trade.filled_time)//Assuming those 2 times are from same clock. If the buy trade price is higher than our ask
                             {
                                 //if (this.executed_Orders_old.ContainsKey(ord.internal_order_id))
                                 if (this.executed_OrderIds.ContainsKey(ord.internal_order_id))
@@ -1822,7 +1844,7 @@ namespace Crypto_Trading
                                 }
                                 else
                                 {
-                                    decimal filled_quantity = ord.order_quantity - ord.filled_quantity;
+                                    decimal filled_quantity = 0;
                                     if(this.stg_orders_dict.ContainsKey(ord_id))
                                     {
                                         filled_quantity = this.stg_orders_dict[ord_id];
@@ -1867,7 +1889,7 @@ namespace Crypto_Trading
                         }
                         if (ord != null && ord.status == orderStatus.Open)
                         {
-                            if (ord.order_price > trade.price && ord.update_time < trade.filled_time + this.onTrade_timeBuf)//Assuming those 2 times are from same clock. If the sell trade price is lower than our bid
+                            if (ord.order_price > trade.price && ord.update_time + this.onTrade_timeBuf < trade.filled_time)//Assuming those 2 times are from same clock. If the sell trade price is lower than our bid
                             {
                                 if (this.executed_OrderIds.ContainsKey(ord.internal_order_id))
                                 {
@@ -1875,7 +1897,7 @@ namespace Crypto_Trading
                                 }
                                 else
                                 {
-                                    decimal filled_quantity = ord.order_quantity - ord.filled_quantity;
+                                    decimal filled_quantity = 0;
                                     if (this.stg_orders_dict.ContainsKey(ord_id))
                                     {
                                         filled_quantity = this.stg_orders_dict[ord_id];
@@ -1949,7 +1971,7 @@ namespace Crypto_Trading
                                 }
                                 if (ord != null && ord.status == orderStatus.Open)
                                 {
-                                    if (ord.order_price < trade.price && ord.update_time < trade.filled_time)//Assuming those 2 times are from same clock. If the buy trade price is higher than our ask
+                                    if (ord.order_price < trade.price && ord.update_time + this.onTrade_timeBuf < trade.filled_time)//Assuming those 2 times are from same clock. If the buy trade price is higher than our ask
                                     {
                                         if (this.executed_OrderIds.ContainsKey(ord.internal_order_id))
                                         {
@@ -2005,7 +2027,7 @@ namespace Crypto_Trading
                                 }
                                 if (ord != null && ord.status == orderStatus.Open)
                                 {
-                                    if (ord.order_price > trade.price && ord.update_time < trade.filled_time)//Assuming those 2 times are from same clock. If the sell trade price is lower than our bid
+                                    if (ord.order_price > trade.price && ord.update_time + this.onTrade_timeBuf < trade.filled_time)//Assuming those 2 times are from same clock. If the sell trade price is lower than our bid
                                     {
                                         //if (this.executed_Orders_old.ContainsKey(ord.internal_order_id))
                                         if (this.executed_OrderIds.ContainsKey(ord.internal_order_id))

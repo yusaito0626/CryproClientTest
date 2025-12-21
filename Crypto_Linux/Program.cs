@@ -238,7 +238,7 @@ namespace Crypto_Linux
                 setting.taker_market = stg.Value.taker_market;
                 setting.maker_market = stg.Value.maker_market;
                 setting.order_throttle = stg.Value.order_throttle;
-                setting.markup = stg.Value.markup;
+                setting.markup = stg.Value.const_markup;
                 setting.min_markup = stg.Value.min_markup;
                 setting.max_skew = stg.Value.maxSkew;
                 setting.skew_widening = stg.Value.skewWidening;
@@ -250,8 +250,8 @@ namespace Crypto_Linux
                 setting.skewThreshold = stg.Value.skewThreshold;
                 setting.oneSideThreshold = stg.Value.oneSideThreshold;
                 setting.decaying_time = stg.Value.markup_decay_basetime;
-                setting.markupMultiplier = stg.Value.RVMarkup_multiplier;
-                setting.markup_adjustment = stg.Value.markupAdjustment;
+                setting.rv_penalty_multiplier = stg.Value.rv_penalty_multiplier;
+                setting.rv_base_param = stg.Value.rv_base_param;
                 setting.maxBaseMarkup = stg.Value.max_baseMarkup;
                 setting.predictFill = stg.Value.predictFill;
                 setting.skew_type = stg.Value.skew_type.ToString();
@@ -2070,7 +2070,6 @@ namespace Crypto_Linux
                             mi = new MarketImpact();
                         }
                         mi.FromString(arr);
-                        Console.WriteLine(mi.ToString());
                         if (mi.myOrder == false)
                         {
                             if(qManager.instruments.ContainsKey(mi.symbol_market))

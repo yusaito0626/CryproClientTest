@@ -134,8 +134,8 @@ namespace Crypto_GUI
             comboStgVariables.Items.Add("Update Threshold");
             comboStgVariables.Items.Add("Decaying Time");
             comboStgVariables.Items.Add("ToB Multiplier");
-            comboStgVariables.Items.Add("Markup Multiplier");
-            comboStgVariables.Items.Add("Markup Adjustment");
+            comboStgVariables.Items.Add("RV Penalty");
+            comboStgVariables.Items.Add("RV Base Param");
             comboStgVariables.Items.Add("Max Base Markup");
             comboStgVariables.Items.Add("Order Throttle");
 
@@ -260,11 +260,11 @@ namespace Crypto_GUI
 
             if (!this.monitoringMode)
             {
-                this.timer_statusCheck.Start();
                 this.timer_PeriodicMsg.Start();
             }
             else
             {
+                this.timer_statusCheck.Start();
                 this.timer_Monitoring.Start();
             }
 
@@ -818,7 +818,7 @@ namespace Crypto_GUI
                     }
                     catch (WebSocketException wse)
                     {
-                        //this.addLog($"WebSocketException: {wse.Message}", Enums.logType.WARNING);
+                        this.addLog($"WebSocketException: {wse.Message}", Enums.logType.WARNING);
                         ++trial;
                         this.info_receiver.Dispose();
                         this.info_receiver = new ClientWebSocket();
@@ -826,7 +826,7 @@ namespace Crypto_GUI
                     }
                     catch (Exception ex)
                     {
-                        //this.addLog($"Connection failed: {ex.Message}", Enums.logType.WARNING);
+                        this.addLog($"Connection failed: {ex.Message}", Enums.logType.WARNING);
                         ++trial;
                         this.info_receiver.Dispose();
                         this.info_receiver = new ClientWebSocket();
@@ -1051,7 +1051,7 @@ namespace Crypto_GUI
                                                     case "markup":
                                                         if (decimal.TryParse(update.value, out newvalue))
                                                         {
-                                                            stg.markup = newvalue;
+                                                            stg.const_markup = newvalue;
                                                         }
                                                         break;
                                                     case "min_markup":
@@ -1123,13 +1123,19 @@ namespace Crypto_GUI
                                                     case "markupmultiplier":
                                                         if (decimal.TryParse(update.value, out newvalue))
                                                         {
-                                                            stg.RVMarkup_multiplier = newvalue;
+                                                            stg.rv_penalty_multiplier = newvalue;
                                                         }
                                                         break;
-                                                    case "markupadjustment":
+                                                    case "rvpenaltymultiplier":
                                                         if (decimal.TryParse(update.value, out newvalue))
                                                         {
-                                                            stg.markupAdjustment = newvalue;
+                                                            stg.rv_penalty_multiplier = newvalue;
+                                                        }
+                                                        break;
+                                                    case "rvbaseparam":
+                                                        if (double.TryParse(update.value, out dblvalue))
+                                                        {
+                                                            stg.rv_base_param = dblvalue;
                                                         }
                                                         break;
                                                     case "maxbasemarkup":
@@ -2135,110 +2141,110 @@ namespace Crypto_GUI
             //Connection
             this.qManager.checkConnections();
             this.oManager.checkConnections();
-            foreach (var mkt in this.qManager._markets)
-            {
-                bool found = false;
-                foreach (DataGridViewRow row in this.gridView_Connection.Rows)
-                {
-                    if (row.IsNewRow)
-                    {
-                        continue;
-                    }
-                    if (row.Cells[0] != null && row.Cells[0].Value.ToString() == mkt.Key)
-                    {
-                        row.Cells[1].Value = mkt.Value.ToString();
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found)
-                {
-                    this.gridView_Connection.Rows.Add(mkt.Key, mkt.Value.ToString(), WebSocketState.None.ToString());
-                }
-            }
+            //foreach (var mkt in this.qManager._markets)
+            //{
+            //    bool found = false;
+            //    foreach (DataGridViewRow row in this.gridView_Connection.Rows)
+            //    {
+            //        if (row.IsNewRow)
+            //        {
+            //            continue;
+            //        }
+            //        if (row.Cells[0] != null && row.Cells[0].Value.ToString() == mkt.Key)
+            //        {
+            //            row.Cells[1].Value = mkt.Value.ToString();
+            //            found = true;
+            //            break;
+            //        }
+            //    }
+            //    if (!found)
+            //    {
+            //        this.gridView_Connection.Rows.Add(mkt.Key, mkt.Value.ToString(), WebSocketState.None.ToString());
+            //    }
+            //}
 
-            foreach (var mkt in this.oManager.connections)
-            {
-                bool found = false;
-                foreach (DataGridViewRow row in this.gridView_Connection.Rows)
-                {
-                    if (row.IsNewRow)
-                    {
-                        continue;
-                    }
-                    if (row.Cells[0] != null && row.Cells[0].Value.ToString() == mkt.Key)
-                    {
-                        row.Cells[2].Value = mkt.Value.ToString();
-                        switch (row.Cells[0].Value)
-                        {
-                            case "bitbank":
-                                row.Cells[3].Value = (this.crypto_client.bitbank_client.avgLatency() / 1000).ToString("N2");
-                                break;
-                            case "coincheck":
-                                row.Cells[3].Value = (this.crypto_client.coincheck_client.avgLatency() / 1000).ToString("N2");
-                                break;
-                            case "bittrade":
-                                row.Cells[3].Value = (this.crypto_client.bittrade_client.avgLatency() / 1000).ToString("N2");
-                                break;
-                            default:
-                                row.Cells[3].Value = "None";
-                                break;
+            //foreach (var mkt in this.oManager.connections)
+            //{
+            //    bool found = false;
+            //    foreach (DataGridViewRow row in this.gridView_Connection.Rows)
+            //    {
+            //        if (row.IsNewRow)
+            //        {
+            //            continue;
+            //        }
+            //        if (row.Cells[0] != null && row.Cells[0].Value.ToString() == mkt.Key)
+            //        {
+            //            row.Cells[2].Value = mkt.Value.ToString();
+            //            switch (row.Cells[0].Value)
+            //            {
+            //                case "bitbank":
+            //                    row.Cells[3].Value = (this.crypto_client.bitbank_client.avgLatency() / 1000).ToString("N2");
+            //                    break;
+            //                case "coincheck":
+            //                    row.Cells[3].Value = (this.crypto_client.coincheck_client.avgLatency() / 1000).ToString("N2");
+            //                    break;
+            //                case "bittrade":
+            //                    row.Cells[3].Value = (this.crypto_client.bittrade_client.avgLatency() / 1000).ToString("N2");
+            //                    break;
+            //                default:
+            //                    row.Cells[3].Value = "None";
+            //                    break;
 
-                        }
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found)
-                {
-                    this.gridView_Connection.Rows.Add(mkt.Key, WebSocketState.None.ToString(), mkt.Value.ToString());
-                }
-            }
+            //            }
+            //            found = true;
+            //            break;
+            //        }
+            //    }
+            //    if (!found)
+            //    {
+            //        this.gridView_Connection.Rows.Add(mkt.Key, WebSocketState.None.ToString(), mkt.Value.ToString());
+            //    }
+            //}
 
             List<string> stoppedThreads = new List<string>();
             //Thread
-            foreach (var th in this.thManager.threads)
-            {
-                bool found = false;
-                string st;
-                if (this.stopTradingCalled == 0 && th.Value.isRunning == false)
-                {
-                    //If connection lost, try reconnect
-                    //If public connection, reconnect and subscribe
-                    //if private connection, reconnect, get current status, and restart
-                    //if other threads, unexpected error stop trading
+            //foreach (var th in this.thManager.threads)
+            //{
+            //    bool found = false;
+            //    string st;
+            //    if (this.stopTradingCalled == 0 && th.Value.isRunning == false)
+            //    {
+            //        //If connection lost, try reconnect
+            //        //If public connection, reconnect and subscribe
+            //        //if private connection, reconnect, get current status, and restart
+            //        //if other threads, unexpected error stop trading
 
-                    stoppedThreads.Add(th.Key);
-                }
-                if (th.Value.isRunning)
-                {
-                    st = "Running";
-                }
-                else
-                {
-                    st = "Stopped";
-                }
-                foreach (DataGridViewRow row in this.gridView_ThStatus.Rows)
-                {
-                    if (row.IsNewRow)
-                    {
-                        continue;
-                    }
-                    if (row.Cells[0] != null && row.Cells[0].Value.ToString() == th.Key)
-                    {
+            //        stoppedThreads.Add(th.Key);
+            //    }
+            //    if (th.Value.isRunning)
+            //    {
+            //        st = "Running";
+            //    }
+            //    else
+            //    {
+            //        st = "Stopped";
+            //    }
+            //    foreach (DataGridViewRow row in this.gridView_ThStatus.Rows)
+            //    {
+            //        if (row.IsNewRow)
+            //        {
+            //            continue;
+            //        }
+            //        if (row.Cells[0] != null && row.Cells[0].Value.ToString() == th.Key)
+            //        {
 
-                        row.Cells[1].Value = st;
-                        //row.Cells[2].Value = (th.Value.totalElapsedTime / th.Value.count / 1000).ToString("N3");
-                        row.Cells[2].Value = th.Value.Latency.avgLatency.ToString("N3");
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found)
-                {
-                    this.gridView_ThStatus.Rows.Add(th.Key, st);
-                }
-            }
+            //            row.Cells[1].Value = st;
+            //            //row.Cells[2].Value = (th.Value.totalElapsedTime / th.Value.count / 1000).ToString("N3");
+            //            row.Cells[2].Value = th.Value.Latency.avgLatency.ToString("N3");
+            //            found = true;
+            //            break;
+            //        }
+            //    }
+            //    if (!found)
+            //    {
+            //        this.gridView_ThStatus.Rows.Add(th.Key, st);
+            //    }
+            //}
 
             //Thread
             foreach (var th in thManager.threads)
@@ -2253,14 +2259,6 @@ namespace Crypto_GUI
                     //if other threads, unexpected error stop trading
 
                     stoppedThreads.Add(th.Key);
-                }
-                if (th.Value.isRunning)
-                {
-                    st = "Running";
-                }
-                else
-                {
-                    st = "Stopped";
                 }
             }
 
@@ -2392,26 +2390,6 @@ namespace Crypto_GUI
                     }
                 }
             }
-            if (this.qManager.ordBookQueue.Count > 1000)
-            {
-                this.addLog("The order book queue count exceeds 1000.", Enums.logType.WARNING);
-                if (this.qManager.ordBookQueue.Count > 10000)
-                {
-
-                }
-            }
-            if (this.crypto_client.ordUpdateQueue.Count > 1000)
-            {
-                this.addLog("The order update queue count exceeds 1000.", Enums.logType.WARNING);
-            }
-            if (this.crypto_client.fillQueue.Count > 1000)
-            {
-                this.addLog("The fill queue count exceeds 1000.", Enums.logType.WARNING);
-            }
-            //this.lbl_quoteUpdateCount.Text = this.qManager.ordBookQueue.Count().ToString();
-            //this.lbl_orderUpdateCount.Text = this.crypto_client.ordUpdateQueue.Count().ToString();
-            //this.lbl_fillUpdateCount.Text = this.crypto_client.fillQueue.Count().ToString();
-            //this.lbl_optCount.Text = this.qManager.optQueue.Count().ToString();
             this.lbl_currentTime.Text = DateTime.UtcNow.ToString("HH:mm:ss");
         }
 
@@ -2562,7 +2540,7 @@ namespace Crypto_GUI
                 this.lbl_takerfee_taker.Text = this.selected_stg.taker.taker_fee.ToString("N5");
                 this.lbl_stgSymbol.Text = this.selected_stg.baseCcy + this.selected_stg.quoteCcy;
                 this.lbl_ordthrottle.Text = this.selected_stg.order_throttle.ToString("N2");
-                this.lbl_markup.Text = this.selected_stg.markup.ToString("N0");
+                this.lbl_markup.Text = this.selected_stg.const_markup.ToString("N0");
                 this.lbl_minMarkup.Text = this.selected_stg.min_markup.ToString("N0");
                 this.lbl_maxSkew.Text = this.selected_stg.maxSkew.ToString("N0");
                 this.lbl_tobsize.Text = this.selected_stg.ToBsize.ToString("N5");
@@ -2572,8 +2550,8 @@ namespace Crypto_GUI
                 this.lbl_skew.Text = this.selected_stg.skewThreshold.ToString("N0");
                 this.lbl_oneside.Text = this.selected_stg.oneSideThreshold.ToString("N0");
                 this.lbl_decayingtime.Text = this.selected_stg.markup_decay_basetime.ToString("N0");
-                this.lbl_markupMulti.Text = this.selected_stg.RVMarkup_multiplier.ToString("N2");
-                this.lbl_markupAdjustment.Text = this.selected_stg.markupAdjustment.ToString("N2");
+                this.lbl_RVMulti.Text = this.selected_stg.rv_penalty_multiplier.ToString("N2");
+                this.lbl_rvParam.Text = this.selected_stg.rv_base_param.ToString("N2");
                 this.lbl_maxBaseMarkup.Text = this.selected_stg.max_baseMarkup.ToString("N2");
                 this.lbl_fillInterval.Text = this.selected_stg.intervalAfterFill.ToString("N2");
                 this.lbl_ordUpdateTh.Text = this.selected_stg.modThreshold.ToString("N5");
@@ -2669,7 +2647,7 @@ namespace Crypto_GUI
                         else
                         {
                             DialogResult result = MessageBox.Show(
-                                "You're changing the markup of " + this.selected_stg.name + " from " + this.selected_stg.markup.ToString("N2") + " to " + this.txtBox_newValue.Text + ".",
+                                "You're changing the markup of " + this.selected_stg.name + " from " + this.selected_stg.const_markup.ToString("N2") + " to " + this.txtBox_newValue.Text + ".",
                                 "Updating a variable",
                                 MessageBoxButtons.OKCancel,
                                 MessageBoxIcon.Question
@@ -3184,7 +3162,7 @@ namespace Crypto_GUI
                         }
                     }
                     break;
-                case "Markup Multiplier":
+                case "RV Penalty":
                     if (!decimal.TryParse(this.txtBox_newValue.Text, out value))
                     {
                         DialogResult result = MessageBox.Show(
@@ -3208,7 +3186,7 @@ namespace Crypto_GUI
                         else
                         {
                             DialogResult result = MessageBox.Show(
-                                "You're changing the markup multiplier of " + this.selected_stg.name + " from " + this.selected_stg.RVMarkup_multiplier.ToString("N2") + " to " + this.txtBox_newValue.Text + ".",
+                                "You're changing the RV penalty multiplier of " + this.selected_stg.name + " from " + this.selected_stg.rv_penalty_multiplier.ToString("N2") + " to " + this.txtBox_newValue.Text + ".",
                                 "Updating a variable",
                                 MessageBoxButtons.OKCancel,
                                 MessageBoxIcon.Question
@@ -3217,7 +3195,7 @@ namespace Crypto_GUI
                             {
                                 variableUpdate upd = new variableUpdate();
                                 upd.stg_name = this.selected_stg.name;
-                                upd.type = "markupmultiplier";
+                                upd.type = "rvpenaltymultiplier";
                                 upd.value = this.txtBox_newValue.Text;
                                 string body = JsonSerializer.Serialize(upd);
                                 dict = new Dictionary<string, string>();
@@ -3233,7 +3211,7 @@ namespace Crypto_GUI
                         }
                     }
                     break;
-                case "Markup Adjustment":
+                case "RV Base Param":
                     if (!decimal.TryParse(this.txtBox_newValue.Text, out value))
                     {
                         DialogResult result = MessageBox.Show(
@@ -3257,7 +3235,7 @@ namespace Crypto_GUI
                         else
                         {
                             DialogResult result = MessageBox.Show(
-                                "You're changing the markup adjustment of " + this.selected_stg.name + " from " + this.selected_stg.markupAdjustment.ToString("N2") + " to " + this.txtBox_newValue.Text + ".",
+                                "You're changing the RV base param of " + this.selected_stg.name + " from " + this.selected_stg.rv_base_param.ToString("N2") + " to " + this.txtBox_newValue.Text + ".",
                                 "Updating a variable",
                                 MessageBoxButtons.OKCancel,
                                 MessageBoxIcon.Question
@@ -3266,7 +3244,7 @@ namespace Crypto_GUI
                             {
                                 variableUpdate upd = new variableUpdate();
                                 upd.stg_name = this.selected_stg.name;
-                                upd.type = "markupadjustment";
+                                upd.type = "rvbaseparam";
                                 upd.value = this.txtBox_newValue.Text;
                                 string body = JsonSerializer.Serialize(upd);
                                 dict = new Dictionary<string, string>();

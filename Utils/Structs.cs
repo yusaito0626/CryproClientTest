@@ -1421,7 +1421,7 @@ namespace Utils
         public string? maker_market { get; set; }
         public double order_throttle { get; set; }
         public decimal markup { get; set; }
-        public decimal markup_adjustment { get; set; }
+        //public decimal markup_adjustment { get; set; }
         public decimal min_markup { get; set; }
         public decimal max_skew { get; set; }
         public decimal skew_widening { get; set; }
@@ -1433,7 +1433,8 @@ namespace Utils
         public decimal skewThreshold { get; set; }
         public decimal oneSideThreshold { get; set; }
         public decimal decaying_time { get; set; }
-        public decimal markupMultiplier { get; set; }
+        public decimal rv_penalty_multiplier { get; set; }
+        public double rv_base_param { get; set; }
         public decimal maxBaseMarkup { get; set; }
         public Boolean predictFill { get; set; }
         public string? skew_type { get; set; }

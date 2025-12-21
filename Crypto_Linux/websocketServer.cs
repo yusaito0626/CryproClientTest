@@ -119,7 +119,7 @@ namespace Crypto_Linux
                 setting.taker_market = stg.Value.taker_market;
                 setting.maker_market = stg.Value.maker_market;
                 setting.order_throttle = stg.Value.order_throttle;
-                setting.markup = stg.Value.markup;
+                setting.markup = stg.Value.const_markup;
                 setting.min_markup = stg.Value.min_markup;
                 setting.max_skew = stg.Value.maxSkew;
                 setting.skew_widening = stg.Value.skewWidening;
@@ -131,8 +131,8 @@ namespace Crypto_Linux
                 setting.skewThreshold = stg.Value.skewThreshold;
                 setting.oneSideThreshold = stg.Value.oneSideThreshold;
                 setting.decaying_time = stg.Value.markup_decay_basetime;
-                setting.markupMultiplier = stg.Value.RVMarkup_multiplier;
-                setting.markup_adjustment = stg.Value.markupAdjustment;
+                setting.rv_penalty_multiplier = stg.Value.rv_penalty_multiplier;
+                setting.rv_base_param = stg.Value.rv_base_param;
                 setting.maxBaseMarkup = stg.Value.max_baseMarkup;
                 setting.predictFill = stg.Value.predictFill;
                 setting.skew_type = stg.Value.skew_type.ToString();
@@ -284,8 +284,8 @@ namespace Crypto_Linux
                                             case "markup":
                                                 if(decimal.TryParse(newVar.value,out newvalue))
                                                 {
-                                                    addLog("The markup of " + stg.name + " has been changed from " + stg.markup.ToString("N0") + " to " + newVar.value);
-                                                    stg.markup = newvalue;
+                                                    addLog("The markup of " + stg.name + " has been changed from " + stg.const_markup.ToString("N0") + " to " + newVar.value);
+                                                    stg.const_markup = newvalue;
                                                     await BroadcastAsync(message);
                                                 }
                                                 break;
@@ -377,19 +377,19 @@ namespace Crypto_Linux
                                                     await BroadcastAsync(message);
                                                 }
                                                 break;
-                                            case "markupmultiplier":
+                                            case "rvpenaltymultiplier":
                                                 if (decimal.TryParse(newVar.value, out newvalue))
                                                 {
-                                                    addLog("The markup multiplier of " + stg.name + " has been changed from " + stg.RVMarkup_multiplier.ToString("N2") + " to " + newVar.value);
-                                                    stg.RVMarkup_multiplier = newvalue;
+                                                    addLog("The RV penalty multiplier of " + stg.name + " has been changed from " + stg.rv_penalty_multiplier.ToString("N2") + " to " + newVar.value);
+                                                    stg.rv_penalty_multiplier = newvalue;
                                                     await BroadcastAsync(message);
                                                 }
                                                 break;
-                                            case "markupadjustment":
-                                                if (decimal.TryParse(newVar.value, out newvalue))
+                                            case "rvbaseparam":
+                                                if (double.TryParse(newVar.value, out dblvalue))
                                                 {
-                                                    addLog("The markup adjustment of " + stg.name + " has been changed from " + stg.markupAdjustment.ToString("N2") + " to " + newVar.value);
-                                                    stg.markupAdjustment = newvalue;
+                                                    addLog("The RV base param of " + stg.name + " has been changed from " + stg.rv_base_param.ToString("N2") + " to " + newVar.value);
+                                                    stg.rv_base_param = dblvalue;
                                                     await BroadcastAsync(message);
                                                 }
                                                 break;

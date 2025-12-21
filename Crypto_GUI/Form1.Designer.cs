@@ -32,6 +32,9 @@
             DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
             DataGridViewCellStyle dataGridViewCellStyle2 = new DataGridViewCellStyle();
             DataGridViewCellStyle dataGridViewCellStyle3 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle4 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle6 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle5 = new DataGridViewCellStyle();
             DataGridViewCellStyle dataGridViewCellStyle7 = new DataGridViewCellStyle();
             DataGridViewCellStyle dataGridViewCellStyle8 = new DataGridViewCellStyle();
             DataGridViewCellStyle dataGridViewCellStyle9 = new DataGridViewCellStyle();
@@ -51,9 +54,6 @@
             DataGridViewCellStyle dataGridViewCellStyle23 = new DataGridViewCellStyle();
             DataGridViewCellStyle dataGridViewCellStyle24 = new DataGridViewCellStyle();
             DataGridViewCellStyle dataGridViewCellStyle25 = new DataGridViewCellStyle();
-            DataGridViewCellStyle dataGridViewCellStyle4 = new DataGridViewCellStyle();
-            DataGridViewCellStyle dataGridViewCellStyle6 = new DataGridViewCellStyle();
-            DataGridViewCellStyle dataGridViewCellStyle5 = new DataGridViewCellStyle();
             button_receiveFeed = new Button();
             tabControl = new TabControl();
             tabPage1 = new TabPage();
@@ -71,6 +71,8 @@
             textBoxMainLog = new RichTextBox();
             button_orderTest = new Button();
             tabPage3 = new TabPage();
+            gridView_stgMI = new DataGridView();
+            dataGridViewTextBoxColumn22 = new DataGridViewTextBoxColumn();
             lbl_stgmarkup = new Label();
             label52 = new Label();
             comboStrategy = new ComboBox();
@@ -186,11 +188,11 @@
             groupBox1 = new GroupBox();
             lbl_maxBaseMarkup = new Label();
             label54 = new Label();
-            lbl_markupAdjustment = new Label();
+            lbl_rvParam = new Label();
             label53 = new Label();
             lbl_ordthrottle = new Label();
             label51 = new Label();
-            lbl_markupMulti = new Label();
+            lbl_RVMulti = new Label();
             label50 = new Label();
             lbl_tobmulti = new Label();
             label47 = new Label();
@@ -245,12 +247,11 @@
             toolStripStatusLabel1 = new ToolStripStatusLabel();
             lbl_currentTime = new ToolStripStatusLabel();
             timer_Monitoring = new System.Windows.Forms.Timer(components);
-            gridView_stgMI = new DataGridView();
-            dataGridViewTextBoxColumn22 = new DataGridViewTextBoxColumn();
             tabControl.SuspendLayout();
             tabPage1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)gridView_PnL).BeginInit();
             tabPage3.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)gridView_stgMI).BeginInit();
             ((System.ComponentModel.ISupportInitialize)gridView_orders).BeginInit();
             ((System.ComponentModel.ISupportInitialize)gridView_Maker).BeginInit();
             ((System.ComponentModel.ISupportInitialize)gridView_Taker).BeginInit();
@@ -269,7 +270,6 @@
             ((System.ComponentModel.ISupportInitialize)gridView_Connection).BeginInit();
             tabPage6.SuspendLayout();
             statusStrip1.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)gridView_stgMI).BeginInit();
             SuspendLayout();
             // 
             // button_receiveFeed
@@ -496,6 +496,39 @@
             tabPage3.Size = new Size(1040, 984);
             tabPage3.TabIndex = 2;
             tabPage3.Text = "Strategy";
+            // 
+            // gridView_stgMI
+            // 
+            gridView_stgMI.BackgroundColor = SystemColors.Window;
+            dataGridViewCellStyle4.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            dataGridViewCellStyle4.BackColor = SystemColors.Control;
+            dataGridViewCellStyle4.Font = new Font("Yu Gothic UI", 9F);
+            dataGridViewCellStyle4.ForeColor = SystemColors.WindowText;
+            dataGridViewCellStyle4.SelectionBackColor = SystemColors.Highlight;
+            dataGridViewCellStyle4.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle4.WrapMode = DataGridViewTriState.True;
+            gridView_stgMI.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle4;
+            gridView_stgMI.ColumnHeadersHeight = 29;
+            gridView_stgMI.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            gridView_stgMI.Columns.AddRange(new DataGridViewColumn[] { dataGridViewTextBoxColumn22 });
+            gridView_stgMI.Location = new Point(4, 595);
+            gridView_stgMI.Margin = new Padding(2);
+            gridView_stgMI.Name = "gridView_stgMI";
+            gridView_stgMI.RowHeadersVisible = false;
+            gridView_stgMI.RowHeadersWidth = 82;
+            dataGridViewCellStyle6.Alignment = DataGridViewContentAlignment.MiddleRight;
+            gridView_stgMI.RowsDefaultCellStyle = dataGridViewCellStyle6;
+            gridView_stgMI.Size = new Size(1032, 74);
+            gridView_stgMI.TabIndex = 39;
+            // 
+            // dataGridViewTextBoxColumn22
+            // 
+            dataGridViewCellStyle5.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            dataGridViewTextBoxColumn22.DefaultCellStyle = dataGridViewCellStyle5;
+            dataGridViewTextBoxColumn22.HeaderText = "Quantity";
+            dataGridViewTextBoxColumn22.MinimumWidth = 6;
+            dataGridViewTextBoxColumn22.Name = "dataGridViewTextBoxColumn22";
+            dataGridViewTextBoxColumn22.Width = 125;
             // 
             // lbl_stgmarkup
             // 
@@ -1712,11 +1745,11 @@
             // 
             groupBox1.Controls.Add(lbl_maxBaseMarkup);
             groupBox1.Controls.Add(label54);
-            groupBox1.Controls.Add(lbl_markupAdjustment);
+            groupBox1.Controls.Add(lbl_rvParam);
             groupBox1.Controls.Add(label53);
             groupBox1.Controls.Add(lbl_ordthrottle);
             groupBox1.Controls.Add(label51);
-            groupBox1.Controls.Add(lbl_markupMulti);
+            groupBox1.Controls.Add(lbl_RVMulti);
             groupBox1.Controls.Add(label50);
             groupBox1.Controls.Add(lbl_tobmulti);
             groupBox1.Controls.Add(label47);
@@ -1777,15 +1810,15 @@
             label54.TabIndex = 43;
             label54.Text = "Max Base Markup:";
             // 
-            // lbl_markupAdjustment
+            // lbl_rvParam
             // 
-            lbl_markupAdjustment.AutoSize = true;
-            lbl_markupAdjustment.Location = new Point(212, 330);
-            lbl_markupAdjustment.Margin = new Padding(2, 0, 2, 0);
-            lbl_markupAdjustment.Name = "lbl_markupAdjustment";
-            lbl_markupAdjustment.Size = new Size(44, 20);
-            lbl_markupAdjustment.TabIndex = 42;
-            lbl_markupAdjustment.Text = "value";
+            lbl_rvParam.AutoSize = true;
+            lbl_rvParam.Location = new Point(212, 330);
+            lbl_rvParam.Margin = new Padding(2, 0, 2, 0);
+            lbl_rvParam.Name = "lbl_rvParam";
+            lbl_rvParam.Size = new Size(44, 20);
+            lbl_rvParam.TabIndex = 42;
+            lbl_rvParam.Text = "value";
             // 
             // label53
             // 
@@ -1793,9 +1826,9 @@
             label53.Location = new Point(16, 330);
             label53.Margin = new Padding(2, 0, 2, 0);
             label53.Name = "label53";
-            label53.Size = new Size(142, 20);
+            label53.Size = new Size(65, 20);
             label53.TabIndex = 41;
-            label53.Text = "Markup Adjustment:";
+            label53.Text = "RV Base:";
             // 
             // lbl_ordthrottle
             // 
@@ -1817,15 +1850,15 @@
             label51.TabIndex = 39;
             label51.Text = "order throttle:";
             // 
-            // lbl_markupMulti
+            // lbl_RVMulti
             // 
-            lbl_markupMulti.AutoSize = true;
-            lbl_markupMulti.Location = new Point(212, 297);
-            lbl_markupMulti.Margin = new Padding(2, 0, 2, 0);
-            lbl_markupMulti.Name = "lbl_markupMulti";
-            lbl_markupMulti.Size = new Size(44, 20);
-            lbl_markupMulti.TabIndex = 38;
-            lbl_markupMulti.Text = "value";
+            lbl_RVMulti.AutoSize = true;
+            lbl_RVMulti.Location = new Point(212, 297);
+            lbl_RVMulti.Margin = new Padding(2, 0, 2, 0);
+            lbl_RVMulti.Name = "lbl_RVMulti";
+            lbl_RVMulti.Size = new Size(44, 20);
+            lbl_RVMulti.TabIndex = 38;
+            lbl_RVMulti.Text = "value";
             // 
             // label50
             // 
@@ -1833,9 +1866,9 @@
             label50.Location = new Point(16, 297);
             label50.Margin = new Padding(2, 0, 2, 0);
             label50.Name = "label50";
-            label50.Size = new Size(130, 20);
+            label50.Size = new Size(150, 20);
             label50.TabIndex = 37;
-            label50.Text = "Markup Multiplier:";
+            label50.Text = "RV Penalty Multiplier:";
             // 
             // lbl_tobmulti
             // 
@@ -2392,39 +2425,6 @@
             timer_Monitoring.Interval = 1000;
             timer_Monitoring.Tick += timer_Monitoring_Tick;
             // 
-            // gridView_stgMI
-            // 
-            gridView_stgMI.BackgroundColor = SystemColors.Window;
-            dataGridViewCellStyle4.Alignment = DataGridViewContentAlignment.MiddleCenter;
-            dataGridViewCellStyle4.BackColor = SystemColors.Control;
-            dataGridViewCellStyle4.Font = new Font("Yu Gothic UI", 9F);
-            dataGridViewCellStyle4.ForeColor = SystemColors.WindowText;
-            dataGridViewCellStyle4.SelectionBackColor = SystemColors.Highlight;
-            dataGridViewCellStyle4.SelectionForeColor = SystemColors.HighlightText;
-            dataGridViewCellStyle4.WrapMode = DataGridViewTriState.True;
-            gridView_stgMI.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle4;
-            gridView_stgMI.ColumnHeadersHeight = 29;
-            gridView_stgMI.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-            gridView_stgMI.Columns.AddRange(new DataGridViewColumn[] { dataGridViewTextBoxColumn22 });
-            gridView_stgMI.Location = new Point(4, 595);
-            gridView_stgMI.Margin = new Padding(2);
-            gridView_stgMI.Name = "gridView_stgMI";
-            gridView_stgMI.RowHeadersVisible = false;
-            gridView_stgMI.RowHeadersWidth = 82;
-            dataGridViewCellStyle6.Alignment = DataGridViewContentAlignment.MiddleRight;
-            gridView_stgMI.RowsDefaultCellStyle = dataGridViewCellStyle6;
-            gridView_stgMI.Size = new Size(1032, 74);
-            gridView_stgMI.TabIndex = 39;
-            // 
-            // dataGridViewTextBoxColumn22
-            // 
-            dataGridViewCellStyle5.Alignment = DataGridViewContentAlignment.MiddleCenter;
-            dataGridViewTextBoxColumn22.DefaultCellStyle = dataGridViewCellStyle5;
-            dataGridViewTextBoxColumn22.HeaderText = "Quantity";
-            dataGridViewTextBoxColumn22.MinimumWidth = 6;
-            dataGridViewTextBoxColumn22.Name = "dataGridViewTextBoxColumn22";
-            dataGridViewTextBoxColumn22.Width = 125;
-            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
@@ -2443,6 +2443,7 @@
             ((System.ComponentModel.ISupportInitialize)gridView_PnL).EndInit();
             tabPage3.ResumeLayout(false);
             tabPage3.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)gridView_stgMI).EndInit();
             ((System.ComponentModel.ISupportInitialize)gridView_orders).EndInit();
             ((System.ComponentModel.ISupportInitialize)gridView_Maker).EndInit();
             ((System.ComponentModel.ISupportInitialize)gridView_Taker).EndInit();
@@ -2468,7 +2469,6 @@
             tabPage6.ResumeLayout(false);
             statusStrip1.ResumeLayout(false);
             statusStrip1.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)gridView_stgMI).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -2629,7 +2629,7 @@
         private Label label42;
         private Label lbl_avgRV;
         private Label label49;
-        private Label lbl_markupMulti;
+        private Label lbl_RVMulti;
         private Label label50;
         private Label lbl_ordthrottle;
         private Label label51;
@@ -2648,7 +2648,7 @@
         private ComboBox combo_pnlStrategy;
         private ScottPlot.WinForms.FormsPlot plot_notional;
         private ScottPlot.WinForms.FormsPlot plot_pnl;
-        private Label lbl_markupAdjustment;
+        private Label lbl_rvParam;
         private Label label53;
         private Label lbl_maxBaseMarkup;
         private Label label54;
