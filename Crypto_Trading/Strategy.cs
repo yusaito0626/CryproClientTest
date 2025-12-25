@@ -1,20 +1,21 @@
 ﻿using Binance.Net.Enums;
 using Binance.Net.Objects.Models.Spot.Loans;
 using Crypto_Clients;
+using CryptoExchange.Net;
+using Discord;
+using Enums;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
+using System.Reactive.Concurrency;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-
 using Utils;
-using Enums;
-using System.Runtime.CompilerServices;
-using System.Reactive.Concurrency;
 
 namespace Crypto_Trading
 {
@@ -72,6 +73,11 @@ namespace Crypto_Trading
 
         public Instrument? taker;
         public Instrument? maker;
+
+        public SortedDictionary<int, Instrument> takers;
+        public decimal taker_min_quote_unit;
+        public SortedDictionary<decimal, decimal> agg_asks;
+        public SortedDictionary<decimal, decimal> agg_bids;
 
         public volatile int updating;
         public volatile int queued;
@@ -169,6 +175,10 @@ namespace Crypto_Trading
 
             this.taker = null;
             this.maker = null;
+            this.takers = new SortedDictionary<int, Instrument>();
+            this.agg_asks = new SortedDictionary<decimal, decimal>();
+            this.agg_bids = new SortedDictionary<decimal, decimal>();
+            this.taker_min_quote_unit = (decimal)0.0001;
 
             this.updating = 0;
             this.queued= 0;
@@ -480,14 +490,6 @@ namespace Crypto_Trading
             {
                 this.rv_base_param = 100;
             }
-            //if (root.TryGetProperty("MarkupAdjustment", out item))
-            //{
-            //    this.markupAdjustment = item.GetDecimal();
-            //}
-            //else
-            //{
-            //    this.markupAdjustment = 0;
-            //}
             if (root.TryGetProperty("MaxBaseMarkup", out item))
             {
                 this.max_baseMarkup = item.GetDecimal();
@@ -2658,6 +2660,159 @@ namespace Crypto_Trading
                 }
             }
         }
+
+        public async Task placeHedgeOrders(orderSide side, Dictionary<string,decimal> quantities)
+        {
+            Instrument ins = null;
+            foreach(var qt in quantities)
+            {
+                if(oManager.Instruments.ContainsKey(qt.Key))
+                {
+                    ins = oManager.Instruments[qt.Key];
+                    this.oManager.placeNewSpotOrder(ins, side, orderType.Market, qt.Value, 0, null, true);
+                }
+                else
+                {
+                    addLog("[placeHedgeOrders]Instrument not found. symbol market:" + qt.Value, logType.WARNING);
+                }
+            }
+        }
+
+        public bool getWeightedAvgPrice(orderSide side, List<decimal> quantities, List<decimal> prices,Dictionary<string,decimal> qty_symbolmarket)
+        {
+            bool ret = false;
+            int layer = 0;
+            decimal quantity;
+            decimal cumQuantity = 0;
+            decimal weightedPrice = 0;
+            if (quantities.Count > layer)
+            {
+                quantity = quantities[layer];
+            }
+            else
+            {
+                return ret;
+            }
+
+            decimal currentAsk = 0;
+            decimal currentBid = 0;
+            decimal currentQty = 0;
+
+            //Get All locks
+            foreach (var ins in this.takers.Values)
+            {
+                while (Interlocked.CompareExchange(ref ins.quotes_lock, 1, 0) != 0)
+                {
+
+                }
+                if (currentAsk == 0 || currentAsk > ins.bestask.Item1)
+                {
+                    currentAsk = ins.bestask.Item1;
+                }
+                if (currentBid == 0 || currentBid < ins.bestbid.Item1)
+                {
+                    currentBid = ins.bestbid.Item1;
+                }
+            }
+            switch (side)
+            {
+                case orderSide.Buy:
+                    break;
+                case orderSide.Sell:
+                    break;
+            }
+            return ret;
+        }
+        public void updateAggregatedQuotes(int depth = 5)
+        {
+            decimal currentAsk = 0;
+            decimal currentBid = 0;
+
+            int currentBidDepth = 0;
+            int currentAskDepth = 0;
+
+            //Get All locks
+            foreach(var ins in this.takers.Values)
+            {
+                while(Interlocked.CompareExchange(ref ins.quotes_lock,1,0) != 0)
+                {
+
+                }
+                if (currentAsk == 0 || currentAsk > ins.bestask.Item1)
+                {
+                    currentAsk = ins.bestask.Item1;
+                }
+                if(currentBid == 0 || currentBid < ins.bestbid.Item1)
+                {
+                    currentBid = ins.bestbid.Item1;
+                }
+            }
+            this.bids.Clear();
+            this.asks.Clear();
+            bool exit = true;
+            while(true)
+            {
+                exit = true;
+                foreach (var ins in this.takers.Values)
+                {
+                    if (currentAskDepth < depth)
+                    {
+                        if (currentAsk <= ins.asks.Keys.Max())
+                        {
+                            exit = false;
+                            if (ins.asks.ContainsKey(currentAsk) && ins.asks[currentAsk] > 0)
+                            {
+                                if (this.agg_asks.ContainsKey(currentAsk))
+                                {
+                                    this.agg_asks[currentAsk] += ins.asks[currentAsk];
+                                }
+                                else
+                                {
+                                    this.agg_asks[currentAsk] = ins.asks[currentAsk];
+                                }
+                            }
+                        }
+                    }
+                    if (currentBidDepth < depth)
+                    {
+                        if(currentBid >= ins.bids.Keys.Min())
+                        {
+                            exit = false;
+                            if (ins.bids.ContainsKey(currentBid) && ins.bids[currentBid] > 0)
+                            {
+                                if (this.agg_bids.ContainsKey(currentBid))
+                                {
+                                    this.agg_bids[currentBid] += ins.bids[currentBid];
+                                }
+                                else
+                                {
+                                    this.agg_bids[currentBid] = ins.bids[currentBid];
+                                }
+                            }
+                        }
+                    }
+                }
+                if(this.agg_asks.ContainsKey(currentAsk))
+                {
+                    ++currentAskDepth;
+                }
+                if (this.agg_bids.ContainsKey(currentBid))
+                {
+                    ++currentBidDepth;
+                }
+                if(exit || (currentAskDepth >= depth && currentBidDepth >= depth))
+                {
+                    break;
+                }
+                currentAsk += this.taker_min_quote_unit;
+                currentBid -= this.taker_min_quote_unit;
+            }
+            foreach (var ins in this.takers.Values)
+            {
+                Volatile.Write(ref ins.quotes_lock, 0);
+            }
+        }
+
         public void update_micurve(MarketImpact mi)
         {
             int sign = 1;

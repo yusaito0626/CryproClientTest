@@ -520,28 +520,30 @@ namespace Crypto_Linux
 
         static private async Task testFunc()
         {
-            Console.WriteLine("Testing getWeightedAvgPrice...");
-            Thread.Sleep(3000);
-            Instrument ins = qManager.instruments["btc_jpy@coincheck"];
-            List<decimal> quantities = [(decimal)0.01, (decimal)0.03, (decimal)0.05, (decimal)0.1];
-            List<decimal> prices = new List<decimal>();
+            JsonDocument js = await crypto_client.bitbank_client.getMargin();
+            Console.WriteLine(js.RootElement.ToString());
+            //Console.WriteLine("Testing getWeightedAvgPrice...");
+            //Thread.Sleep(3000);
+            //Instrument ins = qManager.instruments["btc_jpy@coincheck"];
+            //List<decimal> quantities = [(decimal)0.01, (decimal)0.03, (decimal)0.05, (decimal)0.1];
+            //List<decimal> prices = new List<decimal>();
 
-            while(Interlocked.CompareExchange(ref ins.quotes_lock,1,0) != 0)
-            {
+            //while(Interlocked.CompareExchange(ref ins.quotes_lock,1,0) != 0)
+            //{
 
-            }
+            //}
 
-            ins.getWeightedAvgPrice(orderSide.Buy,quantities,prices);
-            foreach(decimal price in prices)
-            {
-                Console.WriteLine($"Bid Price: {price}");
-            }
-            ins.getWeightedAvgPrice(orderSide.Sell, quantities, prices);
-            foreach (decimal price in prices)
-            {
-                Console.WriteLine($"Ask Price: {price}");
-            }
-            Volatile.Write(ref ins.quotes_lock, 0);
+            //ins.getWeightedAvgPrice(orderSide.Buy,quantities,prices);
+            //foreach(decimal price in prices)
+            //{
+            //    Console.WriteLine($"Bid Price: {price}");
+            //}
+            //ins.getWeightedAvgPrice(orderSide.Sell, quantities, prices);
+            //foreach (decimal price in prices)
+            //{
+            //    Console.WriteLine($"Ask Price: {price}");
+            //}
+            //Volatile.Write(ref ins.quotes_lock, 0);
 
             Console.WriteLine("Completed");
 

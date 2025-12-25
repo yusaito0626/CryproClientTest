@@ -318,7 +318,7 @@ namespace Crypto_Trading
             this.Instruments = dic;
         }
 
-        public async Task<string> placeNewSpotOrder(Instrument ins, orderSide side, orderType ordtype, decimal quantity, decimal price, timeInForce? timeinforce = null,bool sendNow = true,bool wait = true,string msg = "")
+        public async Task<string> placeNewSpotOrder(Instrument ins, orderSide side, orderType ordtype, decimal quantity, decimal price, timeInForce? timeinforce = null, bool sendNow = true,bool wait = true,string msg = "")
         {
             sendingOrder ord;
             string ordid;

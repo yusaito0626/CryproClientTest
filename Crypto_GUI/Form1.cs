@@ -16,6 +16,7 @@ using System.Net;
 using System.Net.WebSockets;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics.X86;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -806,6 +807,8 @@ namespace Crypto_GUI
                 int trial = 0;
                 this.info_receiver = new ClientWebSocket();
 
+                string err_msg = "";
+
                 var uri = new Uri(this.tradeEngine);
                 while (!connected)
                 {
@@ -818,7 +821,15 @@ namespace Crypto_GUI
                     }
                     catch (WebSocketException wse)
                     {
-                        this.addLog($"WebSocketException: {wse.Message}", Enums.logType.WARNING);
+                        //if (trial == 0)
+                        //{
+                        //    this.addLog($"WebSocketException: {wse.Message}", Enums.logType.WARNING);
+                        //}
+                        if(err_msg != wse.Message)
+                        {
+                            this.addLog($"WebSocketException: {wse.Message}", Enums.logType.WARNING);
+                        }
+                        err_msg = wse.Message;
                         ++trial;
                         this.info_receiver.Dispose();
                         this.info_receiver = new ClientWebSocket();
@@ -826,7 +837,15 @@ namespace Crypto_GUI
                     }
                     catch (Exception ex)
                     {
-                        this.addLog($"Connection failed: {ex.Message}", Enums.logType.WARNING);
+                        //if(trial == 0)
+                        //{
+                        //    this.addLog($"Connection failed: {ex.Message}", Enums.logType.WARNING);
+                        //}
+                        if (err_msg != ex.Message)
+                        {
+                            this.addLog($"Connection failed: {ex.Message}", Enums.logType.WARNING);
+                        }
+                        err_msg = ex.Message;
                         ++trial;
                         this.info_receiver.Dispose();
                         this.info_receiver = new ClientWebSocket();
@@ -1953,7 +1972,8 @@ namespace Crypto_GUI
         }
         private async void test_Click(object sender, EventArgs e)
         {
-            await tradeTest(this.qManager.instruments["eth_jpy@coincheck"], true);
+            JsonDocument js = await this.crypto_client.bitbank_client.getMargin();
+            this.addLog(js.RootElement.ToString());
         }
         private async Task onErrorCheck()
         {
