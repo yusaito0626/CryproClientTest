@@ -520,8 +520,17 @@ namespace Crypto_Linux
 
         static private async Task testFunc()
         {
-            JsonDocument js = await crypto_client.bitbank_client.getMargin();
-            Console.WriteLine(js.RootElement.ToString());
+            //JsonDocument js = await crypto_client.bitbank_client.getMarginStatus();
+            //Console.WriteLine(js.RootElement.ToString());
+            //js = await crypto_client.bitbank_client.getMarginPosition();
+            //Console.WriteLine(js.RootElement.ToString());
+
+            DataMarginPos[] marpos = await crypto_client.getMarginPos("bitbank");
+            foreach(DataMarginPos pos in marpos)
+            {
+                Console.WriteLine(pos.ToString()); 
+            }
+
             //Console.WriteLine("Testing getWeightedAvgPrice...");
             //Thread.Sleep(3000);
             //Instrument ins = qManager.instruments["btc_jpy@coincheck"];
@@ -1487,6 +1496,10 @@ namespace Crypto_Linux
         {
             //Declare variables that store the latency and status.
             //Connection
+            if(EoDProcessCalled > 0)
+            {
+                return;
+            }
             connecitonStatus status;
             qManager.checkConnections();
             oManager.checkConnections();

@@ -470,7 +470,48 @@ namespace Crypto_Clients
             }
             return temp.ToArray();
         }
-
+        async public Task<DataMarginPos[]> getMarginPos(string market)
+        {
+            List<DataMarginPos> temp = new List<DataMarginPos>();
+            JsonDocument js;
+            switch (market)
+            {
+                case "bitbank":
+                    js = await this.bitbank_client.getMarginPosition();
+                    if (js.RootElement.GetProperty("success").GetInt16() == 1)
+                    {
+                        JsonElement data = js.RootElement.GetProperty("data");
+                        JsonElement notice = data.GetProperty("notice");
+                        JsonElement payable = data.GetProperty("payables");
+                        JsonElement positions = data.GetProperty("positions");
+                        if (notice.GetProperty("what").GetString != null)
+                        {
+                            addLog("Received a margin message. Please check details", logType.WARNING);
+                            addLog(notice.ToString(), logType.WARNING);
+                        }
+                        decimal dc_payable = decimal.Parse(payable.GetProperty("amount").GetString());
+                        if (dc_payable > 0)
+                        {
+                            addLog("The payable amount is non zero amount:" + dc_payable.ToString(), logType.WARNING);
+                        }
+                        foreach(var elem in positions.EnumerateArray())
+                        {
+                            DataMarginPos pos = new DataMarginPos();
+                            pos.setBitbankJson(elem);
+                            temp.Add(pos);
+                        }
+                    }
+                    else
+                    {
+                        this.addLog($"Failed to get the margin position of {market}. message:{js.RootElement.ToString()}", logType.WARNING);
+                    }
+                    break;
+                default:
+                    addLog($"The getMarginPos is not defined for {market}", logType.WARNING);
+                    break;
+            }
+            return temp.ToArray();
+        }
         public async Task<List<DataSpotOrderUpdate>> getActiveOrders(string market)
         {
             DataSpotOrderUpdate ord;

@@ -1972,7 +1972,7 @@ namespace Crypto_GUI
         }
         private async void test_Click(object sender, EventArgs e)
         {
-            JsonDocument js = await this.crypto_client.bitbank_client.getMargin();
+            JsonDocument js = await this.crypto_client.bitbank_client.getMarginStatus();
             this.addLog(js.RootElement.ToString());
         }
         private async Task onErrorCheck()

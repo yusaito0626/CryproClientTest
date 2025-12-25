@@ -898,7 +898,13 @@ namespace Crypto_Clients
             var json = JsonDocument.Parse(resString);
             return json;
         }
-        public async Task<JsonDocument> getMargin()
+        public async Task<JsonDocument> getMarginPosition()
+        {
+            var resString = await this.getAsync("/v1/user/margin/positions");
+            var json = JsonDocument.Parse(resString);
+            return json;
+        }
+        public async Task<JsonDocument> getMarginStatus()
         {
             var resString = await this.getAsync("/v1/user/margin/status");
             var json = JsonDocument.Parse(resString);
