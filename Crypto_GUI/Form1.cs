@@ -1002,6 +1002,12 @@ namespace Crypto_GUI
                                                 ins.quoteBalance.ccy = ins.quoteCcy;
                                                 ins.quoteBalance.total = i.Value.quoteCcy_total;
                                                 ins.quoteBalance.inuse = i.Value.quoteCcy_inuse;
+                                                ins.longPosition = new BalanceMargin();
+                                                ins.longPosition.total = i.Value.long_total;
+                                                ins.longPosition.inuse = i.Value.long_inuse;
+                                                ins.shortPosition = new BalanceMargin();
+                                                ins.shortPosition.total = i.Value.short_total;
+                                                ins.shortPosition.inuse = i.Value.short_inuse;
                                                 ins.my_buy_quantity = i.Value.my_quantity_buy;
                                                 ins.my_buy_notional = i.Value.my_notional_buy;
                                                 ins.my_sell_quantity = i.Value.my_quantity_sell;
@@ -1037,6 +1043,12 @@ namespace Crypto_GUI
                                                 ins.quoteBalance.ccy = ins.quoteCcy;
                                                 ins.quoteBalance.total = i.Value.quoteCcy_total;
                                                 ins.quoteBalance.inuse = i.Value.quoteCcy_inuse;
+                                                ins.longPosition = new BalanceMargin();
+                                                ins.longPosition.total = i.Value.long_total;
+                                                ins.longPosition.inuse = i.Value.long_inuse;
+                                                ins.shortPosition = new BalanceMargin();
+                                                ins.shortPosition.total = i.Value.short_total;
+                                                ins.shortPosition.inuse = i.Value.short_inuse;
                                                 ins.my_buy_quantity = i.Value.my_quantity_buy;
                                                 ins.my_buy_notional = i.Value.my_notional_buy;
                                                 ins.my_sell_quantity = i.Value.my_quantity_sell;
@@ -1628,6 +1640,7 @@ namespace Crypto_GUI
                 {
                     this.lbl_makerName.Text = this.selected_stg.maker.symbol_market;
                     this.lbl_baseCcy_maker.Text = this.selected_stg.maker.baseBalance.total.ToString("N5");
+                    this.lbl_baseCcy_maker.Text = this.selected_stg.maker.net_pos.ToString("N5");
                     this.lbl_quoteCcy_maker.Text = this.selected_stg.maker.quoteBalance.total.ToString("N2");
                     this.lbl_makerfee_maker.Text = this.selected_stg.maker.maker_fee.ToString("N5");
                     this.lbl_takerfee_maker.Text = this.selected_stg.maker.taker_fee.ToString("N5");

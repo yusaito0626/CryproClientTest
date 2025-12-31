@@ -93,18 +93,55 @@ namespace Crypto_Trading
             this.side = position.side;
             this.avg_price = position.avgPrice;
             this._total = position.quantity;
-            this.inuse = 0;
+            this._inuse = 0;
             this.unrealized_fee= position.unrealizedFee;
             this.unrealized_interest= position.unrealizedInterest;
         }
-        public void AddBalance(decimal total = 0, decimal inuse = 0)
+        public void AddBalance(decimal total = 0, decimal inuse = 0, decimal price = 0)
         {
             while (Interlocked.CompareExchange(ref this.balance_lock, 1, 0) != 0)
             {
 
             }
+            if(total > 0)
+            {
+                this.avg_price = (this.avg_price * this._total + price * total) / (this._total + total);
+            }
             this._total += total;
             this._inuse += inuse;
+            Volatile.Write(ref this.balance_lock, 0);
+        }
+        public void addFill(DataFill fill)
+        {
+            while (Interlocked.CompareExchange(ref this.balance_lock, 1, 0) != 0)
+            {
+
+            }
+            switch(this.side)
+            {
+                case positionSide.Long:
+                    if(fill.side == orderSide.Buy)
+                    {
+                        this.avg_price = (this.avg_price * this._total + fill.price * fill.quantity) / (this._total + fill.quantity);
+                        this._total += fill.quantity;
+                    }
+                    else if(fill.side == orderSide.Sell)
+                    {
+                        this._total -= fill.quantity;
+                    }
+                    break;
+                case positionSide.Short:
+                    if (fill.side == orderSide.Sell)
+                    {
+                        this.avg_price = (this.avg_price * this._total + fill.price * fill.quantity) / (this._total + fill.quantity);
+                        this._total += fill.quantity;
+                    }
+                    else if (fill.side == orderSide.Buy)
+                    {
+                        this._total -= fill.quantity;
+                    }
+                    break;
+            }
             Volatile.Write(ref this.balance_lock, 0);
         }
 
@@ -127,6 +164,18 @@ namespace Crypto_Trading
             this._inuse = 0;
             this.unrealized_fee = 0;
             this.unrealized_interest = 0;
+        }
+
+        public void copy(BalanceMargin org)
+        {
+            this.symbol = org.symbol;
+            this.market = org.market;
+            this.side = org.side;
+            this.avg_price = org.avg_price;
+            this._total = org.total;
+            this._inuse = org.inuse;
+            this.unrealized_fee = org.unrealized_fee;
+            this.unrealized_interest = org.unrealized_interest;
         }
 
         public decimal inuse

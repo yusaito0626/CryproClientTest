@@ -39,9 +39,9 @@
     }
     public enum positionSide
     {
-        NONE = -1,
+        NONE = 0,
         Long = 1,
-        Short = 2
+        Short = -1
     }
     public enum orderStatus
     {

@@ -370,7 +370,7 @@ namespace Crypto_Trading
                     Instrument ins = this.instruments[item.symbol_market];
                     if(item.side == positionSide.Long)
                     {
-                        ins.longPostion.setPosition(item);
+                        ins.longPosition.setPosition(item);
                     }
                     else if(item.side == positionSide.Short)
                     {

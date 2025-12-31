@@ -17,6 +17,7 @@ using System.Threading.Tasks;
 using Utils;
 using LockFreeStack;
 using LockFreeQueue;
+using Enums;
 
 namespace Crypto_Clients
 {
@@ -992,22 +993,43 @@ namespace Crypto_Clients
         }
 
 
-        public async Task<JsonDocument> placeNewOrder(string symbol,string ord_type,string side,decimal price = 0,decimal quantity = 0,bool postonly = false)
+        public async Task<JsonDocument> placeNewOrder(string symbol,string ord_type,string side,decimal price = 0,decimal quantity = 0,string pos_side = "none",bool postonly = false)
         {
-            var body = new
+            if (pos_side == "none")
             {
-                pair = symbol,
-                amount = quantity.ToString(),
-                price = price.ToString(),
-                side = side,
-                type = ord_type,
-                post_only = postonly
-            };
+                var body = new
+                {
+                    pair = symbol,
+                    amount = quantity.ToString(),
+                    price = price.ToString(),
+                    side = side,
+                    type = ord_type,
+                    post_only = postonly
+                };
 
-            var jsonBody = JsonSerializer.Serialize(body);
-            var resString = await this.postAsync("/v1/user/spot/order", jsonBody);
-            var json = JsonDocument.Parse(resString);
-            return json;
+                var jsonBody = JsonSerializer.Serialize(body);
+                var resString = await this.postAsync("/v1/user/spot/order", jsonBody);
+                var json = JsonDocument.Parse(resString);
+                return json;
+            }
+            else
+            {
+                var body = new
+                {
+                    pair = symbol,
+                    amount = quantity.ToString(),
+                    price = price.ToString(),
+                    side = side,
+                    position_side = pos_side,
+                    type = ord_type,
+                    post_only = postonly
+                };
+
+                var jsonBody = JsonSerializer.Serialize(body);
+                var resString = await this.postAsync("/v1/user/spot/order", jsonBody);
+                var json = JsonDocument.Parse(resString);
+                return json;
+            }
         }
         public async Task<JsonDocument> placeCanOrder(string symbol,string order_id)
         {

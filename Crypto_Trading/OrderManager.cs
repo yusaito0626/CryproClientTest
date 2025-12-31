@@ -318,7 +318,7 @@ namespace Crypto_Trading
             this.Instruments = dic;
         }
 
-        public async Task<string> placeNewSpotOrder(Instrument ins, orderSide side, orderType ordtype, decimal quantity, decimal price, timeInForce? timeinforce = null, bool sendNow = true,bool wait = true,string msg = "")
+        public async Task<string> placeNewSpotOrder(Instrument ins, orderSide side, orderType ordtype, decimal quantity, decimal price,positionSide pos_side = positionSide.NONE, timeInForce? timeinforce = null, bool sendNow = true,bool wait = true,string msg = "")
         {
             sendingOrder ord;
             string ordid;
@@ -330,6 +330,7 @@ namespace Crypto_Trading
                 ord.action = orderAction.New;
                 ord.ins = ins;
                 ord.side = side;
+                ord.pos_side = pos_side;
                 ord.order_type = ordtype;
                 ord.quantity = quantity;
                 ord.price = price;
@@ -492,6 +493,7 @@ namespace Crypto_Trading
                 output.symbol_market = sndOrd.ins.symbol_market;
                 output.internal_order_id = sndOrd.internalOrdId;
                 output.side = sndOrd.side;
+                output.position_side = sndOrd.pos_side;
                 output.order_type = sndOrd.order_type;
                 output.order_quantity = quantity;
                 output.order_price = sndOrd.price;
@@ -513,14 +515,31 @@ namespace Crypto_Trading
                 this.ordIdMapping[output.market + output.order_id] = sndOrd.internalOrdId;
                 if (output.order_type == orderType.Limit || output.order_type == orderType.LimitMaker)
                 {
-                    switch (output.side)
+                    if(output.position_side == positionSide.Long)
                     {
-                        case orderSide.Buy:
-                            sndOrd.ins.quoteBalance.AddBalance(0, output.order_price * output.order_quantity);
-                            break;
-                        case orderSide.Sell:
-                            sndOrd.ins.baseBalance.AddBalance(0, output.order_quantity);
-                            break;
+                        if(output.side == orderSide.Sell)
+                        {
+                            sndOrd.ins.longPosition.AddBalance(0, output.order_quantity);
+                        }
+                    }
+                    else if (output.position_side == positionSide.Short)
+                    {
+                        if (output.side == orderSide.Buy)
+                        {
+                            sndOrd.ins.shortPosition.AddBalance(0, output.order_quantity);
+                        }
+                    }
+                    else
+                    {
+                        switch (output.side)
+                        {
+                            case orderSide.Buy:
+                                sndOrd.ins.quoteBalance.AddBalance(0, output.order_price * output.order_quantity);
+                                break;
+                            case orderSide.Sell:
+                                sndOrd.ins.baseBalance.AddBalance(0, output.order_quantity);
+                                break;
+                        }
                     }
                 }
                 this.virtual_order_queue.Enqueue(output);
@@ -532,11 +551,11 @@ namespace Crypto_Trading
                 DateTime sendTime = DateTime.UtcNow;
                 if (sndOrd.order_type == orderType.Limit)
                 {
-                    js = await this.ord_client.bitbank_client.placeNewOrder(sndOrd.ins.symbol, sndOrd.order_type.ToString().ToLower(), sndOrd.side.ToString().ToLower(), sndOrd.price, quantity, true);
+                    js = await this.ord_client.bitbank_client.placeNewOrder(sndOrd.ins.symbol, sndOrd.order_type.ToString().ToLower(), sndOrd.side.ToString().ToLower(), sndOrd.price, quantity,sndOrd.pos_side.ToString().ToLower(), true);
                 }
                 else
                 {
-                    js = await this.ord_client.bitbank_client.placeNewOrder(sndOrd.ins.symbol, sndOrd.order_type.ToString().ToLower(), sndOrd.side.ToString().ToLower(), sndOrd.price, quantity, false);
+                    js = await this.ord_client.bitbank_client.placeNewOrder(sndOrd.ins.symbol, sndOrd.order_type.ToString().ToLower(), sndOrd.side.ToString().ToLower(), sndOrd.price, quantity, sndOrd.pos_side.ToString().ToLower(), false);
                 }
 
                 if (js.RootElement.GetProperty("success").GetUInt16() == 1)
@@ -589,14 +608,32 @@ namespace Crypto_Trading
                     output.is_trigger_order = true;
                     output.last_trade = "";
                     output.msg = sndOrd.msg;
-                    switch (sndOrd.side)
+
+                    if (output.position_side == positionSide.Long)
                     {
-                        case orderSide.Buy:
-                            sndOrd.ins.quoteBalance.AddBalance(0, output.order_price * output.order_quantity);
-                            break;
-                        case orderSide.Sell:
-                            sndOrd.ins.baseBalance.AddBalance(0, output.order_quantity);
-                            break;
+                        if (output.side == orderSide.Sell)
+                        {
+                            sndOrd.ins.longPosition.AddBalance(0, output.order_quantity);
+                        }
+                    }
+                    else if (output.position_side == positionSide.Short)
+                    {
+                        if (output.side == orderSide.Buy)
+                        {
+                            sndOrd.ins.shortPosition.AddBalance(0, output.order_quantity);
+                        }
+                    }
+                    else
+                    {
+                        switch (output.side)
+                        {
+                            case orderSide.Buy:
+                                sndOrd.ins.quoteBalance.AddBalance(0, output.order_price * output.order_quantity);
+                                break;
+                            case orderSide.Sell:
+                                sndOrd.ins.baseBalance.AddBalance(0, output.order_quantity);
+                                break;
+                        }
                     }
                     this.ord_client.ordUpdateQueue.Enqueue(output);
                 }
@@ -1108,6 +1145,7 @@ namespace Crypto_Trading
                 
                 output.status = orderStatus.WaitCancel;
                 output.side = prev.side;
+                output.position_side = prev.position_side;
                 output.order_type = prev.order_type;
                 output.order_quantity = prev.order_quantity;
                 output.filled_quantity = prev.filled_quantity;
@@ -1324,6 +1362,7 @@ namespace Crypto_Trading
                     ordObj.internal_order_id = ordid;
                     ordObj.status = orderStatus.WaitCancel;
                     ordObj.side = prev.side;
+                    ordObj.position_side = prev.position_side;
                     ordObj.order_type = prev.order_type;
                     ordObj.order_quantity = prev.order_quantity;
                     ordObj.filled_quantity = prev.filled_quantity;
@@ -1945,7 +1984,8 @@ namespace Crypto_Trading
                         {
                             stg.Value.lastPosAdjustment = DateTime.UtcNow;
                             Thread.Sleep(1000);
-                            decimal diff_amount = stg.Value.maker.baseBalance.total + stg.Value.taker.baseBalance.total - stg.Value.baseCcyQuantity;
+                            //decimal diff_amount = stg.Value.maker.baseBalance.total + stg.Value.taker.baseBalance.total - stg.Value.baseCcyQuantity;
+                            decimal diff_amount = stg.Value.maker.net_pos+ stg.Value.taker.baseBalance.total;
                             orderSide side = orderSide.Sell;
                             if (diff_amount < 0)
                             {
@@ -1953,7 +1993,7 @@ namespace Crypto_Trading
                                 diff_amount *= -1;
                             }
                             diff_amount = Math.Round(diff_amount / stg.Value.taker.quantity_unit) * stg.Value.taker.quantity_unit;
-                            this.placeNewSpotOrder(stg.Value.taker, side, orderType.Market, diff_amount, 0, null, true);
+                            this.placeNewSpotOrder(stg.Value.taker, side, orderType.Market, diff_amount, 0, positionSide.NONE, null, true);
                         }
                     }
                 }
@@ -2104,15 +2144,33 @@ namespace Crypto_Trading
                     }
                     if (filled_quantity > 0 && ord.order_type != orderType.Market)
                     {
-                        switch (ord.side)
+                        if(ord.position_side == positionSide.Long)
                         {
-                            case orderSide.Buy:
-                                ins.quoteBalance.AddBalance(0, -filled_quantity * ord.order_price);
-                                break;
-                            case orderSide.Sell:
-                                ins.baseBalance.AddBalance(0, -filled_quantity);
-                                break;
+                            if(ord.side == orderSide.Sell)
+                            {
+                                ins.longPosition.AddBalance(0, -filled_quantity);
+                            }
+                        }
+                        else if(ord.position_side == positionSide.Short)
+                        {
+                            if (ord.side == orderSide.Buy)
+                            {
+                                ins.shortPosition.AddBalance(0, -filled_quantity);
+                            }
+                        }
+                        else
+                        {
+                            addLog("handleOpen  " + ord.ToString());
+                            switch (ord.side)
+                            {
+                                case orderSide.Buy:
+                                    ins.quoteBalance.AddBalance(0, -filled_quantity * ord.order_price);
+                                    break;
+                                case orderSide.Sell:
+                                    ins.baseBalance.AddBalance(0, -filled_quantity);
+                                    break;
 
+                            }
                         }
                     }
                 }
@@ -2263,15 +2321,33 @@ namespace Crypto_Trading
                     }
                     if (filled_quantity > 0 && ord.order_type != orderType.Market)
                     {
-                        switch (ord.side)
+                        if (ord.position_side == positionSide.Long)
                         {
-                            case orderSide.Buy:
-                                ins.quoteBalance.AddBalance(0, -filled_quantity * ord.order_price);
-                                break;
-                            case orderSide.Sell:
-                                ins.baseBalance.AddBalance(0, -filled_quantity);
-                                break;
+                            if (ord.side == orderSide.Sell)
+                            {
+                                ins.longPosition.AddBalance(0, -filled_quantity);
+                            }
+                        }
+                        else if (ord.position_side == positionSide.Short)
+                        {
+                            if (ord.side == orderSide.Buy)
+                            {
+                                ins.shortPosition.AddBalance(0, -filled_quantity);
+                            }
+                        }
+                        else
+                        {
+                            addLog("handleCancel  " + ord.ToString());
+                            switch (ord.side)
+                            {
+                                case orderSide.Buy:
+                                    ins.quoteBalance.AddBalance(0, -filled_quantity * ord.order_price);
+                                    break;
+                                case orderSide.Sell:
+                                    ins.baseBalance.AddBalance(0, -filled_quantity);
+                                    break;
 
+                            }
                         }
                     }
                 }
@@ -2283,7 +2359,7 @@ namespace Crypto_Trading
 
                     if (ord.status == orderStatus.Canceled)
                     {
-                        this.placeNewSpotOrder(mod.ins, mod.side, mod.order_type, mod.newQuantity, mod.newPrice, mod.time_in_force, true);
+                        this.placeNewSpotOrder(mod.ins, mod.side, mod.order_type, mod.newQuantity, mod.newPrice, positionSide.NONE, mod.time_in_force, true);
                         this.modifingOrders.Remove(ord.internal_order_id);
                         mod.init();
                         this.modifingOrdStack.push(mod);
@@ -2329,15 +2405,33 @@ namespace Crypto_Trading
                         }
                         if (filled_quantity > 0 && ord.order_type != orderType.Market)
                         {
-                            switch (ord.side)
+                            if (ord.position_side == positionSide.Long)
                             {
-                                case orderSide.Buy:
-                                    ins.quoteBalance.AddBalance(0, -filled_quantity * ord.order_price);
-                                    break;
-                                case orderSide.Sell:
-                                    ins.baseBalance.AddBalance(0, -filled_quantity);
-                                    break;
+                                if (ord.side == orderSide.Sell)
+                                {
+                                    ins.longPosition.AddBalance(0, -filled_quantity);
+                                }
+                            }
+                            else if (ord.position_side == positionSide.Short)
+                            {
+                                if (ord.side == orderSide.Buy)
+                                {
+                                    ins.shortPosition.AddBalance(0, -filled_quantity);
+                                }
+                            }
+                            else
+                            {
+                                addLog("handleCancel2  " + ord.ToString());
+                                switch (ord.side)
+                                {
+                                    case orderSide.Buy:
+                                        ins.quoteBalance.AddBalance(0, -filled_quantity * ord.order_price);
+                                        break;
+                                    case orderSide.Sell:
+                                        ins.baseBalance.AddBalance(0, -filled_quantity);
+                                        break;
 
+                                }
                             }
                         }
                     }
@@ -2453,15 +2547,33 @@ namespace Crypto_Trading
                     }
                     if (filled_quantity > 0 && ord.order_type != orderType.Market)
                     {
-                        switch (ord.side)
+                        if (ord.position_side == positionSide.Long)
                         {
-                            case orderSide.Buy:
-                                ins.quoteBalance.AddBalance(0, -filled_quantity * ord.order_price);
-                                break;
-                            case orderSide.Sell:
-                                ins.baseBalance.AddBalance(0, -filled_quantity);
-                                break;
+                            if (ord.side == orderSide.Sell)
+                            {
+                                ins.longPosition.AddBalance(0, -filled_quantity);
+                            }
+                        }
+                        else if (ord.position_side == positionSide.Short)
+                        {
+                            if (ord.side == orderSide.Buy)
+                            {
+                                ins.shortPosition.AddBalance(0, -filled_quantity);
+                            }
+                        }
+                        else
+                        {
+                            addLog("handleFilled  " + ord.ToString());
+                            switch (ord.side)
+                            {
+                                case orderSide.Buy:
+                                    ins.quoteBalance.AddBalance(0, -filled_quantity * ord.order_price);
+                                    break;
+                                case orderSide.Sell:
+                                    ins.baseBalance.AddBalance(0, -filled_quantity);
+                                    break;
 
+                            }
                         }
                     }
                 }
@@ -2499,15 +2611,33 @@ namespace Crypto_Trading
                         }
                         if (filled_quantity > 0 && ord.order_type != orderType.Market)
                         {
-                            switch (ord.side)
+                            if (ord.position_side == positionSide.Long)
                             {
-                                case orderSide.Buy:
-                                    ins.quoteBalance.AddBalance(0, -filled_quantity * ord.order_price);
-                                    break;
-                                case orderSide.Sell:
-                                    ins.baseBalance.AddBalance(0, -filled_quantity);
-                                    break;
+                                if (ord.side == orderSide.Sell)
+                                {
+                                    ins.longPosition.AddBalance(0, -filled_quantity);
+                                }
+                            }
+                            else if (ord.position_side == positionSide.Short)
+                            {
+                                if (ord.side == orderSide.Buy)
+                                {
+                                    ins.shortPosition.AddBalance(0, -filled_quantity);
+                                }
+                            }
+                            else
+                            {
+                                addLog("handleFilled2  " + ord.ToString());
+                                switch (ord.side)
+                                {
+                                    case orderSide.Buy:
+                                        ins.quoteBalance.AddBalance(0, -filled_quantity * ord.order_price);
+                                        break;
+                                    case orderSide.Sell:
+                                        ins.baseBalance.AddBalance(0, -filled_quantity);
+                                        break;
 
+                                }
                             }
                         }
                     }
@@ -2606,10 +2736,10 @@ namespace Crypto_Trading
                                                 break;
                                             case orderSide.Sell:
                                                 update.average_price = ins.adjusted_bestbid.Item1;
-                                                update.fee = feetype * update.filled_quantity;
-                                                update.fee_asset = ins.baseCcy;
-                                                fill.fee_quote = 0;
-                                                fill.fee_base = update.fee;
+                                                update.fee = feetype * update.filled_quantity * update.average_price;
+                                                update.fee_asset = ins.quoteCcy;
+                                                fill.fee_quote = update.fee;
+                                                fill.fee_base = 0;
                                                 fill.fee_unknown = 0;
                                                 break;
                                         }
@@ -2619,6 +2749,7 @@ namespace Crypto_Trading
                                         fill.market = ins.market;
                                         fill.symbol_market = ins.symbol_market;
                                         fill.side = update.side;
+                                        fill.position_side = update.position_side;
                                         fill.quantity = update.filled_quantity;
                                         fill.price = update.average_price;
                                         fill.timestamp = update.timestamp;
@@ -2748,6 +2879,7 @@ namespace Crypto_Trading
                                     fill.symbol_market = ins.symbol_market;
                                     fill.internal_order_id = output.internal_order_id;
                                     fill.side = ord.side;
+                                    fill.position_side = ord.position_side;
                                     fill.quantity = output.filled_quantity;
                                     fill.price = output.average_price;
                                     fill.fee_quote = output.fee;
@@ -2784,8 +2916,8 @@ namespace Crypto_Trading
                                     output.status = orderStatus.Filled;
                                     output.filled_quantity = ord.order_quantity;
                                     output.average_price = ord.order_price;
-                                    output.fee = ins.maker_fee * output.filled_quantity;
-                                    output.fee_asset = ins.baseCcy;
+                                    output.fee = ins.maker_fee * output.filled_quantity * output.average_price;
+                                    output.fee_asset = ins.quoteCcy;
                                     output.update_time = DateTime.UtcNow;
                                     DataFill fill;
                                     fill = this.ord_client.fillStack.pop();
@@ -2799,10 +2931,11 @@ namespace Crypto_Trading
                                     fill.symbol_market = ins.symbol_market;
                                     fill.internal_order_id = output.internal_order_id;
                                     fill.side = ord.side;
+                                    fill.position_side = ord.position_side;
                                     fill.quantity = output.filled_quantity;
                                     fill.price = output.average_price;
-                                    fill.fee_quote = 0;
-                                    fill.fee_base = output.fee;
+                                    fill.fee_quote = output.fee;
+                                    fill.fee_base = 0;
                                     fill.fee_unknown = 0;
                                     fill.timestamp = output.timestamp;
                                     fill.filled_time = fill.timestamp;
@@ -3044,6 +3177,7 @@ namespace Crypto_Trading
         public orderAction action;
         //public string ordId;
         public orderSide side;
+        public positionSide pos_side;
         public orderType order_type;
         public timeInForce? time_in_force;
         public decimal price;
@@ -3061,6 +3195,7 @@ namespace Crypto_Trading
             this.action = orderAction.NONE;
             //this.ordId = "";
             this.side = orderSide.NONE;
+            this.pos_side = positionSide.NONE;
             this.order_type = orderType.NONE;
             this.time_in_force = timeInForce.NONE;
             this.price = 0;
@@ -3079,6 +3214,7 @@ namespace Crypto_Trading
             this.ref_IntOrdId = org.ref_IntOrdId;
             this.action = org.action;
             this.side = org.side;
+            this.pos_side = org.pos_side;
             this.order_type = org.order_type;
             this.time_in_force = org.time_in_force;
             this.price = org.price;

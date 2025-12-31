@@ -1629,6 +1629,10 @@ namespace Utils
         public decimal baseCcy_inuse { get; set; }
         public decimal quoteCcy_total { get; set; }
         public decimal quoteCcy_inuse { get; set; }
+        public decimal long_total { get; set; }
+        public decimal long_inuse { get; set; }
+        public decimal short_total { get; set; }
+        public decimal short_inuse { get; set; }
 
         //Execution
         public decimal my_quantity_buy { get; set; }

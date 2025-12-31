@@ -118,6 +118,8 @@ namespace Crypto_Trading
         public decimal mi_volume;
         public Dictionary<double, decimal> market_impact_curve;
 
+        public decimal realized_PnL = 0;
+        public decimal realized_Interest = 0;
 
         public decimal base_fee;
         public decimal quote_fee;
@@ -125,17 +127,19 @@ namespace Crypto_Trading
 
         public Balance baseBalance;
         public Balance quoteBalance;
+        public Balance SoD_baseBalance;
+        public Balance SoD_quoteBalance;
 
-        public BalanceMargin longPostion;
+        public BalanceMargin longPosition;
         public BalanceMargin shortPosition;
+        public BalanceMargin SoD_longPosition;
+        public BalanceMargin SoD_shortPosition;
 
         public decimal net_pos
         {
-            get {return this.baseBalance.total + this.longPostion.total - this.shortPosition.total;}
+            get {return this.baseBalance.total + this.longPosition.total - this.shortPosition.total;}
         }
 
-        public Balance SoD_baseBalance;
-        public Balance SoD_quoteBalance;
 
         public decimal taker_fee;
         public decimal maker_fee;
@@ -216,15 +220,19 @@ namespace Crypto_Trading
 
             this.baseBalance = new Balance();
             this.quoteBalance = new Balance();
-
-            this.longPostion = new BalanceMargin();
-            this.shortPosition = new BalanceMargin();
-
-            this.longPostion.side = positionSide.Long;
-            this.shortPosition.side = positionSide.Short;
-
             this.SoD_baseBalance = new Balance();
             this.SoD_quoteBalance = new Balance();
+
+            this.longPosition = new BalanceMargin();
+            this.shortPosition = new BalanceMargin();
+            this.longPosition.side = positionSide.Long;
+            this.shortPosition.side = positionSide.Short;
+
+            this.SoD_longPosition = new BalanceMargin();
+            this.SoD_shortPosition = new BalanceMargin();
+            this.SoD_longPosition.side = positionSide.Long;
+            this.SoD_shortPosition.side = positionSide.Short;
+
 
             this.taker_fee = 0;
             this.maker_fee = 0;
@@ -1101,22 +1109,42 @@ namespace Crypto_Trading
             {
                 if (fill.side == orderSide.Buy)
                 {
-                    this.longPostion.AddBalance(fill.quantity, 0);
+                    this.longPosition.unrealized_fee += fill.fee_quote;
+                    this.longPosition.AddBalance(fill.quantity, 0,fill.price);
                 }
                 else if (fill.side == orderSide.Sell)
                 {
-                    this.longPostion.AddBalance(-fill.quantity, 0);
+                    decimal realize_pnl = fill.quantity * (fill.price - this.longPosition.avg_price);
+                    decimal realized_fee = this.longPosition.unrealized_fee * (fill.quantity / this.longPosition.total) + fill.fee_quote;
+                    decimal realized_interest = this.longPosition.unrealized_interest * (fill.quantity / this.longPosition.total);
+                    fill.msg += $" Realize PnL: {realize_pnl.ToString("N8")} avg_price: {this.longPosition.avg_price.ToString()}";
+                    this.longPosition.unrealized_fee -= this.longPosition.unrealized_fee * (fill.quantity / this.longPosition.total);
+                    this.longPosition.unrealized_interest -= this.longPosition.unrealized_interest * (fill.quantity / this.longPosition.total);
+                    this.realized_PnL += realize_pnl;
+                    this.realized_Interest += realized_interest;
+                    this.quoteBalance.total += realize_pnl - realized_fee - realized_interest;
+                    this.longPosition.AddBalance(-fill.quantity, 0, fill.price);
                 }
             }
             else if(fill.position_side == positionSide.Short)//Margin Short
             {
                 if(fill.side == orderSide.Sell)
                 {
-                    this.shortPosition.AddBalance(fill.quantity, 0);
+                    this.shortPosition.unrealized_fee += fill.fee_quote;
+                    this.shortPosition.AddBalance(fill.quantity, 0, fill.price);
                 }
                 else if(fill.side == orderSide.Buy)
                 {
-                    this.shortPosition.AddBalance(-fill.quantity, 0);
+                    decimal realize_pnl = fill.quantity * (this.shortPosition.avg_price - fill.price);
+                    decimal realized_fee = this.shortPosition.unrealized_fee * (fill.quantity / this.shortPosition.total) + fill.fee_quote;
+                    decimal realized_interest = this.shortPosition.unrealized_interest * (fill.quantity / this.shortPosition.total);
+                    fill.msg += $" Realize PnL: {realize_pnl.ToString("N8")} avg_price: {this.shortPosition.avg_price.ToString()}";
+                    this.shortPosition.unrealized_fee -= this.shortPosition.unrealized_fee * (fill.quantity / this.shortPosition.total);
+                    this.shortPosition.unrealized_interest -= this.shortPosition.unrealized_interest * (fill.quantity / this.shortPosition.total);
+                    this.realized_PnL += realize_pnl;
+                    this.realized_Interest += realized_interest;
+                    this.quoteBalance.total += realize_pnl - realized_fee - realized_interest;
+                    this.shortPosition.AddBalance(-fill.quantity, 0, fill.price);
                 }
             }
             else//Spot Order
@@ -1131,6 +1159,7 @@ namespace Crypto_Trading
                     this.baseBalance.AddBalance(-fill.quantity, 0);
                     this.quoteBalance.AddBalance(fill.quantity * fill.price, 0);
                 }
+                this.quoteBalance.AddBalance(-fill.fee_quote, 0);
             }
             if (fill.side == orderSide.Buy)
             {
@@ -1144,7 +1173,6 @@ namespace Crypto_Trading
                 this.my_sell_notional += fill.quantity * fill.price;
             }
             this.baseBalance.AddBalance(-fill.fee_base, 0);
-            this.quoteBalance.AddBalance(-fill.fee_quote, 0);
             this.quote_fee += fill.fee_quote;
             this.base_fee += fill.fee_base;
             this.unknown_fee += fill.fee_unknown;
