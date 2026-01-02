@@ -138,6 +138,12 @@
             lbl_RV = new Label();
             label42 = new Label();
             groupBox3 = new GroupBox();
+            lbl_LongInuse = new Label();
+            label58 = new Label();
+            lbl_LongTotal = new Label();
+            lbl_ShortInuse = new Label();
+            label55 = new Label();
+            lbl_ShortTotal = new Label();
             lbl_quoteCcyInuse = new Label();
             lbl_baseCcyInuse = new Label();
             label41 = new Label();
@@ -1220,6 +1226,12 @@
             // 
             // groupBox3
             // 
+            groupBox3.Controls.Add(lbl_LongInuse);
+            groupBox3.Controls.Add(label58);
+            groupBox3.Controls.Add(lbl_LongTotal);
+            groupBox3.Controls.Add(lbl_ShortInuse);
+            groupBox3.Controls.Add(label55);
+            groupBox3.Controls.Add(lbl_ShortTotal);
             groupBox3.Controls.Add(lbl_quoteCcyInuse);
             groupBox3.Controls.Add(lbl_baseCcyInuse);
             groupBox3.Controls.Add(label41);
@@ -1230,15 +1242,75 @@
             groupBox3.Controls.Add(lbl_baseCcyTotal);
             groupBox3.Location = new Point(23, 111);
             groupBox3.Name = "groupBox3";
-            groupBox3.Size = new Size(584, 151);
+            groupBox3.Size = new Size(584, 177);
             groupBox3.TabIndex = 15;
             groupBox3.TabStop = false;
             groupBox3.Text = "Balance";
             // 
+            // lbl_LongInuse
+            // 
+            lbl_LongInuse.AutoSize = true;
+            lbl_LongInuse.Location = new Point(439, 138);
+            lbl_LongInuse.Margin = new Padding(2, 0, 2, 0);
+            lbl_LongInuse.Name = "lbl_LongInuse";
+            lbl_LongInuse.Size = new Size(44, 20);
+            lbl_LongInuse.TabIndex = 23;
+            lbl_LongInuse.Text = "value";
+            // 
+            // label58
+            // 
+            label58.AutoSize = true;
+            label58.Location = new Point(14, 138);
+            label58.Margin = new Padding(2, 0, 2, 0);
+            label58.Name = "label58";
+            label58.Size = new Size(96, 20);
+            label58.TabIndex = 21;
+            label58.Text = "Margin Long:";
+            // 
+            // lbl_LongTotal
+            // 
+            lbl_LongTotal.AutoSize = true;
+            lbl_LongTotal.Location = new Point(241, 138);
+            lbl_LongTotal.Margin = new Padding(2, 0, 2, 0);
+            lbl_LongTotal.Name = "lbl_LongTotal";
+            lbl_LongTotal.Size = new Size(44, 20);
+            lbl_LongTotal.TabIndex = 22;
+            lbl_LongTotal.Text = "value";
+            // 
+            // lbl_ShortInuse
+            // 
+            lbl_ShortInuse.AutoSize = true;
+            lbl_ShortInuse.Location = new Point(439, 108);
+            lbl_ShortInuse.Margin = new Padding(2, 0, 2, 0);
+            lbl_ShortInuse.Name = "lbl_ShortInuse";
+            lbl_ShortInuse.Size = new Size(44, 20);
+            lbl_ShortInuse.TabIndex = 20;
+            lbl_ShortInuse.Text = "value";
+            // 
+            // label55
+            // 
+            label55.AutoSize = true;
+            label55.Location = new Point(14, 108);
+            label55.Margin = new Padding(2, 0, 2, 0);
+            label55.Name = "label55";
+            label55.Size = new Size(98, 20);
+            label55.TabIndex = 18;
+            label55.Text = "Margin Short:";
+            // 
+            // lbl_ShortTotal
+            // 
+            lbl_ShortTotal.AutoSize = true;
+            lbl_ShortTotal.Location = new Point(241, 108);
+            lbl_ShortTotal.Margin = new Padding(2, 0, 2, 0);
+            lbl_ShortTotal.Name = "lbl_ShortTotal";
+            lbl_ShortTotal.Size = new Size(44, 20);
+            lbl_ShortTotal.TabIndex = 19;
+            lbl_ShortTotal.Text = "value";
+            // 
             // lbl_quoteCcyInuse
             // 
             lbl_quoteCcyInuse.AutoSize = true;
-            lbl_quoteCcyInuse.Location = new Point(440, 109);
+            lbl_quoteCcyInuse.Location = new Point(439, 79);
             lbl_quoteCcyInuse.Margin = new Padding(2, 0, 2, 0);
             lbl_quoteCcyInuse.Name = "lbl_quoteCcyInuse";
             lbl_quoteCcyInuse.Size = new Size(44, 20);
@@ -1248,7 +1320,7 @@
             // lbl_baseCcyInuse
             // 
             lbl_baseCcyInuse.AutoSize = true;
-            lbl_baseCcyInuse.Location = new Point(213, 109);
+            lbl_baseCcyInuse.Location = new Point(439, 49);
             lbl_baseCcyInuse.Margin = new Padding(2, 0, 2, 0);
             lbl_baseCcyInuse.Name = "lbl_baseCcyInuse";
             lbl_baseCcyInuse.Size = new Size(44, 20);
@@ -1258,7 +1330,7 @@
             // label41
             // 
             label41.AutoSize = true;
-            label41.Location = new Point(15, 109);
+            label41.Location = new Point(437, 21);
             label41.Margin = new Padding(2, 0, 2, 0);
             label41.Name = "label41";
             label41.Size = new Size(47, 20);
@@ -1268,7 +1340,7 @@
             // label26
             // 
             label26.AutoSize = true;
-            label26.Location = new Point(21, 67);
+            label26.Location = new Point(242, 21);
             label26.Margin = new Padding(2, 0, 2, 0);
             label26.Name = "label26";
             label26.Size = new Size(41, 20);
@@ -1277,28 +1349,30 @@
             // 
             // lbl_baseCcyName
             // 
-            lbl_baseCcyName.AutoSize = true;
-            lbl_baseCcyName.Location = new Point(187, 32);
+            lbl_baseCcyName.ImageAlign = ContentAlignment.MiddleRight;
+            lbl_baseCcyName.Location = new Point(40, 49);
             lbl_baseCcyName.Margin = new Padding(2, 0, 2, 0);
             lbl_baseCcyName.Name = "lbl_baseCcyName";
             lbl_baseCcyName.Size = new Size(70, 20);
             lbl_baseCcyName.TabIndex = 10;
             lbl_baseCcyName.Text = "Base Ccy:";
+            lbl_baseCcyName.TextAlign = ContentAlignment.MiddleRight;
             // 
             // lbl_quoteCcyName
             // 
-            lbl_quoteCcyName.AutoSize = true;
-            lbl_quoteCcyName.Location = new Point(404, 32);
+            lbl_quoteCcyName.ImageAlign = ContentAlignment.MiddleRight;
+            lbl_quoteCcyName.Location = new Point(30, 79);
             lbl_quoteCcyName.Margin = new Padding(2, 0, 2, 0);
             lbl_quoteCcyName.Name = "lbl_quoteCcyName";
             lbl_quoteCcyName.Size = new Size(80, 20);
             lbl_quoteCcyName.TabIndex = 11;
             lbl_quoteCcyName.Text = "Quote Ccy:";
+            lbl_quoteCcyName.TextAlign = ContentAlignment.MiddleRight;
             // 
             // lbl_quoteCcyTotal
             // 
             lbl_quoteCcyTotal.AutoSize = true;
-            lbl_quoteCcyTotal.Location = new Point(440, 67);
+            lbl_quoteCcyTotal.Location = new Point(241, 79);
             lbl_quoteCcyTotal.Margin = new Padding(2, 0, 2, 0);
             lbl_quoteCcyTotal.Name = "lbl_quoteCcyTotal";
             lbl_quoteCcyTotal.Size = new Size(44, 20);
@@ -1308,7 +1382,7 @@
             // lbl_baseCcyTotal
             // 
             lbl_baseCcyTotal.AutoSize = true;
-            lbl_baseCcyTotal.Location = new Point(213, 67);
+            lbl_baseCcyTotal.Location = new Point(241, 49);
             lbl_baseCcyTotal.Margin = new Padding(2, 0, 2, 0);
             lbl_baseCcyTotal.Name = "lbl_baseCcyTotal";
             lbl_baseCcyTotal.Size = new Size(44, 20);
@@ -1333,7 +1407,7 @@
             groupBox2.Controls.Add(label30);
             groupBox2.Controls.Add(label29);
             groupBox2.Controls.Add(label27);
-            groupBox2.Location = new Point(23, 268);
+            groupBox2.Location = new Point(23, 286);
             groupBox2.Name = "groupBox2";
             groupBox2.Size = new Size(584, 247);
             groupBox2.TabIndex = 14;
@@ -2669,5 +2743,11 @@
         private DataGridViewTextBoxColumn Quantity;
         private DataGridView gridView_stgMI;
         private DataGridViewTextBoxColumn dataGridViewTextBoxColumn22;
+        private Label lbl_ShortInuse;
+        private Label label55;
+        private Label lbl_ShortTotal;
+        private Label lbl_LongInuse;
+        private Label label58;
+        private Label lbl_LongTotal;
     }
 }

@@ -620,8 +620,7 @@ namespace Crypto_Trading
                     this.oManager.live_orders.Clear();
                     foreach(Instrument ins in this.instruments.Values)
                     {
-                        ins.baseBalance.inuse = 0;
-                        ins.quoteBalance.inuse = 0;
+                        ins.resetInusePosition();
                     }
                     Volatile.Write(ref this.oManager.order_lock, 0);
                 }
@@ -715,8 +714,7 @@ namespace Crypto_Trading
                     {
                         if(ins.market == market)
                         {
-                            ins.baseBalance.inuse = 0;
-                            ins.quoteBalance.inuse = 0;
+                            ins.resetInusePosition();
                         }
                     }
                     Volatile.Write(ref this.oManager.order_lock, 0);
@@ -764,8 +762,8 @@ namespace Crypto_Trading
                                 {
 
                                 }
-                                stg_obj.maker.baseBalance.inuse = 0;
-                                stg_obj.maker.quoteBalance.inuse = 0;
+                                stg_obj.maker.resetInusePosition();
+                                stg_obj.taker.resetInusePosition();
                                 stg_obj.live_bidprice = 0;
                                 stg_obj.live_buyorder_id = "";
                                 stg_obj.live_askprice = 0;
@@ -808,8 +806,8 @@ namespace Crypto_Trading
                                 {
 
                                 }
-                                stg_obj.maker.baseBalance.inuse = 0;
-                                stg_obj.maker.quoteBalance.inuse = 0;
+                                stg_obj.maker.resetInusePosition();
+                                stg_obj.taker.resetInusePosition();
                                 stg_obj.live_bidprice = 0;
                                 stg_obj.live_buyorder_id = "";
                                 stg_obj.live_askprice = 0;
@@ -855,8 +853,8 @@ namespace Crypto_Trading
                                 {
 
                                 }
-                                stg_obj.maker.baseBalance.inuse = 0;
-                                stg_obj.maker.quoteBalance.inuse = 0;
+                                stg_obj.maker.resetInusePosition();
+                                stg_obj.taker.resetInusePosition();
                                 stg_obj.live_bidprice = 0;
                                 stg_obj.live_buyorder_id = "";
                                 stg_obj.live_askprice = 0;

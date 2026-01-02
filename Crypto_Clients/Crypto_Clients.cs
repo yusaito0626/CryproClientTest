@@ -486,7 +486,7 @@ namespace Crypto_Clients
                             JsonElement notice = data.GetProperty("notice");
                             JsonElement payable = data.GetProperty("payables");
                             JsonElement positions = data.GetProperty("positions");
-                            if (notice.GetProperty("what").GetString != null)
+                            if (notice.GetProperty("what").GetString() != null)
                             {
                                 addLog("Received a margin message. Please check details", logType.WARNING);
                                 addLog(notice.ToString(), logType.WARNING);

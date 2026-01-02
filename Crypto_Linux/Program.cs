@@ -424,7 +424,8 @@ namespace Crypto_Linux
                     msg += "<Fill> All count:" + stg.maker.cum_AllFill.ToString("N0") + "  Latent Feed:" + stg.maker.cum_LatentFill.ToString("N0") + "\n";
 
                     //stg.netExposure = stg.maker.baseBalance.total + stg.taker.baseBalance.total - stg.baseCcyQuantity;
-                    stg.netExposure = stg.maker.net_pos + stg.taker.baseBalance.total;
+                    //stg.netExposure = stg.maker.net_pos + stg.taker.baseBalance.total;
+                    stg.netExposure = stg.maker.net_pos + stg.taker.net_pos;
                     stg.notionalVolume = stg.maker.my_buy_notional + stg.maker.my_sell_notional;
                     stg.posPnL = stg.SoD_baseCcyPos * (stg.taker.mid - stg.taker.open_mid);
                     stg.tradingPnL = (stg.taker.my_sell_notional - stg.taker.my_sell_quantity * stg.taker.mid) + (stg.taker.my_buy_quantity * stg.taker.mid - stg.taker.my_buy_notional);
@@ -996,13 +997,6 @@ namespace Crypto_Linux
                             ins.SoD_shortPosition.copy(ins.shortPosition);
                             ins.open_mid = mid;
                         }
-                        //foreach(var stg in strategies.Values)
-                        //{
-                        //    stg.maker.shortPosition.avg_price = stg.taker.open_mid;
-                        //    stg.maker.longPosition.avg_price = stg.taker.open_mid;
-                        //    stg.maker.SoD_shortPosition.avg_price = stg.taker.open_mid;
-                        //    stg.maker.SoD_longPosition.avg_price = stg.taker.open_mid;
-                        //}
                     }
                 }
                 else
@@ -1252,7 +1246,8 @@ namespace Crypto_Linux
                         stg.SoD_baseCcyPos = stg.maker.SoD_baseBalance.total + stg.maker.SoD_longPosition.total - stg.maker.SoD_shortPosition.total + stg.taker.SoD_baseBalance.total;
                         addLog("SoD Balance strategy " + stg.name + "  Balance:" + stg.SoD_baseCcyPos.ToString());
                         //decimal baseBalance_diff = stg.baseCcyQuantity - (stg.maker.baseBalance.total + stg.taker.baseBalance.total);
-                        decimal baseBalance_diff = - (stg.maker.net_pos + stg.taker.baseBalance.total);
+                        //decimal baseBalance_diff = - (stg.maker.net_pos + stg.taker.baseBalance.total);
+                        decimal baseBalance_diff = -(stg.maker.net_pos + stg.taker.net_pos);
                         //stg.SoD_baseCcyPos = - baseBalance_diff;
                         orderSide side = orderSide.Buy;
                         if (baseBalance_diff < 0)
@@ -1262,7 +1257,7 @@ namespace Crypto_Linux
                         }
                         baseBalance_diff = Math.Round(baseBalance_diff / stg.taker.quantity_unit) * stg.taker.quantity_unit;
                         stg.lastPosAdjustment = DateTime.UtcNow;
-                        addLog("The current balance of " + stg.name + " BaseCcy:" + (stg.maker.net_pos + stg.taker.baseBalance.total).ToString() + " QuoteCcy:" + (stg.maker.quoteBalance.total + stg.taker.quoteBalance.total).ToString());
+                        addLog("The current balance of " + stg.name + " BaseCcy:" + (stg.maker.net_pos + stg.taker.net_pos).ToString() + " QuoteCcy:" + (stg.maker.quoteBalance.total + stg.taker.quoteBalance.total).ToString());
                         addLog("Adjustment at the start: " + side.ToString() + " " + baseBalance_diff.ToString());
                         if(baseBalance_diff > 0)
                         {
@@ -1423,7 +1418,7 @@ namespace Crypto_Linux
                     foreach(var stg in strategies.Values)
                     {
                         //decimal baseBalance_diff = stg.baseCcyQuantity - (stg.maker.baseBalance.total + stg.taker.baseBalance.total);
-                        decimal baseBalance_diff = -(stg.maker.net_pos + stg.taker.baseBalance.total);
+                        decimal baseBalance_diff = -(stg.maker.net_pos + stg.taker.net_pos);
                         orderSide side = orderSide.Buy;
                         if(baseBalance_diff < 0)
                         {
@@ -1431,7 +1426,7 @@ namespace Crypto_Linux
                             side = orderSide.Sell;
                         }
                         baseBalance_diff = Math.Round(baseBalance_diff / stg.taker.quantity_unit) * stg.taker.quantity_unit;
-                        addLog("EoD balance of " + stg.name + " BaseCcy:" + (stg.maker.net_pos + stg.taker.baseBalance.total).ToString() + " QuoteCcy:" + (stg.maker.quoteBalance.total + stg.taker.quoteBalance.total).ToString());
+                        addLog("EoD balance of " + stg.name + " BaseCcy:" + (stg.maker.net_pos + stg.taker.net_pos).ToString() + " QuoteCcy:" + (stg.maker.quoteBalance.total + stg.taker.quoteBalance.total).ToString());
                         if(baseBalance_diff >= stg.taker.quantity_unit)
                         {
                             addLog("Adjustment at EoD: " + side.ToString() + " " + baseBalance_diff.ToString());
@@ -1501,24 +1496,17 @@ namespace Crypto_Linux
                             decimal sell_avgprice = stg.maker.my_sell_quantity > 0 ? stg.maker.my_sell_notional / stg.maker.my_sell_quantity : 0;
                             decimal buy_avgprice = stg.maker.my_buy_quantity > 0 ? stg.maker.my_buy_notional / stg.maker.my_buy_quantity : 0;
 
-                            //decimal totalPnL = (baseBalance_open - stg.baseCcyQuantity) * (stg.taker.mid - stg.taker.open_mid)
-                            //    + (stg.taker.my_sell_notional - stg.taker.my_sell_quantity * stg.taker.mid) + (stg.taker.my_buy_quantity * stg.taker.mid - stg.taker.my_buy_notional)
-                            //    + (stg.maker.my_sell_notional - stg.maker.my_sell_quantity * stg.taker.mid) + (stg.maker.my_buy_quantity * stg.taker.mid - stg.maker.my_buy_notional)
-                            //    - (stg.taker.base_fee * stg.taker.mid + stg.taker.quote_fee + stg.maker.base_fee * stg.taker.mid + stg.maker.quote_fee);
                             decimal totalPnL = (stg.maker.SoD_baseBalance.total + stg.maker.SoD_longPosition.total - stg.maker.SoD_shortPosition.total + stg.taker.SoD_baseBalance.total) * (stg.taker.mid - stg.taker.open_mid)
                                 + (stg.taker.my_sell_notional - stg.taker.my_sell_quantity * stg.taker.mid) + (stg.taker.my_buy_quantity * stg.taker.mid - stg.taker.my_buy_notional)
                                 + (stg.maker.my_sell_notional - stg.maker.my_sell_quantity * stg.taker.mid) + (stg.maker.my_buy_quantity * stg.taker.mid - stg.maker.my_buy_notional)
                                 - (stg.taker.base_fee * stg.taker.mid + stg.taker.quote_fee + stg.maker.base_fee * stg.taker.mid + stg.maker.quote_fee);
-                            //decimal pos_diff = baseBalance_close * stg.taker.mid - baseBalance_open * stg.taker.open_mid - stg.baseCcyQuantity * (stg.taker.mid - stg.taker.open_mid)
-                            //    + quoteBalance_close - quoteBalance_open;
+
                             decimal interest = stg.taker.realized_Interest + stg.maker.realized_Interest
                                                 + stg.taker.shortPosition.unrealized_interest - stg.taker.SoD_shortPosition.unrealized_interest
                                                 + stg.taker.longPosition.unrealized_interest - stg.taker.SoD_longPosition.unrealized_interest
                                                 + stg.maker.shortPosition.unrealized_interest - stg.maker.SoD_shortPosition.unrealized_interest
                                                 + stg.maker.longPosition.unrealized_interest - stg.maker.SoD_longPosition.unrealized_interest;
                             decimal pos_diff = (stg.maker.baseBalance.total + stg.taker.baseBalance.total) * stg.taker.mid - (stg.maker.SoD_baseBalance.total + stg.taker.SoD_baseBalance.total) * stg.taker.open_mid + quoteBalance_close - quoteBalance_open;
-                            //decimal pos_diff = stg.maker.shortPosition.total * (stg.maker.shortPosition.avg_price - stg.taker.mid)
-                            //                + stg.;
 
 
                             decimal unrealized_pnl = stg.maker.longPosition.total * (stg.taker.mid - stg.maker.longPosition.avg_price) + stg.maker.shortPosition.total * (stg.maker.shortPosition.avg_price - stg.taker.mid)
@@ -1532,6 +1520,7 @@ namespace Crypto_Linux
                                                 + stg.maker.shortPosition.unrealized_interest - stg.maker.SoD_shortPosition.unrealized_interest
                                                 + stg.maker.longPosition.unrealized_interest - stg.maker.SoD_longPosition.unrealized_interest;
                             decimal unrealized_diff = unrealized_pnl - unrealized_sod - unrealized_fee - unrealized_interest;
+
                             decimal BBookPnL = (sell_avgprice - stg.maker.mid) * stg.maker.my_sell_quantity + (stg.maker.mid - buy_avgprice) * stg.maker.my_buy_quantity;
 
                             string line = today + "," + stg.name + "," + baseBalance_open.ToString() + "," + quoteBalance_open.ToString() + ","
@@ -1554,8 +1543,8 @@ namespace Crypto_Linux
                     
                     addLog("Exporting SoD position file...");
                     string SoDPosFile = newpath + "/SoD_Position.csv";
-                    //qManager.setBalance(await crypto_client.getBalance(qManager._markets.Keys));
-                    //qManager.setMarginPosition(await crypto_client.getMarginPos(qManager._markets.Keys));
+                    qManager.setBalance(await crypto_client.getBalance(qManager._markets.Keys));
+                    qManager.setMarginPosition(await crypto_client.getMarginPos(qManager._markets.Keys));
 
                     //StreamWriter sw = new StreamWriter(new FileStream(SoDPosFile, FileMode.Create, FileAccess.Write));
                     using (StreamWriter sod = new StreamWriter(new FileStream(SoDPosFile, FileMode.Create, FileAccess.Write)))
@@ -1570,13 +1559,6 @@ namespace Crypto_Linux
                                     + "," + ins.longPosition.total.ToString() + "," + ins.longPosition.avg_price.ToString() + "," + ins.longPosition.unrealized_fee.ToString() + "," + ins.longPosition.unrealized_interest.ToString()
                                     + "," + ins.shortPosition.total.ToString() + "," + ins.shortPosition.avg_price.ToString() + "," + ins.shortPosition.unrealized_fee.ToString() + "," + ins.shortPosition.unrealized_interest.ToString() + "," + ins.mid.ToString();
 
-                            //ins.SoD_baseBalance.total = ins.baseBalance.total;
-                            //ins.SoD_baseBalance.ccy = ins.baseBalance.ccy;
-                            //ins.SoD_baseBalance.market = ins.baseBalance.market;
-                            //ins.SoD_quoteBalance.total = ins.quoteBalance.total;
-                            //ins.SoD_quoteBalance.ccy = ins.quoteBalance.ccy;
-                            //ins.SoD_quoteBalance.market = ins.quoteBalance.market;
-                            //ins.open_mid = mid;
                             sod.WriteLine(line);
                             sod.Flush();
                         }
@@ -1740,8 +1722,8 @@ namespace Crypto_Linux
                             });
                             foreach (var stg_obj in qManager.strategies.Values)
                             {
-                                stg_obj.maker.baseBalance.inuse = 0;
-                                stg_obj.maker.quoteBalance.inuse = 0;
+                                stg_obj.maker.resetInusePosition();
+                                stg_obj.taker.resetInusePosition();
                                 stg_obj.live_bidprice = 0;
                                 stg_obj.live_buyorder_id = "";
                                 stg_obj.live_askprice = 0;
@@ -1793,8 +1775,8 @@ namespace Crypto_Linux
                             });
                             foreach (var stg_obj in qManager.strategies.Values)
                             {
-                                stg_obj.maker.baseBalance.inuse = 0;
-                                stg_obj.maker.quoteBalance.inuse = 0;
+                                stg_obj.maker.resetInusePosition();
+                                stg_obj.taker.resetInusePosition();
                                 stg_obj.live_bidprice = 0;
                                 stg_obj.live_buyorder_id = "";
                                 stg_obj.live_askprice = 0;
@@ -1907,7 +1889,7 @@ namespace Crypto_Linux
                 stginfo.liquidity_ask = stg.taker.adjusted_bestbid.Item1;
 
                 //stg.netExposure = stg.maker.baseBalance.total + stg.taker.baseBalance.total - stg.baseCcyQuantity;
-                stg.netExposure = stg.maker.net_pos + stg.taker.baseBalance.total;
+                stg.netExposure = stg.maker.net_pos + stg.taker.net_pos;
                 stg.notionalVolume = stg.maker.my_buy_notional + stg.maker.my_sell_notional;
                 stg.posPnL = stg.SoD_baseCcyPos * (stg.taker.mid - stg.taker.open_mid);
                 stg.tradingPnL = (stg.taker.my_sell_notional - stg.taker.my_sell_quantity * stg.taker.mid) + (stg.taker.my_buy_quantity * stg.taker.mid - stg.taker.my_buy_notional);

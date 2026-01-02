@@ -38,9 +38,6 @@ namespace Crypto_Trading
         public decimal rv_penalty_multiplier = 1;
         public double rv_base_param;
 
-        //public decimal const_markup;
-        //public decimal rv_penalty_multiplier;
-
         public decimal intervalAfterFill;
         public decimal modThreshold;
         public decimal config_modThreshold;
@@ -51,8 +48,12 @@ namespace Crypto_Trading
         public decimal skewThreshold;
         public decimal oneSideThreshold;
         public decimal skewWidening;
-        //public decimal markupAdjustment;
         public decimal max_baseMarkup = 2000;
+
+        public bool maker_margin_trade = true;
+        //public bool taker_margin_trade = false;
+        public decimal max_maker_levarage = 2;
+        //public decimal max_taker_levarage = 2;
 
         public TimeSpan onTrade_timeBuf = TimeSpan.FromMilliseconds(100);
 
@@ -915,6 +916,10 @@ namespace Crypto_Trading
                 {
                     bid_price = 0;
                 }
+                if((this.maker.shortPosition.total + ordersize_ask) * ask_price > this.maker.quoteBalance.total * max_maker_levarage)
+                {
+                    ask_price = 0;
+                }
 
                 await this.checkLiveOrders();
 
@@ -1322,23 +1327,20 @@ namespace Crypto_Trading
                         ask_price = 0;
                     }
 
-                    //if (this.maker.baseBalance.total - this.maker.baseBalance.inuse < temp_ordersize_ask + cumAskSize)
-                    //{
-                    //    ask_price = 0;
-                    //}
-                    //if (this.maker.quoteBalance.total - this.maker.quoteBalance.inuse < temp_ordersize_bid * bid_price + cumBidAmount)
-                    //{
-                    //    bid_price = 0;
-                    //}
                     if (this.maker.shortPosition.total - this.maker.shortPosition.inuse < temp_ordersize_bid + cumBidSize)
                     {
                         bid_price = 0;
                     }
 
+                    if (this.maker.shortPosition.total * ask_price + temp_ordersize_ask * ask_price + cumAskAmount > this.maker.quoteBalance.total * max_maker_levarage)
+                    {
+                        ask_price = 0;
+                    }
+
                     cumAskSize += temp_ordersize_ask;
                     cumBidSize += temp_ordersize_bid;
-                    cumAskAmount += temp_ordersize_ask * temp_ordersize_ask;
-                    cumBidAmount += temp_ordersize_bid * temp_ordersize_bid;
+                    cumAskAmount += temp_ordersize_ask * ask_price;
+                    cumBidAmount += temp_ordersize_bid * bid_price;
 
                     if (bid_price < 0)
                     {
@@ -1680,7 +1682,7 @@ namespace Crypto_Trading
         public async Task adjustPosition()
         {
             //decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity;
-            decimal diff_amount = this.maker.net_pos + this.taker.baseBalance.total;
+            decimal diff_amount = this.maker.net_pos + this.taker.net_pos;
             addLog("Strategy[" + this.name + "] Adjusting the position diff_amount:" + diff_amount.ToString("N" + this.taker.quantity_scale));
             orderSide side = orderSide.Sell;
             if(diff_amount < 0)
@@ -1873,7 +1875,7 @@ namespace Crypto_Trading
                                     }
                                     this.live_sellorder_id = "";
                                     //decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity;
-                                    decimal diff_amount = this.maker.net_pos + this.taker.baseBalance.total;
+                                    decimal diff_amount = this.maker.net_pos + this.taker.net_pos;
                                     if (DateTime.UtcNow - this.lastPosAdjustment > TimeSpan.FromSeconds(10))
                                     {
                                         this.lastPosAdjustment = DateTime.UtcNow;
@@ -1927,7 +1929,7 @@ namespace Crypto_Trading
                                     }
                                     this.live_buyorder_id = "";
                                     //decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity;
-                                    decimal diff_amount = this.maker.net_pos + this.taker.baseBalance.total;
+                                    decimal diff_amount = this.maker.net_pos + this.taker.net_pos;
                                     if (DateTime.UtcNow - this.lastPosAdjustment > TimeSpan.FromSeconds(10))
                                     {
                                         this.lastPosAdjustment = DateTime.UtcNow;
@@ -2010,7 +2012,7 @@ namespace Crypto_Trading
                                                 this.stg_orders_dict[ord_id] = 0;
                                             }
                                             //decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity;
-                                            decimal diff_amount = this.maker.net_pos + this.taker.baseBalance.total;
+                                            decimal diff_amount = this.maker.net_pos + this.taker.net_pos;
                                             if (DateTime.UtcNow - this.lastPosAdjustment > TimeSpan.FromSeconds(10))
                                             {
                                                 this.lastPosAdjustment = DateTime.UtcNow;
@@ -2068,7 +2070,7 @@ namespace Crypto_Trading
                                                 this.stg_orders_dict[ord_id] = 0;
                                             }
                                             //decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity;
-                                            decimal diff_amount = this.maker.net_pos + this.taker.baseBalance.total;
+                                            decimal diff_amount = this.maker.net_pos + this.taker.net_pos;
                                             if (DateTime.UtcNow - this.lastPosAdjustment > TimeSpan.FromSeconds(10))
                                             {
                                                 this.lastPosAdjustment = DateTime.UtcNow;
@@ -2118,7 +2120,7 @@ namespace Crypto_Trading
                     return;
                 }
                 //decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity;
-                decimal diff_amount = this.maker.net_pos + this.taker.baseBalance.total;
+                decimal diff_amount = this.maker.net_pos + this.taker.net_pos;
                 while (Interlocked.CompareExchange(ref this.updating,3,0) != 0)
                 {
 
@@ -2244,7 +2246,7 @@ namespace Crypto_Trading
                     }
                 }
                 //decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity;
-                decimal diff_amount = this.maker.net_pos + this.taker.baseBalance.total;
+                decimal diff_amount = this.maker.net_pos + this.taker.net_pos;
                 using (funcContainer f = new funcContainer(this.obtainUpdating))
                 {
                     string ord_id;
@@ -2383,7 +2385,7 @@ namespace Crypto_Trading
                         }
                     }
                     //decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity;
-                    decimal diff_amount = this.maker.net_pos + this.taker.baseBalance.total;
+                    decimal diff_amount = this.maker.net_pos + this.taker.net_pos;
 
                     if (!this.oManager.ready)
                     {
@@ -2502,7 +2504,7 @@ namespace Crypto_Trading
                     return;
                 }
                 //decimal diff_amount = this.maker.baseBalance.total + this.taker.baseBalance.total - this.baseCcyQuantity;
-                decimal diff_amount = this.maker.net_pos + this.taker.baseBalance.total;
+                decimal diff_amount = this.maker.net_pos + this.taker.net_pos;
                 decimal filled_quantity = fill.quantity;
                 //if (filled_quantity > this.ToBsize * 2)
                 //{
@@ -2522,8 +2524,6 @@ namespace Crypto_Trading
                     {
                         return;
                     }
-                    //this.addLog("Unknown order order:" + fill.ToString());
-                    //return;
                 }
 
                 if (this.predictFill)

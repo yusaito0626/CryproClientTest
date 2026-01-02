@@ -431,6 +431,7 @@ namespace Utils
             {
                 this.side = orderSide.NONE;
             }
+            this.position_side = positionSide.NONE;
 
             this.quantity = temp_qt;
             this.quantity += this.fee_base;
@@ -503,7 +504,7 @@ namespace Utils
             JsonElement js_interest;
             if (js.TryGetProperty("interest", out js_interest) && js_interest.GetString() != null)
             {
-                this.profit_loss = decimal.Parse(js_interest.GetString());
+                this.interest = decimal.Parse(js_interest.GetString());
             }
             //this.profit_loss = decimal.Parse(js.GetProperty("profit_loss").GetString());
             //this.interest = decimal.Parse(js.GetProperty("interest").GetString());
@@ -598,6 +599,7 @@ namespace Utils
             this.internal_order_id = "";
             this.price = 0;
             this.side = orderSide.NONE;
+            this.position_side = positionSide.NONE;
             this.trade_id = "";
             this.order_type = orderType.NONE;
             this.profit_loss = 0;

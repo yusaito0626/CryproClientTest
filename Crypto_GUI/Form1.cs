@@ -1517,6 +1517,10 @@ namespace Crypto_GUI
                 this.lbl_quoteCcyTotal.Text = this.selected_ins.quoteBalance.total.ToString("N2");
                 this.lbl_baseCcyInuse.Text = this.selected_ins.baseBalance.inuse.ToString("N" + this.selected_ins.quantity_scale);
                 this.lbl_quoteCcyInuse.Text = this.selected_ins.quoteBalance.inuse.ToString("N2");
+                this.lbl_ShortTotal.Text = this.selected_ins.shortPosition.total.ToString("N" + this.selected_ins.quantity_scale);
+                this.lbl_ShortInuse.Text = this.selected_ins.shortPosition.inuse.ToString("N" + this.selected_ins.quantity_scale);
+                this.lbl_LongTotal.Text = this.selected_ins.longPosition.total.ToString("N" + this.selected_ins.quantity_scale);
+                this.lbl_LongInuse.Text = this.selected_ins.longPosition.inuse.ToString("N" + this.selected_ins.quantity_scale);
                 this.lbl_sellQuantity.Text = this.selected_ins.my_sell_quantity.ToString("N" + this.selected_ins.quantity_scale);
                 this.lbl_buyQuantity.Text = this.selected_ins.my_buy_quantity.ToString("N" + this.selected_ins.quantity_scale);
                 this.lbl_sellNotional.Text = this.selected_ins.my_sell_notional.ToString("N2");
@@ -1628,7 +1632,8 @@ namespace Crypto_GUI
                 if (this.selected_stg.taker != null)
                 {
                     this.lbl_takerName.Text = this.selected_stg.taker.symbol_market;
-                    this.lbl_baseCcy_taker.Text = this.selected_stg.taker.baseBalance.total.ToString("N5");
+                    //this.lbl_baseCcy_taker.Text = this.selected_stg.taker.baseBalance.total.ToString("N5");
+                    this.lbl_baseCcy_taker.Text = this.selected_stg.taker.net_pos.ToString("N5");
                     this.lbl_quoteCcy_taker.Text = this.selected_stg.taker.quoteBalance.total.ToString("N2");
                     this.lbl_makerfee_taker.Text = this.selected_stg.taker.maker_fee.ToString("N5");
                     this.lbl_takerfee_taker.Text = this.selected_stg.taker.taker_fee.ToString("N5");

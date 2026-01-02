@@ -3,6 +3,7 @@ using Coinbase.Net.Objects.Models;
 using Crypto_Clients;
 using CryptoClients.Net;
 using CryptoClients.Net.Enums;
+using CryptoExchange.Net;
 using CryptoExchange.Net.Objects;
 using CryptoExchange.Net.Objects.Sockets;
 using CryptoExchange.Net.Requests;
@@ -581,6 +582,30 @@ namespace Crypto_Trading
                     else if (str_side == "sell")
                     {
                         output.side = orderSide.Sell;
+                    }
+                    JsonElement js_posside;
+                    if(ord_obj.TryGetProperty("position_side",out js_posside))
+                    {
+                        string? pos_side = js_posside.GetString();
+                        if(pos_side != null)
+                        {
+                            if(pos_side.ToLower() == "long")
+                            {
+                                output.position_side = positionSide.Long;
+                            }
+                            else if(pos_side.ToLower() == "short")
+                            {
+                                output.position_side = positionSide.Short;
+                            }
+                            else
+                            {
+                                output.position_side = positionSide.NONE;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        output.position_side = positionSide.NONE;
                     }
                     string str_type = ord_obj.GetProperty("type").GetString();
                     switch (str_type)
@@ -1985,7 +2010,7 @@ namespace Crypto_Trading
                             stg.Value.lastPosAdjustment = DateTime.UtcNow;
                             Thread.Sleep(1000);
                             //decimal diff_amount = stg.Value.maker.baseBalance.total + stg.Value.taker.baseBalance.total - stg.Value.baseCcyQuantity;
-                            decimal diff_amount = stg.Value.maker.net_pos+ stg.Value.taker.baseBalance.total;
+                            decimal diff_amount = stg.Value.maker.net_pos+ stg.Value.taker.net_pos;
                             orderSide side = orderSide.Sell;
                             if (diff_amount < 0)
                             {
