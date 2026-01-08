@@ -1,19 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
-using CryptoClients.Net;
+﻿using CryptoClients.Net;
 using CryptoClients.Net.Enums;
 using CryptoExchange.Net.Objects;
 using CryptoExchange.Net.Objects.Sockets;
 using CryptoExchange.Net.Requests;
 using CryptoExchange.Net.SharedApis;
-
 using Enums;
-
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
+using System.Globalization;
 
 namespace Utils
 {
@@ -198,6 +198,24 @@ namespace Utils
             {
                 this.bids[update.Data.Bids[i].Price] = update.Data.Bids[i].Quantity;
                 ++i;
+            }
+        }
+        public void setGMOCoinOrderBook(JsonDocument js)
+        {
+            this.timestamp = DateTime.UtcNow;
+            this.market = "gmocoin";
+            this.symbol = js.RootElement.GetProperty("symbol").GetString();
+            this.updateType = SocketUpdateType.Update;
+            this.orderbookTime = DateTime.ParseExact(js.RootElement.GetProperty("timestamp").GetString(), "yyyy-MM-dd'T'HH:mm:ss.fff'Z'",CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+            var data = js.RootElement.GetProperty("asks").EnumerateArray();
+            foreach (var item in data)
+            {
+                this.asks[decimal.Parse(item.GetProperty("price").GetString())] = decimal.Parse(item.GetProperty("size").GetString());
+            }
+            data = js.RootElement.GetProperty("bids").EnumerateArray();
+            foreach (var item in data)
+            {
+                this.bids[decimal.Parse(item.GetProperty("price").GetString())] = decimal.Parse(item.GetProperty("size").GetString());
             }
         }
 
@@ -1443,6 +1461,24 @@ namespace Utils
             }
             this.price = decimal.Parse(js.GetProperty("price").GetString());
             this.quantity = decimal.Parse(js.GetProperty("amount").GetString());
+        }
+        public void setGMOCoinTrade(JsonDocument js)
+        {
+            this.market = "gmocoin";
+            this.symbol = js.RootElement.GetProperty("symbol").GetString();
+            this.timestamp = DateTime.UtcNow;
+            this.filled_time = DateTime.ParseExact(js.RootElement.GetProperty("timestamp").GetString(), "yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+            string str_side = js.RootElement.GetProperty("side").GetString();
+            if (str_side == "BUY")
+            {
+                this.side = orderSide.Buy;
+            }
+            else if (str_side == "SELL")
+            {
+                this.side = orderSide.Sell;
+            }
+            this.price = decimal.Parse(js.RootElement.GetProperty("price").GetString());
+            this.quantity = decimal.Parse(js.RootElement.GetProperty("size").GetString());
         }
         public void setBitTradeTrade(JsonElement js, string symbol)
         {

@@ -528,40 +528,6 @@ namespace Crypto_Linux
 
         static private async Task testFunc()
         {
-            //JsonDocument js = await crypto_client.bitbank_client.getMarginStatus();
-            //Console.WriteLine(js.RootElement.ToString());
-            //js = await crypto_client.bitbank_client.getMarginPosition();
-            //Console.WriteLine(js.RootElement.ToString());
-
-            DataMarginPos[] marpos = await crypto_client.getMarginPos(["bitbank"]);
-            foreach(DataMarginPos pos in marpos)
-            {
-                Console.WriteLine(pos.ToString()); 
-            }
-
-            //Console.WriteLine("Testing getWeightedAvgPrice...");
-            //Thread.Sleep(3000);
-            //Instrument ins = qManager.instruments["btc_jpy@coincheck"];
-            //List<decimal> quantities = [(decimal)0.01, (decimal)0.03, (decimal)0.05, (decimal)0.1];
-            //List<decimal> prices = new List<decimal>();
-
-            //while(Interlocked.CompareExchange(ref ins.quotes_lock,1,0) != 0)
-            //{
-
-            //}
-
-            //ins.getWeightedAvgPrice(orderSide.Buy,quantities,prices);
-            //foreach(decimal price in prices)
-            //{
-            //    Console.WriteLine($"Bid Price: {price}");
-            //}
-            //ins.getWeightedAvgPrice(orderSide.Sell, quantities, prices);
-            //foreach (decimal price in prices)
-            //{
-            //    Console.WriteLine($"Ask Price: {price}");
-            //}
-            //Volatile.Write(ref ins.quotes_lock, 0);
-
             Console.WriteLine("Completed");
 
             await EoDProcess();
@@ -1614,6 +1580,9 @@ namespace Crypto_Linux
                 {
                     case "bitbank":
                         status.avgRTT = crypto_client.bitbank_client.avgLatency() / 1000;
+                        break;
+                    case "gmocoin":
+                        status.avgRTT = crypto_client.gmocoin_client.avgLatency() / 1000;
                         break;
                     case "coincheck":
                         status.avgRTT = crypto_client.coincheck_client.avgLatency() / 1000;

@@ -199,6 +199,9 @@ namespace Crypto_Trading
                     case "bitbank":
                         this.ord_client.bitbank_client.refreshHttpClient();
                         break;
+                    case "gmocoin":
+                        this.ord_client.gmocoin_client.refreshHttpClient();
+                        break;
                     case "coincheck":
                         this.ord_client.coincheck_client.refreshHttpClient();
                         break;

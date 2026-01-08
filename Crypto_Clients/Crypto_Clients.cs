@@ -15,6 +15,7 @@ using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.Design;
 using System.Diagnostics;
+using System.Diagnostics.Contracts;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
@@ -39,6 +40,7 @@ namespace Crypto_Clients
         public bitbank_connection bitbank_client;
         public coincheck_connection coincheck_client;
         public bittrade_connection bittrade_client;
+        public gmocoin_connection gmocoin_client;
 
         CryptoClients.Net.Models.ExchangeCredentials creds;
 
@@ -70,6 +72,7 @@ namespace Crypto_Clients
             this.bitbank_client = bitbank_connection.GetInstance();
             this.coincheck_client = coincheck_connection.GetInstance();
             this.bittrade_client = bittrade_connection.GetInstance();
+            this.gmocoin_client = gmocoin_connection.GetInstance();
 
             this.creds = new CryptoClients.Net.Models.ExchangeCredentials();
 
@@ -163,6 +166,10 @@ namespace Crypto_Clients
                     this.bitbank_client.setLogFile(outputPath);
                     ret = this.bitbank_client.msgLogging;
                     break;
+                case "gmocoin":
+                    this.gmocoin_client.setLogFile(outputPath);
+                    ret = this.gmocoin_client.msgLogging;
+                    break;
                 case "coincheck":
                     this.coincheck_client.setLogFile(outputPath);
                     ret = this.coincheck_client.msgLogging;
@@ -184,6 +191,7 @@ namespace Crypto_Clients
             this.bitbank_client._addLog = act;
             this.coincheck_client._addLog = act;
             this.bittrade_client._addLog = act;
+            this.gmocoin_client._addLog = act;
         }
 
         //public async Task connectAsync(IEnumerable<string> markets)
@@ -267,6 +275,9 @@ namespace Crypto_Clients
                     break;
                 case "bittrade":
                     this.bittrade_client.SetApiCredentials(name, key);
+                    break;
+                case "gmocoin":
+                    this.gmocoin_client.SetApiCredentials(name, key);
                     break;
             }
             this._rest_client.SetApiCredentials(this.creds);
@@ -1080,10 +1091,6 @@ namespace Crypto_Clients
             DataSpotOrderUpdate obj;
             foreach (var ord in update.Data)
             {
-                //while (!this.ordUpdateStack.TryPop(out obj))
-                //{
-
-                //}
                 obj = this.ordUpdateStack.pop();
                 if (obj== null)
                 {
@@ -1093,32 +1100,6 @@ namespace Crypto_Clients
                 this.ordUpdateQueue.Enqueue(obj);
             }
         }
-
-        //public async Task<bool> onBitbankOrderUpdates()
-        //{
-        //    JsonElement js;
-        //    DataSpotOrderUpdate ord;
-        //    DataFill fill;
-        //    if (this.bitbank_client.orderQueue.TryDequeue(out js))
-        //    {
-        //        while (!this.ordUpdateStack.TryPop(out ord))
-        //        {
-
-        //        }
-        //        ord.setBitbankSpotOrder(js);
-        //        this.ordUpdateQueue.Enqueue(ord);
-        //    }
-        //    else if (this.bitbank_client.fillQueue.TryDequeue(out js))
-        //    {
-        //        while (!this.fillStack.TryPop(out fill))
-        //        {
-
-        //        }
-        //        fill.setBitBankFill(js);
-        //        this.fillQueue.Enqueue(fill);
-        //    }
-        //    return true;
-        //}
 
         async public Task subscribeTrades(IEnumerable<string>? markets, string baseCcy, string quoteCcy)
         {
@@ -1138,6 +1119,10 @@ namespace Crypto_Clients
                     case "bittrade":
                         await this.bittrade_client.subscribeTrades(baseCcy, quoteCcy);
                         break;
+                    case "gmocoin":
+                        await this.gmocoin_client.subscribeTrades(baseCcy, quoteCcy);
+                        Thread.Sleep(1000);//GMO Coin doesn't allow more than 1 request per a second.
+                        break;
                     default:
                         var subResult = await this._client.SubscribeToTradeUpdatesAsync(m, new SubscribeTradeRequest(symbol), LogTrades);
                         this.addLog($"{subResult.Exchange} subscribe trades result: {subResult.Success} {subResult.Error}");
@@ -1151,10 +1136,6 @@ namespace Crypto_Clients
             DataTrade trd;
             foreach (var item in update.Data)
             {
-                //while (!this.tradeStack.TryPop(out trd))
-                //{
-
-                //}
                 trd = this.tradeStack.pop();
                 if (trd == null)
                 {
@@ -1179,10 +1160,6 @@ namespace Crypto_Clients
                         string coincheck_symbol = baseCcy.ToLower() + "_" + quoteCcy.ToLower();
                         var js = await this.coincheck_client.getOrderBooks(coincheck_symbol);
                         DataOrderBook ord;
-                        //while(!this.ordBookStack.TryPop(out ord))
-                        //{
-
-                        //}
                         ord = this.ordBookStack.pop();
                         if (ord == null)
                         {
@@ -1194,6 +1171,10 @@ namespace Crypto_Clients
                         break;
                     case "bittrade":
                         await this.bittrade_client.subscribeOrderBook(baseCcy, quoteCcy);
+                        break;
+                    case "gmocoin":
+                        await this.gmocoin_client.subscribeOrderBook(baseCcy,quoteCcy);
+                        Thread.Sleep(1000);//GMO Coin doesn't allow more than 1 request per a second.
                         break;
                     default:
                         var subResult = await this._client.SubscribeToOrderBookUpdatesAsync(m, req, LogOrderBook);
@@ -1260,6 +1241,46 @@ namespace Crypto_Clients
             this.ordBookQueue.Enqueue(msg);
         }
 
+        public void onGMOCoinMessage(string msg_body)
+        {
+            try
+            {
+                JsonDocument doc = JsonDocument.Parse(msg_body);
+                string channel = doc.RootElement.GetProperty("channel").GetString();
+                switch(channel)
+                {
+                    case "orderbooks":
+                        DataOrderBook ord;
+                        ord = this.ordBookStack.pop();
+                        if (ord == null)
+                        {
+                            ord = new DataOrderBook();
+                        }
+                        ord.setGMOCoinOrderBook(doc);
+                        this.ordBookQueue.Enqueue(ord);
+                        break;
+                    case "trades":
+                        DataTrade trd;
+                        //while (!this.tradeStack.TryPop(out trd))
+                        //{
+
+                        //}
+                        trd = this.tradeStack.pop();
+                        if (trd == null)
+                        {
+                            trd = new DataTrade();
+                        }
+                        trd.setGMOCoinTrade(doc);
+                        this.tradeQueue.Enqueue(trd);
+                        break;
+                }
+            }
+            catch (Exception e)
+            {
+                this.addLog(e.Message, Enums.logType.ERROR);
+                this.addLog(msg_body, Enums.logType.ERROR);
+            }
+        }
         public void onBitbankMessage(string msg_body)
         {
 

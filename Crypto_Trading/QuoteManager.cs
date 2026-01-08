@@ -120,6 +120,35 @@ namespace Crypto_Trading
                     thManager.addThread(market + "Public", this.crypto_client.bitbank_client.Listening,onClosing,this.crypto_client.bitbank_client.onListenOnError);
                     this._markets[market] = this.crypto_client.bitbank_client.GetSocketStatePublic();
                     break;
+                case "gmocoin":
+                    ret = await this.crypto_client.gmocoin_client.connectPublicAsync();
+                    while (!ret)
+                    {
+                        ++trials;
+                        if (trials < 5)
+                        {
+                            Thread.Sleep(trials * 3000);
+                            this.addLog("GMO Coin public connection failed. Trying again. trial:" + trials.ToString(), logType.WARNING);
+                            ret = await this.crypto_client.gmocoin_client.connectPublicAsync();
+                        }
+                        else
+                        {
+                            this.addLog("Failed to connect public. GMO Coin", logType.ERROR);
+                            break;
+                        }
+                    }
+                    if (!ret)
+                    {
+                        return false;
+                    }
+                    this.crypto_client.gmocoin_client.onMessage = this.crypto_client.onGMOCoinMessage;
+                    onClosing = async () =>
+                    {
+                        await this.crypto_client.gmocoin_client.onClosing(this.crypto_client.onGMOCoinMessage);
+                    };
+                    thManager.addThread(market + "Public", this.crypto_client.gmocoin_client.Listening, onClosing, this.crypto_client.gmocoin_client.onListenOnError);
+                    this._markets[market] = this.crypto_client.gmocoin_client.GetSocketStatePublic();
+                    break;
                 case "coincheck":
                     ret = await this.crypto_client.coincheck_client.connectPublicAsync();
                     while (!ret)
@@ -189,6 +218,9 @@ namespace Crypto_Trading
                 {
                     case "bitbank":
                         this._markets[market.Key] = this.crypto_client.bitbank_client.GetSocketStatePublic();
+                        break;
+                    case "gmocoin":
+                        this._markets[market.Key] = this.crypto_client.gmocoin_client.GetSocketStatePublic();
                         break;
                     case "coincheck":
                         this._markets[market.Key] = this.crypto_client.coincheck_client.GetSocketStatePublic();

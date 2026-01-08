@@ -344,6 +344,10 @@ namespace Crypto_Trading
                     this.bids.Add(0);
                     this.asks.Add(0);
                 }
+                if(this.layers > 1)
+                {
+                    this.multiLayer_strategy = true;
+                }
             }
             else
             {
@@ -1562,7 +1566,7 @@ namespace Crypto_Trading
                         {
                             if (this.bids[i] > 0 && this.ordersize_bid[i] > 0 && (newBuyOrder & (1 << i)) > 0)
                             {
-                                this.live_buyorders[i] = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, this.ordersize_bid[i], this.bids[i], positionSide.NONE, null, true, false);
+                                this.live_buyorders[i] = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, this.ordersize_bid[i], this.bids[i], positionSide.Short, null, true, false);
                                 this.current_bids[i] = this.bids[i];
                                 this.stg_orders.Add(this.live_buyorders[i]);
                                 this.stg_orders_dict[this.live_buyorder_id] = this.ordersize_bid[i];
@@ -1570,7 +1574,7 @@ namespace Crypto_Trading
                             }
                             if (this.asks[i] > 0 && this.ordersize_ask[i] > 0 && (newSellOrder & (1 << i)) > 0)
                             {
-                                this.live_sellorders[i] = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, this.ordersize_ask[i], this.asks[i], positionSide.NONE, null, true, false);
+                                this.live_sellorders[i] = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, this.ordersize_ask[i], this.asks[i], positionSide.Short, null, true, false);
                                 this.current_asks[i] = this.asks[i];
                                 this.stg_orders.Add(this.live_sellorders[i]);
                                 this.stg_orders_dict[this.live_buyorder_id] = this.ordersize_ask[i];
@@ -1584,7 +1588,7 @@ namespace Crypto_Trading
                         {
                             if (this.asks[i] > 0 && this.ordersize_ask[i] > 0 && (newSellOrder & (1 << i)) > 0)
                             {
-                                this.live_sellorders[i] = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, this.ordersize_ask[i], this.asks[i], positionSide.NONE, null, true, false);
+                                this.live_sellorders[i] = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Sell, orderType.Limit, this.ordersize_ask[i], this.asks[i], positionSide.Short, null, true, false);
                                 this.current_asks[i] = this.asks[i];
                                 this.stg_orders.Add(this.live_sellorders[i]);
                                 this.stg_orders_dict[this.live_buyorder_id] = this.ordersize_ask[i];
@@ -1592,7 +1596,7 @@ namespace Crypto_Trading
                             }
                             if (this.bids[i] > 0 && this.ordersize_bid[i] > 0 && (newBuyOrder & (1 << i)) > 0)
                             {
-                                this.live_buyorders[i] = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, this.ordersize_bid[i], this.bids[i], positionSide.NONE, null, true, false);
+                                this.live_buyorders[i] = await this.oManager.placeNewSpotOrder(this.maker, orderSide.Buy, orderType.Limit, this.ordersize_bid[i], this.bids[i], positionSide.Short, null, true, false);
                                 this.current_bids[i] = this.bids[i];
                                 this.stg_orders.Add(this.live_buyorders[i]);
                                 this.stg_orders_dict[this.live_buyorder_id] = this.ordersize_bid[i];
