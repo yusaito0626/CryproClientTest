@@ -383,6 +383,16 @@ namespace Crypto_Linux
             decimal feeAll = 0;
             decimal totalAll = 0;
             decimal prev_notionalAll = 0;
+
+            decimal feedCountQuoteAll = 0;
+            decimal feedCountQuoteLatent = 0;
+            decimal feedCountTradeAll = 0;
+            decimal feedCountTradeLatent = 0;
+            decimal feedCountOrderAll = 0;
+            decimal feedCountOrderLatent = 0;
+            decimal feedCountFillAll = 0;
+            decimal feedCountFillLatent = 0;
+
             string msg = "";
             bool sendingNotional = false;
             DateTime current = DateTime.UtcNow;
@@ -404,11 +414,11 @@ namespace Crypto_Linux
             {
                 if (stg.maker != null && stg.taker != null)
                 {
-                    msg += "Maker Latency:\n";
-                    msg += "<QuotesUpdate> All count:" + stg.maker.count_Allquotes.ToString("N0") + "  Latent Feed:" + stg.maker.count_Latentquotes.ToString("N0") + "\n";
-                    msg += "<Trades> All count:" + stg.maker.count_AllTrade.ToString("N0") + "  Latent Feed:" + stg.maker.count_LatentTrade.ToString("N0") + "\n";
-                    msg += "<OrderUpdate> All count:" + stg.maker.count_AllOrderUpdates.ToString("N0") + "  Latent Feed:" + stg.maker.count_LatentOrderUpdates.ToString("N0") + "\n";
-                    msg += "<Fill> All count:" + stg.maker.count_AllFill.ToString("N0") + "  Latent Feed:" + stg.maker.count_LatentFill.ToString("N0") + "\n";
+                    //msg += "Maker Latency:\n";
+                    //msg += "<QuotesUpdate> All count:" + stg.maker.count_Allquotes.ToString("N0") + "  Latent Feed:" + stg.maker.count_Latentquotes.ToString("N0") + "\n";
+                    //msg += "<Trades> All count:" + stg.maker.count_AllTrade.ToString("N0") + "  Latent Feed:" + stg.maker.count_LatentTrade.ToString("N0") + "\n";
+                    //msg += "<OrderUpdate> All count:" + stg.maker.count_AllOrderUpdates.ToString("N0") + "  Latent Feed:" + stg.maker.count_LatentOrderUpdates.ToString("N0") + "\n";
+                    //msg += "<Fill> All count:" + stg.maker.count_AllFill.ToString("N0") + "  Latent Feed:" + stg.maker.count_LatentFill.ToString("N0") + "\n";
                     stg.maker.count_Allquotes = 0;
                     stg.maker.count_Latentquotes = 0;
                     stg.maker.count_AllTrade = 0;
@@ -417,11 +427,19 @@ namespace Crypto_Linux
                     stg.maker.count_LatentOrderUpdates = 0;
                     stg.maker.count_AllFill = 0;
                     stg.maker.count_LatentFill = 0;
-                    msg += "Cumulative Count:\n";
-                    msg += "<QuotesUpdate> All count:" + stg.maker.cum_Allquotes.ToString("N0") + "  Latent Feed:" + stg.maker.cum_Latentquotes.ToString("N0") + "\n";
-                    msg += "<Trades> All count:" + stg.maker.cum_AllTrade.ToString("N0") + "  Latent Feed:" + stg.maker.cum_LatentTrade.ToString("N0") + "\n";
-                    msg += "<OrderUpdate> All count:" + stg.maker.cum_AllOrderUpdates.ToString("N0") + "  Latent Feed:" + stg.maker.cum_LatentOrderUpdates.ToString("N0") + "\n";
-                    msg += "<Fill> All count:" + stg.maker.cum_AllFill.ToString("N0") + "  Latent Feed:" + stg.maker.cum_LatentFill.ToString("N0") + "\n";
+                    //msg += "Cumulative Count:\n";
+                    //msg += "<QuotesUpdate> All count:" + stg.maker.cum_Allquotes.ToString("N0") + "  Latent Feed:" + stg.maker.cum_Latentquotes.ToString("N0") + "\n";
+                    //msg += "<Trades> All count:" + stg.maker.cum_AllTrade.ToString("N0") + "  Latent Feed:" + stg.maker.cum_LatentTrade.ToString("N0") + "\n";
+                    //msg += "<OrderUpdate> All count:" + stg.maker.cum_AllOrderUpdates.ToString("N0") + "  Latent Feed:" + stg.maker.cum_LatentOrderUpdates.ToString("N0") + "\n";
+                    //msg += "<Fill> All count:" + stg.maker.cum_AllFill.ToString("N0") + "  Latent Feed:" + stg.maker.cum_LatentFill.ToString("N0") + "\n";
+                    feedCountQuoteAll += stg.maker.cum_Allquotes;
+                    feedCountQuoteLatent += stg.maker.cum_Latentquotes;
+                    feedCountTradeAll += stg.maker.cum_AllTrade;
+                    feedCountTradeLatent += stg.maker.cum_LatentTrade;
+                    feedCountOrderAll += stg.maker.cum_AllOrderUpdates;
+                    feedCountOrderLatent += stg.maker.cum_LatentOrderUpdates;
+                    feedCountFillAll += stg.maker.cum_AllFill;
+                    feedCountFillLatent += stg.maker.cum_LatentFill;
 
                     //stg.netExposure = stg.maker.baseBalance.total + stg.taker.baseBalance.total - stg.baseCcyQuantity;
                     //stg.netExposure = stg.maker.net_pos + stg.taker.baseBalance.total;
@@ -496,21 +514,16 @@ namespace Crypto_Linux
                     }
                     else
                     {
-                        //while(Interlocked.CompareExchange(ref stg.updating,1,0) != 0)
-                        //{
 
-                        //}
-                        //foreach(var stg_ord in stg.stg_orders_dict)
-                        //{
-                        //    if(stg_ord.Value > 0)
-                        //    {
-                        //        msg += stg_ord.Key + " " + stg_ord.Value.ToString() + "\n";
-                        //    }
-                        //}
-                        //Volatile.Write(ref stg.updating, 0);
                     }
                 }
             }
+
+            string latency_msg = "Latent messages.\n";
+            latency_msg += "<QuotesUpdate> All count:" + feedCountQuoteAll.ToString("N0") + "  Latent Feed:" + feedCountQuoteLatent.ToString("N0") + "\n";
+            latency_msg += "<Trades> All count:" + feedCountTradeAll.ToString("N0") + "  Latent Feed:" + feedCountTradeLatent.ToString("N0") + "\n";
+            latency_msg += "<OrderUpdate> All count:" + feedCountOrderAll.ToString("N0") + "  Latent Feed:" + feedCountOrderLatent.ToString("N0") + "\n";
+            latency_msg += "<Fill> All count:" + feedCountFillAll.ToString("N0") + "  Latent Feed:" + feedCountFillLatent.ToString("N0") + "\n";
 
             pnl = new intradayPnL();
             pnl.strategy_name = "Total";
@@ -523,6 +536,8 @@ namespace Crypto_Linux
                 ws_server.processIntradayPnL(pnls);
             }
             msg += DateTime.UtcNow.ToString() + " - All -    \nNotional Volume:" + volumeAll.ToString("N2") + "\nPosition PnL:" + posPnLAll.ToString("N2") + "\nTrading PnL:" + tradingPLAll.ToString("N2") + "\nFee:" + feeAll.ToString("N2") + "\nTotal:" + totalAll.ToString("N2") + "\n";
+
+            msg = latency_msg + "\n" + msg;
             return msg;
         }
 
