@@ -65,6 +65,7 @@ namespace Crypto_Trading
             this.instruments = new Dictionary<string, Instrument>();
             this.ins_bymaster = new Dictionary<string, Instrument>();
             this.exchange_balances = new Dictionary<string, ExchangeBalance>();
+            this.SoD_exchange_balances = new Dictionary<string, ExchangeBalance>();
             this.balances = new Dictionary<string, Balance>();
             this._markets = new Dictionary<string, WebSocketState>();
             this.strategies = new Dictionary<string, Strategy>();

@@ -355,7 +355,7 @@ namespace Crypto_Clients
                     case "gmocoin":
                         js = await this.gmocoin_client.getBalance();
                         JsonElement res;
-                        if (js.RootElement.TryGetProperty("status",out res) && res.GetUInt16() == 0)
+                        if (js.RootElement.TryGetProperty("status",out res) && res.GetInt32() == 0)
                         {
                             var assets = js.RootElement.GetProperty("data").EnumerateArray();
                             foreach (var asset in assets)
@@ -548,7 +548,7 @@ namespace Crypto_Clients
                     case "gmocoin":
                         js = await this.gmocoin_client.getMarginPosition();
                         JsonElement res;
-                        if (js.RootElement.TryGetProperty("status", out res) && res.GetUInt16() == 0)
+                        if (js.RootElement.TryGetProperty("status", out res) && res.GetInt32() == 0)
                         {
                             JsonElement data = js.RootElement.GetProperty("data");
                             JsonElement list_data;
@@ -749,7 +749,7 @@ namespace Crypto_Clients
                         {
                             js = await this.gmocoin_client.getActiveOrders(symbol);
                             JsonElement res;
-                            if (js.RootElement.TryGetProperty("status", out res) && res.GetUInt16() == 0)
+                            if (js.RootElement.TryGetProperty("status", out res) && res.GetInt32() == 0)
                             {
                                 JsonElement data = js.RootElement.GetProperty("data");
                                 JsonElement list_data;
@@ -1050,6 +1050,7 @@ namespace Crypto_Clients
                         {
                             addLog("Failed to get trade history from gmocoin.", logType.WARNING);
                         }
+                        Thread.Sleep(1000);
                     }
                     break;
             }
@@ -1428,36 +1429,52 @@ namespace Crypto_Clients
             try
             {
                 JsonDocument doc = JsonDocument.Parse(msg_body);
-                string channel = doc.RootElement.GetProperty("channel").GetString();
-                switch(channel)
+                JsonElement js_channel;
+                if(doc.RootElement.TryGetProperty("channel",out js_channel))
                 {
-                    case "orderbooks":
-                        DataOrderBook ord;
-                        ord = this.ordBookStack.pop();
-                        if (ord == null)
-                        {
-                            ord = new DataOrderBook();
-                        }
-                        ord.setGMOCoinOrderBook(doc);
-                        this.ordBookQueue.Enqueue(ord);
-                        break;
-                    case "trades":
-                        DataTrade trd;
-                        //while (!this.tradeStack.TryPop(out trd))
-                        //{
+                    string channel = js_channel.GetString();
+                    switch (channel)
+                    {
+                        case "orderbooks":
+                            DataOrderBook ord;
+                            ord = this.ordBookStack.pop();
+                            if (ord == null)
+                            {
+                                ord = new DataOrderBook();
+                            }
+                            ord.setGMOCoinOrderBook(doc);
+                            this.ordBookQueue.Enqueue(ord);
+                            break;
+                        case "trades":
+                            DataTrade trd;
+                            //while (!this.tradeStack.TryPop(out trd))
+                            //{
 
-                        //}
-                        trd = this.tradeStack.pop();
-                        if (trd == null)
+                            //}
+                            trd = this.tradeStack.pop();
+                            if (trd == null)
+                            {
+                                trd = new DataTrade();
+                            }
+                            trd.setGMOCoinTrade(doc);
+                            this.tradeQueue.Enqueue(trd);
+                            break;
+                        default:
+                            addLog(msg_body);
+                            break;
+                    }
+                }
+                else
+                {
+                    JsonElement js_err;
+                    if(doc.RootElement.TryGetProperty("error",out js_err))
+                    {
+                        string str_err = js_err.GetString();
+                        if(str_err.StartsWith("ERR-5003"))//Request too many
                         {
-                            trd = new DataTrade();
+                            gmocoin_client.disconnectPublic();
                         }
-                        trd.setGMOCoinTrade(doc);
-                        this.tradeQueue.Enqueue(trd);
-                        break;
-                    default:
-                        addLog(msg_body);
-                        break;
+                    }
                 }
             }
             catch (Exception e)
@@ -1471,39 +1488,55 @@ namespace Crypto_Clients
             try
             {
                 JsonDocument doc = JsonDocument.Parse(msg_body);
-                string channel = doc.RootElement.GetProperty("channel").GetString();
-                DataSpotOrderUpdate ord;
-                DataFill exe;
-                switch(channel)
+                JsonElement js_channel;
+                if (doc.RootElement.TryGetProperty("channel", out js_channel))
                 {
-                    case "orderEvents":
-                        ord = this.ordUpdateStack.pop();
-                        if(ord == null)
-                        {
-                            ord = new DataSpotOrderUpdate();
-                        }
-                        ord.setGMOCoinSpotOrder(doc.RootElement);
-                        this.ordUpdateQueue.Enqueue(ord);
-                        break;
-                    case "executionEvents":
-                        exe = this.fillStack.pop();
-                        if(exe == null)
-                        {
-                            exe = new DataFill();
-                        }
-                        exe.setGMOCoinFill(doc.RootElement);
-                        //if(exe.order_quantity == exe.executed_quantity)//Consider creating order objects for every fill
-                        {
+                    string channel = doc.RootElement.GetProperty("channel").GetString();
+                    DataSpotOrderUpdate ord;
+                    DataFill exe;
+                    switch (channel)
+                    {
+                        case "orderEvents":
                             ord = this.ordUpdateStack.pop();
                             if (ord == null)
                             {
                                 ord = new DataSpotOrderUpdate();
                             }
-                            ord.setGMOCoinFill(doc.RootElement);
+                            ord.setGMOCoinSpotOrder(doc.RootElement);
                             this.ordUpdateQueue.Enqueue(ord);
+                            break;
+                        case "executionEvents":
+                            exe = this.fillStack.pop();
+                            if (exe == null)
+                            {
+                                exe = new DataFill();
+                            }
+                            exe.setGMOCoinFill(doc.RootElement);
+                            //if(exe.order_quantity == exe.executed_quantity)//Consider creating order objects for every fill
+                            {
+                                ord = this.ordUpdateStack.pop();
+                                if (ord == null)
+                                {
+                                    ord = new DataSpotOrderUpdate();
+                                }
+                                ord.setGMOCoinFill(doc.RootElement);
+                                this.ordUpdateQueue.Enqueue(ord);
+                            }
+                            this.fillQueue.Enqueue(exe);
+                            break;
+                    }
+                }
+                else
+                {
+                    JsonElement js_err;
+                    if (doc.RootElement.TryGetProperty("error", out js_err))
+                    {
+                        string str_err = js_err.GetString();
+                        if (str_err.StartsWith("ERR-5003"))//Request too many
+                        {
+                            gmocoin_client.disconnectPrivate();
                         }
-                        this.fillQueue.Enqueue(exe);
-                        break;
+                    }
                 }
             }
             catch (Exception e)

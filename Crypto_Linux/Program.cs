@@ -23,6 +23,8 @@ using Utils;
 using LockFreeStack;
 using LockFreeQueue;
 using CryptoExchange.Net;
+using Binance.Net.Objects.Options;
+using CoinW.Net.Clients;
 //using static Terminal.Gui.View;
 
 
@@ -1323,6 +1325,7 @@ namespace Crypto_Linux
                 int i = 0;
                 StreamReader sr = new StreamReader(new FileStream(NewSoDPosFile, FileMode.Open, FileAccess.Read));
                 ExchangeBalance exBalance;
+                List<balanceInfo> binfos = new List<balanceInfo>();
                 while (sr.ReadLine() is string line)
                 {
                     if (i > 0)
@@ -1350,6 +1353,38 @@ namespace Crypto_Linux
                                     qManager.SoD_exchange_balances[b.market] = exBalance;
                                 }
                                 exBalance.balance[b.ccy] = b;
+
+                                b = new Balance();
+                                b.market = items[1];
+                                b.ccy = items[3];
+                                b.total = decimal.Parse(items[5]);
+                                b.current_price = decimal.Parse(items[7]);
+                                b.valuation_pair = items[8];
+                                if (qManager.exchange_balances.ContainsKey(b.market))
+                                {
+                                    exBalance = qManager.exchange_balances[b.market];
+                                }
+                                else
+                                {
+                                    exBalance = new ExchangeBalance();
+                                    exBalance.market = b.market;
+                                    qManager.exchange_balances[b.market] = exBalance;
+                                }
+                                exBalance.balance[b.ccy] = b;
+
+                                balanceInfo bi = new balanceInfo();
+                                bi.market = b.market;
+                                bi.posType = "SPOT";
+                                bi.symbol = b.ccy;
+                                bi.side = "";
+                                bi.total = b.total;
+                                bi.avg_price = 0;
+                                bi.current_price = b.current_price;
+                                bi.valuation_pair = b.valuation_pair;
+                                bi.unrealized_fee = 0;
+                                bi.unrealized_interest = 0;
+                                bi.isSoD = true;
+                                binfos.Add(bi);
                             }
                             else if (balanceType == "MARGIN")
                             {
@@ -1392,6 +1427,60 @@ namespace Crypto_Linux
                                 {
                                     exBalance.marginShort[bm.symbol] = bm;
                                 }
+
+                                bm = new BalanceMargin();
+                                bm.market = items[1];
+                                bm.symbol = items[3];
+                                str_side = items[4];
+                                if (str_side.ToLower() == "long")
+                                {
+                                    bm.side = positionSide.Long;
+                                }
+                                else if (str_side.ToLower() == "short")
+                                {
+                                    bm.side = positionSide.Short;
+                                }
+                                else
+                                {
+                                    bm.side = positionSide.NONE;
+                                }
+                                bm.total = decimal.Parse(items[5]);
+                                bm.avg_price = decimal.Parse(items[6]);
+                                bm.current_price = decimal.Parse(items[7]);
+                                bm.unrealized_fee = decimal.Parse(items[9]);
+                                bm.unrealized_interest = decimal.Parse(items[10]);
+                                if (qManager.exchange_balances.ContainsKey(bm.market))
+                                {
+                                    exBalance = qManager.exchange_balances[bm.market];
+                                }
+                                else
+                                {
+                                    exBalance = new ExchangeBalance();
+                                    exBalance.market = bm.market;
+                                    qManager.exchange_balances[bm.market] = exBalance;
+                                }
+                                if (bm.side == positionSide.Long)
+                                {
+                                    exBalance.marginLong[bm.symbol] = bm;
+                                }
+                                else if (bm.side == positionSide.Short)
+                                {
+                                    exBalance.marginShort[bm.symbol] = bm;
+                                }
+
+                                balanceInfo bi = new balanceInfo();
+                                bi.market = bm.market;
+                                bi.posType = "MARGIN";
+                                bi.symbol = bm.symbol;
+                                bi.side = bm.side.ToString();
+                                bi.total = bm.total;
+                                bi.avg_price = bm.avg_price;
+                                bi.current_price = bm.current_price;
+                                bi.valuation_pair = bm.symbol;
+                                bi.unrealized_fee = bm.unrealized_fee;
+                                bi.unrealized_interest = bm.unrealized_interest;
+                                bi.isSoD = true;
+                                binfos.Add(bi);
                             }
                         }
                     }
@@ -1399,6 +1488,10 @@ namespace Crypto_Linux
                     {
                         ++i;
                     }
+                }
+                if(binfos.Count > 0)
+                {
+                    await ws_server.processBalance(binfos);
                 }
 
 
@@ -1409,7 +1502,7 @@ namespace Crypto_Linux
                         exBalance = qManager.exchange_balances[ins.market];
                         if (exBalance.balance.ContainsKey(ins.baseCcy))
                         {
-                            ins.SoD_baseBalance = exBalance.balance[ins.baseCcy];
+                            ins.baseBalance = exBalance.balance[ins.baseCcy];
                         }
                         else
                         {
@@ -1417,7 +1510,7 @@ namespace Crypto_Linux
                         }
                         if (exBalance.balance.ContainsKey(ins.quoteCcy))
                         {
-                            ins.SoD_quoteBalance = exBalance.balance[ins.quoteCcy];
+                            ins.quoteBalance = exBalance.balance[ins.quoteCcy];
                         }
                         else
                         {
@@ -1425,7 +1518,7 @@ namespace Crypto_Linux
                         }
                         if (exBalance.marginShort.ContainsKey(ins.symbol))
                         {
-                            ins.SoD_shortPosition = exBalance.marginShort[ins.symbol];
+                            ins.shortPosition = exBalance.marginShort[ins.symbol];
                         }
                         else
                         {
@@ -1433,37 +1526,57 @@ namespace Crypto_Linux
                         }
                         if (exBalance.marginLong.ContainsKey(ins.symbol))
                         {
-                            ins.SoD_longPosition = exBalance.marginLong[ins.symbol];
+                            ins.longPosition = exBalance.marginLong[ins.symbol];
                         }
                         else
                         {
                             Console.WriteLine("Long Position not found. " + exBalance.marginLong.Count.ToString());
                         }
-                        ins.baseBalance.total = ins.SoD_baseBalance.total;
-                        ins.baseBalance.ccy = ins.SoD_baseBalance.ccy;
-                        ins.baseBalance.market = ins.SoD_baseBalance.market;
-                        ins.quoteBalance.total = ins.SoD_quoteBalance.total;
-                        ins.quoteBalance.ccy = ins.SoD_quoteBalance.ccy;
-                        ins.quoteBalance.market = ins.SoD_quoteBalance.market;
-
-                        ins.longPosition.symbol = ins.symbol;
-                        ins.longPosition.market = ins.market;
-                        ins.longPosition.total = ins.SoD_longPosition.total;
-                        ins.longPosition.avg_price = ins.SoD_longPosition.avg_price;
-                        ins.longPosition.unrealized_fee = ins.SoD_longPosition.unrealized_fee;
-                        ins.longPosition.unrealized_interest = ins.SoD_longPosition.unrealized_interest;
-                        ins.shortPosition.symbol = ins.symbol;
-                        ins.shortPosition.market = ins.market;
-                        ins.shortPosition.total = ins.SoD_shortPosition.total;
-                        ins.shortPosition.avg_price = ins.SoD_shortPosition.avg_price;
-                        ins.shortPosition.unrealized_fee = ins.SoD_shortPosition.unrealized_fee;
-                        ins.shortPosition.unrealized_interest = ins.SoD_shortPosition.unrealized_interest;
-
-                        if (ins.shortPosition.current_price > 0)
+                    }
+                    else
+                    {
+                        Console.WriteLine("Exchange not found. Exchange:" + ins.market);
+                    }
+                    if (qManager.SoD_exchange_balances.ContainsKey(ins.market))
+                    {
+                        exBalance = qManager.SoD_exchange_balances[ins.market];
+                        if (exBalance.balance.ContainsKey(ins.baseCcy))
+                        {
+                            ins.baseBalance = exBalance.balance[ins.baseCcy];
+                        }
+                        else
+                        {
+                            Console.WriteLine("Base Balance not found" + exBalance.balance.Count.ToString());
+                        }
+                        if (exBalance.balance.ContainsKey(ins.quoteCcy))
+                        {
+                            ins.quoteBalance = exBalance.balance[ins.quoteCcy];
+                        }
+                        else
+                        {
+                            Console.WriteLine("Quote Balance not found" + exBalance.balance.Count.ToString());
+                        }
+                        if (exBalance.marginShort.ContainsKey(ins.symbol))
+                        {
+                            ins.shortPosition = exBalance.marginShort[ins.symbol];
+                        }
+                        else
+                        {
+                            Console.WriteLine("Short Position not found" + exBalance.marginShort.Count.ToString());
+                        }
+                        if (exBalance.marginLong.ContainsKey(ins.symbol))
+                        {
+                            ins.longPosition = exBalance.marginLong[ins.symbol];
+                        }
+                        else
+                        {
+                            Console.WriteLine("Long Position not found. " + exBalance.marginLong.Count.ToString());
+                        }
+                        if (ins.SoD_shortPosition.current_price > 0)
                         {
                             ins.open_mid = ins.SoD_shortPosition.current_price;
                         }
-                        else if (ins.longPosition.current_price > 0)
+                        else if (ins.SoD_longPosition.current_price > 0)
                         {
                             ins.open_mid = ins.SoD_longPosition.current_price;
                         }
@@ -1474,9 +1587,8 @@ namespace Crypto_Linux
                     }
                     else
                     {
-                        Console.WriteLine("Exchange not found");
+                        Console.WriteLine("Exchange not found. Exchange:" + ins.market);
                     }
-                    Console.WriteLine($"{ins.symbol_market} baseCcy[{ins.baseBalance.ccy}]{ins.baseBalance.total.ToString()} quoteCcy[{ins.quoteBalance.ccy}]{ins.quoteBalance.total.ToString()} Long[{ins.longPosition.symbol}]{ins.longPosition.total.ToString()} Short[{ins.shortPosition.symbol}]{ins.shortPosition.total.ToString()}");
                 }
                 SortedDictionary<DateTime, DataFill> histFill = new SortedDictionary<DateTime, DataFill>();
                 DateTime currentTime = DateTime.UtcNow;

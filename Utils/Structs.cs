@@ -2095,6 +2095,20 @@ namespace Utils
         public decimal mi_volume { get; set; }
         public Dictionary<double, decimal>? market_impact_curve { get; set; }
     }
+    public class balanceInfo
+    {
+        public string ? market { get; set; }
+        public string ? posType { get; set; }
+        public string ? symbol { get; set; }
+        public string ? side { get; set; }
+        public decimal total { get; set; }
+        public decimal avg_price { get; set; }
+        public decimal current_price { get; set; }
+        public string ? valuation_pair { get; set; }
+        public decimal unrealized_fee { get; set; }
+        public decimal unrealized_interest { get; set; }
+        public bool isSoD { get; set; }
+    }
 
     public class instrumentInfo
     {

@@ -19,6 +19,7 @@ namespace Crypto_Trading
 
         public decimal marginAvailability;
         public decimal marginNotionalAmount;
+        public decimal valueAtSoD;
 
         public ExchangeBalance()
         {
@@ -27,6 +28,7 @@ namespace Crypto_Trading
             this.marginLong = new Dictionary<string,BalanceMargin>();
             this.marginShort = new Dictionary<string, BalanceMargin>();
 
+            this.valueAtSoD = 0;
             this.marginAvailability = 0;
             this.marginNotionalAmount = 0;
         }
@@ -115,7 +117,14 @@ namespace Crypto_Trading
             this.current_price = 1;
             this.valuation_pair = "";
         }
-
+        public void setFromBalanceInfo(balanceInfo info)
+        {
+            this.ccy = info.symbol;
+            this.market = info.market;
+            this.total = info.total;
+            this.current_price = info.current_price;
+            this.valuation_pair = info.valuation_pair;
+        }
         public void AddBalance(decimal total = 0,decimal inuse = 0)
         {
             while (Interlocked.CompareExchange(ref this.balance_lock, 1, 0) != 0)
@@ -194,6 +203,28 @@ namespace Crypto_Trading
             this._inuse = 0;
             this.unrealized_fee= position.unrealizedFee;
             this.unrealized_interest= position.unrealizedInterest;
+        }
+        public void setFromBalanceInfo(balanceInfo info)
+        {
+            this.symbol = info.symbol;
+            this.market = info.market;
+            if(info.side.ToLower() == "long")
+            {
+                this.side = positionSide.Long;
+            }
+            else if(info.side.ToLower() == "short")
+            {
+                this.side= positionSide.Short;
+            }
+            else
+            {
+                this.side = positionSide.NONE;
+            }
+            this.avg_price = info.avg_price;
+            this._total = info.total;
+            this.unrealized_fee = info.unrealized_fee;
+            this.unrealized_interest = info.unrealized_interest;
+            this.current_price = info.current_price;
         }
         public void AddBalance(decimal total = 0, decimal inuse = 0, decimal price = 0)
         {

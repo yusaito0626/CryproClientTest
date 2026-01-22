@@ -26,11 +26,13 @@ namespace Crypto_Linux
         public Dictionary<string, strategySetting> strategySetting;
         public List<logEntry> logList = new List<logEntry>();
         public List<fillInfo> dataFillList = new List<fillInfo>();
+        public List<balanceInfo> SoDBalance = new List<balanceInfo>();
         public Dictionary<(DateTime,string), intradayPnL> intradayPnLList = new Dictionary<(DateTime, string),intradayPnL>();
 
         public int sendingLogs = 0;
         public int sendingFills = 0;
         public int sendingPnL = 0;
+        public int sendingBalance = 0;
 
         public Action<string, Enums.logType> _addLog;
 
@@ -100,6 +102,31 @@ namespace Crypto_Linux
             item["data"] = json;
             msg = JsonSerializer.Serialize(item, this.js_option);
             await this.BroadcastAsync(msg);
+
+            while (Interlocked.CompareExchange(ref this.sendingBalance, 1, 0) != 0)
+            {
+
+            }
+            i = 0;
+            while (i < this.SoDBalance.Count)
+            {
+                List<balanceInfo> subList;
+                if (i + PageSize >= this.SoDBalance.Count)
+                {
+                    subList = this.SoDBalance.GetRange(i, this.SoDBalance.Count - i);
+                }
+                else
+                {
+                    subList = this.SoDBalance.GetRange(i, PageSize);
+                }
+                json = JsonSerializer.Serialize(subList);
+                item["data_type"] = "balance";
+                item["data"] = json;
+                msg = JsonSerializer.Serialize(item, this.js_option);
+                await this.BroadcastAsync(msg);
+                i += PageSize;
+            }
+            Volatile.Write(ref this.sendingBalance, 0);
 
             foreach (var stg in Program.strategies)
             {
@@ -427,7 +454,29 @@ namespace Crypto_Linux
                 }
             }
         }
+        public async Task processBalance(List<balanceInfo> balance)
+        {
+            while (Interlocked.CompareExchange(ref this.sendingBalance, 1, 0) != 0)
+            {
 
+            }
+            foreach (balanceInfo balanceInfo in balance)
+            {
+                if(balanceInfo.isSoD)
+                {
+                    SoDBalance.Add(balanceInfo);
+                }
+            }
+
+            Dictionary<string, string> sendingItem = new Dictionary<string, string>();
+            string json = JsonSerializer.Serialize<List<balanceInfo>>(balance);
+            string msg;
+            sendingItem["data_type"] = "balance";
+            sendingItem["data"] = json;
+            msg = JsonSerializer.Serialize(sendingItem, this.js_option);
+            this.BroadcastAsync(msg);
+            Volatile.Write(ref this.sendingBalance, 0);
+        }
         public async Task processFill(fillInfo fill)
         {
             while (Interlocked.CompareExchange(ref this.sendingFills, 1, 0) != 0)

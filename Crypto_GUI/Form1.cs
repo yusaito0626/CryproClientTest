@@ -7,6 +7,7 @@ using Enums;
 using LockFreeQueue;
 using PubnubApi.EventEngine.Subscribe.Common;
 using ScottPlot;
+using ScottPlot.MultiplotLayouts;
 using ScottPlot.Plottables;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -25,6 +26,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml.Linq;
 using Utils;
+using XT.Net.Objects.Models;
 
 
 
@@ -905,6 +907,191 @@ namespace Crypto_GUI
                                         });
                                         this.masterInfoReceived = true;
                                         break;
+
+                                    case "balance":
+                                        var balances = JsonSerializer.Deserialize<List<balanceInfo>>(content);
+                                        List<string> ccy_list = new List<string>();
+                                        foreach(balanceInfo b in balances)
+                                        {
+                                            if(b.isSoD)
+                                            {
+                                                addLog($"{b.symbol} {b.posType} {b.market}");
+                                                if(b.posType == "SPOT")
+                                                {
+                                                    Balance balance = new Balance();
+                                                    balance.setFromBalanceInfo(b);
+                                                    if(qManager.SoD_exchange_balances.ContainsKey(balance.market))
+                                                    {
+                                                        qManager.SoD_exchange_balances[balance.market].balance[balance.ccy] = balance;
+                                                    }
+                                                    else
+                                                    {
+                                                        ExchangeBalance exBalance = new ExchangeBalance();
+                                                        exBalance.market = balance.market;
+                                                        exBalance.balance[balance.ccy] = balance;
+                                                        qManager.SoD_exchange_balances[balance.market] = exBalance;
+                                                    }
+                                                    balance = new Balance();
+                                                    balance.setFromBalanceInfo(b);
+                                                    if (qManager.exchange_balances.ContainsKey(balance.market))
+                                                    {
+                                                        qManager.exchange_balances[balance.market].balance[balance.ccy] = balance;
+                                                        qManager.exchange_balances[balance.market].valueAtSoD += balance.current_price * balance.total;
+                                                    }
+                                                    else
+                                                    {
+                                                        ExchangeBalance exBalance = new ExchangeBalance();
+                                                        exBalance.market = balance.market;
+                                                        exBalance.balance[balance.ccy] = balance;
+                                                        exBalance.valueAtSoD += balance.current_price * balance.total;
+                                                        qManager.exchange_balances[balance.market] = exBalance;
+                                                    }
+                                                    if(b.total > 0 && ccy_list.Contains(b.symbol) == false)
+                                                    {
+                                                        //addLog(b.symbol);
+                                                        ccy_list.Add(b.symbol);
+                                                    }
+                                                }
+                                                else if(b.posType == "MARGIN")
+                                                {
+                                                    BalanceMargin balanceMargin = new BalanceMargin();
+                                                    balanceMargin.setFromBalanceInfo(b);
+                                                    if (qManager.SoD_exchange_balances.ContainsKey(balanceMargin.market))
+                                                    {
+                                                        if(balanceMargin.side == positionSide.Long)
+                                                        {
+                                                            qManager.SoD_exchange_balances[balanceMargin.market].marginLong[balanceMargin.symbol] = balanceMargin;
+                                                        }
+                                                        else if(balanceMargin.side == positionSide.Short)
+                                                        {
+                                                            qManager.SoD_exchange_balances[balanceMargin.market].marginShort[balanceMargin.symbol] = balanceMargin;
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        ExchangeBalance exBalance = new ExchangeBalance();
+                                                        exBalance.market = balanceMargin.market;
+                                                        qManager.SoD_exchange_balances[balanceMargin.market] = exBalance;
+                                                        if (balanceMargin.side == positionSide.Long)
+                                                        {
+                                                            qManager.SoD_exchange_balances[balanceMargin.market].marginLong[balanceMargin.symbol] = balanceMargin;
+                                                        }
+                                                        else if (balanceMargin.side == positionSide.Short)
+                                                        {
+                                                            qManager.SoD_exchange_balances[balanceMargin.market].marginShort[balanceMargin.symbol] = balanceMargin;
+                                                        }
+                                                    }
+                                                    balanceMargin = new BalanceMargin();
+                                                    balanceMargin.setFromBalanceInfo(b);
+                                                    if (qManager.exchange_balances.ContainsKey(balanceMargin.market))
+                                                    {
+                                                        if (balanceMargin.side == positionSide.Long)
+                                                        {
+                                                            qManager.exchange_balances[balanceMargin.market].marginLong[balanceMargin.symbol] = balanceMargin;
+                                                            qManager.exchange_balances[balanceMargin.market].valueAtSoD += (balanceMargin.current_price - balanceMargin.avg_price) * balanceMargin.total;
+                                                        }
+                                                        else if (balanceMargin.side == positionSide.Short)
+                                                        {
+                                                            qManager.exchange_balances[balanceMargin.market].marginShort[balanceMargin.symbol] = balanceMargin;
+                                                            qManager.exchange_balances[balanceMargin.market].valueAtSoD += (balanceMargin.avg_price - balanceMargin.current_price) * balanceMargin.total;
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        ExchangeBalance exBalance = new ExchangeBalance();
+                                                        exBalance.market = balanceMargin.market;
+                                                        qManager.exchange_balances[balanceMargin.market] = exBalance;
+                                                        if (balanceMargin.side == positionSide.Long)
+                                                        {
+                                                            qManager.exchange_balances[balanceMargin.market].marginLong[balanceMargin.symbol] = balanceMargin;
+                                                            qManager.exchange_balances[balanceMargin.market].valueAtSoD += (balanceMargin.current_price - balanceMargin.avg_price) * balanceMargin.total;
+                                                        }
+                                                        else if (balanceMargin.side == positionSide.Short)
+                                                        {
+                                                            qManager.exchange_balances[balanceMargin.market].marginShort[balanceMargin.symbol] = balanceMargin;
+                                                            qManager.exchange_balances[balanceMargin.market].valueAtSoD += (balanceMargin.avg_price - balanceMargin.current_price) * balanceMargin.total;
+                                                        }
+                                                    }
+                                                }
+
+                                                foreach (Instrument ins in qManager.instruments.Values)
+                                                {
+                                                    if(ccy_list.Contains(ins.quoteCcy) == false)
+                                                    {
+                                                        ccy_list.Add(ins.quoteCcy);
+                                                    }
+                                                    if (ccy_list.Contains(ins.baseCcy) == false)
+                                                    {
+                                                        ccy_list.Add(ins.baseCcy);
+                                                    }
+                                                    if (qManager.SoD_exchange_balances.ContainsKey(ins.market))
+                                                    {
+                                                        ExchangeBalance exBalance = qManager.SoD_exchange_balances[ins.market];
+                                                        if (exBalance.balance.ContainsKey(ins.baseCcy))
+                                                        {
+                                                            ins.SoD_baseBalance = exBalance.balance[ins.baseCcy];
+                                                        }
+                                                        if (exBalance.balance.ContainsKey(ins.quoteCcy))
+                                                        {
+                                                            ins.SoD_quoteBalance = exBalance.balance[ins.quoteCcy];
+                                                        }
+                                                        if (exBalance.marginShort.ContainsKey(ins.symbol))
+                                                        {
+                                                            ins.SoD_shortPosition = exBalance.marginShort[ins.symbol];
+                                                        }
+                                                        if (exBalance.marginLong.ContainsKey(ins.symbol))
+                                                        {
+                                                            ins.SoD_longPosition = exBalance.marginLong[ins.symbol];
+                                                        }
+                                                        if (ins.shortPosition.current_price > 0)
+                                                        {
+                                                            ins.open_mid = ins.SoD_shortPosition.current_price;
+                                                        }
+                                                        else if (ins.longPosition.current_price > 0)
+                                                        {
+                                                            ins.open_mid = ins.SoD_longPosition.current_price;
+                                                        }
+                                                        else if (ins.SoD_baseBalance.current_price > 0)
+                                                        {
+                                                            ins.open_mid = ins.SoD_baseBalance.current_price;
+                                                        }
+                                                    }
+                                                    if (qManager.exchange_balances.ContainsKey(ins.market))
+                                                    {
+                                                        ExchangeBalance exBalance = qManager.exchange_balances[ins.market];
+                                                        if (exBalance.balance.ContainsKey(ins.baseCcy))
+                                                        {
+                                                            ins.baseBalance = exBalance.balance[ins.baseCcy];
+                                                        }
+                                                        if (exBalance.balance.ContainsKey(ins.quoteCcy))
+                                                        {
+                                                            ins.quoteBalance = exBalance.balance[ins.quoteCcy];
+                                                        }
+                                                        if (exBalance.marginShort.ContainsKey(ins.symbol))
+                                                        {
+                                                            ins.shortPosition = exBalance.marginShort[ins.symbol];
+                                                        }
+                                                        if (exBalance.marginLong.ContainsKey(ins.symbol))
+                                                        {
+                                                            ins.longPosition = exBalance.marginLong[ins.symbol];
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        if(ccy_list.Count > 0)
+                                        {
+                                            this.BeginInvoke(() =>
+                                            {
+                                                foreach (var ccy in ccy_list)
+                                                {
+                                                    this.gridView_balance.Columns.Add("col_" + ccy, ccy);
+                                                }
+                                                this.gridView_balance.Columns.Add("col_unrealized", "Unrealized PnL");
+                                                this.gridView_balance.Columns.Add("col_change", "Change");
+                                            });
+                                        }
+                                        break;
                                     case "strategySetting":
                                         var stgSetting = JsonSerializer.Deserialize<Dictionary<string, strategySetting>>(content);
                                         setStrategies(stgSetting);
@@ -1417,6 +1604,9 @@ namespace Crypto_GUI
                 case "Strategy":
                     this.update_strategy();
                     break;
+                case "Balance":
+                    this.update_Balance();
+                    break;
                 default:
                     break;
             }
@@ -1599,6 +1789,85 @@ namespace Crypto_GUI
                     else if (!row.IsNewRow)
                     {
                         row.Visible = false;
+                    }
+                }
+            }
+        }
+
+        private void update_Balance()
+        {
+            bool found = false;
+            foreach(var exBalance in qManager.exchange_balances.Values)
+            {
+                foreach (DataGridViewRow row in this.gridView_balance.Rows)
+                {
+                    if (row.IsNewRow)
+                    {
+                        continue;
+                    }
+                    if (row.Cells[0] != null && row.Cells[0].Value != null && row.Cells[0].Value.ToString() == exBalance.market)
+                    {
+                        decimal currentValue = 0;
+                        foreach(var b in exBalance.balance.Values)
+                        {
+                            if(this.gridView_balance.Columns.Contains("col_" + b.ccy))
+                            {
+                                row.Cells["col_" + b.ccy].Value = b.total.ToString("N5");
+                            }
+                            currentValue += b.total * b.current_price;
+                        }
+                        if(this.gridView_balance.Columns.Contains("col_unrealized"))
+                        {
+                            decimal unrealizePnL = 0;
+                            foreach (var mb in exBalance.marginLong.Values)
+                            {
+                                unrealizePnL += (mb.current_price - mb.avg_price) * mb.total;
+                            }
+                            foreach (var mb in exBalance.marginShort.Values)
+                            {
+                                unrealizePnL += (mb.avg_price - mb.current_price) * mb.total;
+                            }
+                            currentValue += unrealizePnL;
+                            row.Cells["col_unrealized"].Value = unrealizePnL.ToString("N2");
+                        }
+                        if(this.gridView_balance.Columns.Contains("col_change"))
+                        {
+                            row.Cells["col_change"].Value = (currentValue - exBalance.valueAtSoD).ToString("N2");
+                        }
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    decimal currentValue = 0;
+                    this.gridView_balance.Rows.Insert(0);
+                    this.gridView_balance.Rows[0].Cells[0].Value = exBalance.market;
+                    foreach (var b in exBalance.balance.Values)
+                    {
+                        if (this.gridView_balance.Columns.Contains("col_" + b.ccy))
+                        {
+                            this.gridView_balance.Rows[0].Cells["col_" + b.ccy].Value = b.total.ToString("N5");
+                        }
+                        currentValue += b.total * b.current_price;
+                    }
+                    if (this.gridView_balance.Columns.Contains("col_unrealized"))
+                    {
+                        decimal unrealizePnL = 0;
+                        foreach (var mb in exBalance.marginLong.Values)
+                        {
+                            unrealizePnL += (mb.current_price - mb.avg_price) * mb.total;
+                        }
+                        foreach (var mb in exBalance.marginShort.Values)
+                        {
+                            unrealizePnL += (mb.avg_price - mb.current_price) * mb.total;
+                        }
+                        currentValue += unrealizePnL;
+                        this.gridView_balance.Rows[0].Cells["col_unrealized"].Value = unrealizePnL.ToString("N2");
+                    }
+                    if (this.gridView_balance.Columns.Contains("col_change"))
+                    {
+                        this.gridView_balance.Rows[0].Cells["col_change"].Value = (currentValue - exBalance.valueAtSoD).ToString("N2");
                     }
                 }
             }

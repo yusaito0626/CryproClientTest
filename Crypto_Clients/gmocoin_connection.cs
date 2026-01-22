@@ -85,6 +85,12 @@ namespace Crypto_Clients
         Stopwatch sw_Private;
         Stopwatch sw_Public;
 
+        int waitTime = 1500;
+        DateTime lastPrivateGet;
+        DateTime lastPublicGet;
+        DateTime lastWSRequest;
+        DateTime lastWSPrivateRequest;
+
 
         volatile int refreshing = 0;
         volatile int httpReady = 0;
@@ -117,7 +123,11 @@ namespace Crypto_Clients
 
             this.lastnonce = 0;
             this.nonceChecking = 0;
-            
+
+            this.lastPrivateGet = DateTime.UtcNow;
+            this.lastPublicGet = DateTime.UtcNow;
+            this.lastWSRequest = DateTime.UtcNow;
+            this.lastWSPrivateRequest = DateTime.UtcNow;
         }
 
         private SocketsHttpHandler createHandler()
@@ -370,7 +380,12 @@ namespace Crypto_Clients
             var bytes = Encoding.UTF8.GetBytes(subscribeJson);
             if (this.websocket_client.State == WebSocketState.Open)
             {
+                if (DateTime.UtcNow - this.lastWSRequest < TimeSpan.FromMilliseconds(waitTime))
+                {
+                    Thread.Sleep(waitTime - (int)(DateTime.UtcNow - this.lastWSRequest).TotalMilliseconds);
+                }
                 await this.websocket_client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                this.lastWSRequest = DateTime.UtcNow;
             }
             string channel_name = "trade_" + symbol;
             if (!this.subscribingChannels.Contains(channel_name))
@@ -394,7 +409,12 @@ namespace Crypto_Clients
             var bytes = Encoding.UTF8.GetBytes(subscribeJson);
             if (this.websocket_client.State == WebSocketState.Open)
             {
+                if (DateTime.UtcNow - this.lastWSRequest < TimeSpan.FromMilliseconds(waitTime))
+                {
+                    Thread.Sleep(waitTime - (int)(DateTime.UtcNow - this.lastWSRequest).TotalMilliseconds);
+                }
                 await this.websocket_client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                this.lastWSRequest = DateTime.UtcNow;
             }
             string channel_name = "orderbook_" + symbol;
             if (!this.subscribingChannels.Contains(channel_name))
@@ -599,7 +619,12 @@ namespace Crypto_Clients
             var bytes = Encoding.UTF8.GetBytes(subscribeJson);
             if (this.private_client.State == WebSocketState.Open)
             {
+                if (DateTime.UtcNow - this.lastWSPrivateRequest < TimeSpan.FromMilliseconds(waitTime))
+                {
+                    Thread.Sleep(waitTime - (int)(DateTime.UtcNow - this.lastWSPrivateRequest).TotalMilliseconds);
+                }
                 await this.private_client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                this.lastWSPrivateRequest = DateTime.UtcNow;
             }
             string channel_name = "orderupdate";
             if (!this.subscribingChannels.Contains(channel_name))
@@ -613,7 +638,12 @@ namespace Crypto_Clients
             var bytes = Encoding.UTF8.GetBytes(subscribeJson);
             if (this.private_client.State == WebSocketState.Open)
             {
+                if (DateTime.UtcNow - this.lastWSPrivateRequest < TimeSpan.FromMilliseconds(waitTime))
+                {
+                    Thread.Sleep(waitTime - (int)(DateTime.UtcNow - this.lastWSPrivateRequest).TotalMilliseconds);
+                }
                 await this.private_client.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+                this.lastWSPrivateRequest = DateTime.UtcNow;
             }
             string channel_name = "execution";
             if (!this.subscribingChannels.Contains(channel_name))
@@ -903,6 +933,11 @@ namespace Crypto_Clients
                     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                     using var watchDogCts = new CancellationTokenSource();
 
+                    if (DateTime.UtcNow - this.lastPublicGet < TimeSpan.FromMilliseconds(waitTime))
+                    {
+                        Thread.Sleep(waitTime - (int)(DateTime.UtcNow - this.lastPublicGet).TotalMilliseconds);
+                    }
+
                     if (this.logging)
                     {
                         this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   GET " + endpoint + " " + body);
@@ -932,6 +967,7 @@ namespace Crypto_Clients
                     {
                         this.msgLogQueue.Enqueue(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff") + "   POST ack " + response);
                     }
+                    this.lastPublicGet = DateTime.UtcNow;
 
                     return response;
                 }
@@ -975,6 +1011,11 @@ namespace Crypto_Clients
                     request.Headers.Add("API-TIMESTAMP", nonce.ToString());
                     request.Headers.Add("API-SIGN", ToSha256(this.secretKey, message));
 
+                    if(DateTime.UtcNow - this.lastPrivateGet < TimeSpan.FromMilliseconds(waitTime))
+                    {
+                        Thread.Sleep(waitTime - (int)(DateTime.UtcNow - this.lastPrivateGet).TotalMilliseconds);
+                    }
+
                     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                     using var watchDogCts = new CancellationTokenSource();
 
@@ -1002,9 +1043,9 @@ namespace Crypto_Clients
                     }
 
                     var response = await task;
-
                     var resString = await response.Content.ReadAsStringAsync();
 
+                    this.lastPrivateGet = DateTime.UtcNow;
 
                     if (this.logging)
                     {

@@ -45,6 +45,9 @@
             DataGridViewCellStyle dataGridViewCellStyle14 = new DataGridViewCellStyle();
             DataGridViewCellStyle dataGridViewCellStyle15 = new DataGridViewCellStyle();
             DataGridViewCellStyle dataGridViewCellStyle16 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle17 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle18 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle19 = new DataGridViewCellStyle();
             DataGridViewCellStyle dataGridViewCellStyle20 = new DataGridViewCellStyle();
             DataGridViewCellStyle dataGridViewCellStyle21 = new DataGridViewCellStyle();
             DataGridViewCellStyle dataGridViewCellStyle22 = new DataGridViewCellStyle();
@@ -54,9 +57,6 @@
             DataGridViewCellStyle dataGridViewCellStyle26 = new DataGridViewCellStyle();
             DataGridViewCellStyle dataGridViewCellStyle27 = new DataGridViewCellStyle();
             DataGridViewCellStyle dataGridViewCellStyle28 = new DataGridViewCellStyle();
-            DataGridViewCellStyle dataGridViewCellStyle17 = new DataGridViewCellStyle();
-            DataGridViewCellStyle dataGridViewCellStyle18 = new DataGridViewCellStyle();
-            DataGridViewCellStyle dataGridViewCellStyle19 = new DataGridViewCellStyle();
             button_receiveFeed = new Button();
             tabControl = new TabControl();
             tabPage1 = new TabPage();
@@ -185,6 +185,9 @@
             label2 = new Label();
             label1 = new Label();
             comboSymbols = new ComboBox();
+            tabPage7 = new TabPage();
+            gridView_balance = new DataGridView();
+            dataGridViewTextBoxColumn23 = new DataGridViewTextBoxColumn();
             tabPage4 = new TabPage();
             groupBox4 = new GroupBox();
             label39 = new Label();
@@ -258,9 +261,6 @@
             toolStripStatusLabel1 = new ToolStripStatusLabel();
             lbl_currentTime = new ToolStripStatusLabel();
             timer_Monitoring = new System.Windows.Forms.Timer(components);
-            tabPage7 = new TabPage();
-            dataGridView1 = new DataGridView();
-            dataGridViewTextBoxColumn23 = new DataGridViewTextBoxColumn();
             tabControl.SuspendLayout();
             tabPage1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)gridView_PnL).BeginInit();
@@ -275,6 +275,8 @@
             groupBox3.SuspendLayout();
             groupBox2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)gridView_Ins).BeginInit();
+            tabPage7.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)gridView_balance).BeginInit();
             tabPage4.SuspendLayout();
             groupBox4.SuspendLayout();
             groupBox1.SuspendLayout();
@@ -284,8 +286,6 @@
             ((System.ComponentModel.ISupportInitialize)gridView_Connection).BeginInit();
             tabPage6.SuspendLayout();
             statusStrip1.SuspendLayout();
-            tabPage7.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             SuspendLayout();
             // 
             // button_receiveFeed
@@ -1727,6 +1727,56 @@
             comboSymbols.TabIndex = 0;
             comboSymbols.SelectedIndexChanged += comboSymbols_SelectedIndexChanged;
             // 
+            // tabPage7
+            // 
+            tabPage7.Controls.Add(gridView_balance);
+            tabPage7.Location = new Point(4, 29);
+            tabPage7.Name = "tabPage7";
+            tabPage7.Padding = new Padding(3);
+            tabPage7.Size = new Size(1040, 984);
+            tabPage7.TabIndex = 6;
+            tabPage7.Text = "Balance";
+            tabPage7.UseVisualStyleBackColor = true;
+            // 
+            // gridView_balance
+            // 
+            dataGridViewCellStyle17.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            dataGridViewCellStyle17.BackColor = SystemColors.Control;
+            dataGridViewCellStyle17.Font = new Font("Calibri", 10.875F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            dataGridViewCellStyle17.ForeColor = SystemColors.WindowText;
+            dataGridViewCellStyle17.SelectionBackColor = SystemColors.Highlight;
+            dataGridViewCellStyle17.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle17.WrapMode = DataGridViewTriState.True;
+            gridView_balance.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle17;
+            gridView_balance.ColumnHeadersHeight = 30;
+            gridView_balance.Columns.AddRange(new DataGridViewColumn[] { dataGridViewTextBoxColumn23 });
+            gridView_balance.GridColor = SystemColors.Menu;
+            gridView_balance.Location = new Point(5, 28);
+            gridView_balance.Margin = new Padding(2);
+            gridView_balance.Name = "gridView_balance";
+            gridView_balance.RowHeadersBorderStyle = DataGridViewHeaderBorderStyle.Sunken;
+            dataGridViewCellStyle18.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle18.BackColor = SystemColors.Control;
+            dataGridViewCellStyle18.Font = new Font("Calibri", 10.875F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            dataGridViewCellStyle18.ForeColor = SystemColors.WindowText;
+            dataGridViewCellStyle18.SelectionBackColor = SystemColors.Highlight;
+            dataGridViewCellStyle18.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle18.WrapMode = DataGridViewTriState.True;
+            gridView_balance.RowHeadersDefaultCellStyle = dataGridViewCellStyle18;
+            gridView_balance.RowHeadersVisible = false;
+            gridView_balance.RowHeadersWidth = 82;
+            dataGridViewCellStyle19.Alignment = DataGridViewContentAlignment.MiddleRight;
+            gridView_balance.RowsDefaultCellStyle = dataGridViewCellStyle19;
+            gridView_balance.Size = new Size(1029, 456);
+            gridView_balance.TabIndex = 6;
+            // 
+            // dataGridViewTextBoxColumn23
+            // 
+            dataGridViewTextBoxColumn23.HeaderText = "Exchange";
+            dataGridViewTextBoxColumn23.MinimumWidth = 6;
+            dataGridViewTextBoxColumn23.Name = "dataGridViewTextBoxColumn23";
+            dataGridViewTextBoxColumn23.Width = 125;
+            // 
             // tabPage4
             // 
             tabPage4.Controls.Add(groupBox4);
@@ -2532,56 +2582,6 @@
             timer_Monitoring.Interval = 1000;
             timer_Monitoring.Tick += timer_Monitoring_Tick;
             // 
-            // tabPage7
-            // 
-            tabPage7.Controls.Add(dataGridView1);
-            tabPage7.Location = new Point(4, 29);
-            tabPage7.Name = "tabPage7";
-            tabPage7.Padding = new Padding(3);
-            tabPage7.Size = new Size(1040, 984);
-            tabPage7.TabIndex = 6;
-            tabPage7.Text = "Balance";
-            tabPage7.UseVisualStyleBackColor = true;
-            // 
-            // dataGridView1
-            // 
-            dataGridViewCellStyle17.Alignment = DataGridViewContentAlignment.MiddleCenter;
-            dataGridViewCellStyle17.BackColor = SystemColors.Control;
-            dataGridViewCellStyle17.Font = new Font("Calibri", 10.875F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            dataGridViewCellStyle17.ForeColor = SystemColors.WindowText;
-            dataGridViewCellStyle17.SelectionBackColor = SystemColors.Highlight;
-            dataGridViewCellStyle17.SelectionForeColor = SystemColors.HighlightText;
-            dataGridViewCellStyle17.WrapMode = DataGridViewTriState.True;
-            dataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle17;
-            dataGridView1.ColumnHeadersHeight = 30;
-            dataGridView1.Columns.AddRange(new DataGridViewColumn[] { dataGridViewTextBoxColumn23 });
-            dataGridView1.GridColor = SystemColors.Menu;
-            dataGridView1.Location = new Point(5, 28);
-            dataGridView1.Margin = new Padding(2);
-            dataGridView1.Name = "dataGridView1";
-            dataGridView1.RowHeadersBorderStyle = DataGridViewHeaderBorderStyle.Sunken;
-            dataGridViewCellStyle18.Alignment = DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle18.BackColor = SystemColors.Control;
-            dataGridViewCellStyle18.Font = new Font("Calibri", 10.875F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            dataGridViewCellStyle18.ForeColor = SystemColors.WindowText;
-            dataGridViewCellStyle18.SelectionBackColor = SystemColors.Highlight;
-            dataGridViewCellStyle18.SelectionForeColor = SystemColors.HighlightText;
-            dataGridViewCellStyle18.WrapMode = DataGridViewTriState.True;
-            dataGridView1.RowHeadersDefaultCellStyle = dataGridViewCellStyle18;
-            dataGridView1.RowHeadersVisible = false;
-            dataGridView1.RowHeadersWidth = 82;
-            dataGridViewCellStyle19.Alignment = DataGridViewContentAlignment.MiddleRight;
-            dataGridView1.RowsDefaultCellStyle = dataGridViewCellStyle19;
-            dataGridView1.Size = new Size(1029, 456);
-            dataGridView1.TabIndex = 6;
-            // 
-            // dataGridViewTextBoxColumn23
-            // 
-            dataGridViewTextBoxColumn23.HeaderText = "Exchange";
-            dataGridViewTextBoxColumn23.MinimumWidth = 6;
-            dataGridViewTextBoxColumn23.Name = "dataGridViewTextBoxColumn23";
-            dataGridViewTextBoxColumn23.Width = 125;
-            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
@@ -2613,6 +2613,8 @@
             groupBox2.ResumeLayout(false);
             groupBox2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)gridView_Ins).EndInit();
+            tabPage7.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)gridView_balance).EndInit();
             tabPage4.ResumeLayout(false);
             tabPage4.PerformLayout();
             groupBox4.ResumeLayout(false);
@@ -2626,8 +2628,6 @@
             tabPage6.ResumeLayout(false);
             statusStrip1.ResumeLayout(false);
             statusStrip1.PerformLayout();
-            tabPage7.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -2837,7 +2837,7 @@
         private Label lbl_targetpos;
         private Label label56;
         private TabPage tabPage7;
-        private DataGridView dataGridView1;
+        private DataGridView gridView_balance;
         private DataGridViewTextBoxColumn dataGridViewTextBoxColumn23;
     }
 }
